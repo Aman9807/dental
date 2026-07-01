@@ -1,7 +1,17 @@
 import Link from 'next/link'
 import { Calendar, Clock, MapPin, Phone, ArrowLeft, ArrowRight, ShieldCheck, Star } from 'lucide-react'
+import { getAdminSupabase } from '@/lib/supabase'
 
-export default function HazaraHome() {
+export default async function HazaraHome() {
+  const supabaseServer = getAdminSupabase()
+  const { data: branch } = await supabaseServer
+    .from('branches')
+    .select('working_hours')
+    .eq('slug', 'hazara')
+    .single()
+
+  const workingHours = branch?.working_hours || 'Monday – Saturday: 9:00 AM – 6:00 PM (Closed on Sunday)'
+
   return (
     <div className="flex-1 bg-slate-50 flex flex-col justify-between min-h-screen font-sans">
       {/* Header */}
@@ -60,8 +70,7 @@ export default function HazaraHome() {
               </div>
               <div>
                 <h4 className="font-semibold text-slate-800 text-sm">Opening Hours</h4>
-                <p className="text-slate-500 text-xs mt-1 font-light">Monday – Saturday: 9:00 AM – 6:00 PM</p>
-                <p className="text-slate-400 text-xs mt-0.5 font-light">Closed on Sundays</p>
+                <p className="text-slate-500 text-xs mt-1 font-light">{workingHours}</p>
               </div>
             </div>
 

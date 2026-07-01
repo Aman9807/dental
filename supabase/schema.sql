@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.branches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
+    working_hours TEXT,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -93,11 +94,11 @@ CREATE POLICY "Allow admin full access to appointments" ON public.appointments
     FOR ALL TO authenticated USING (true);
 
 -- Helper Seed Data for branches
-INSERT INTO public.branches (name, slug) 
+INSERT INTO public.branches (name, slug, working_hours) 
 VALUES 
-('Hazara Dental Store', 'hazara'),
-('Family Dental Store', 'family')
-ON CONFLICT (slug) DO NOTHING;
+('Hazara Dental Store', 'hazara', 'Monday – Saturday: 9:00 AM – 6:00 PM (Closed on Sunday)'),
+('Family Dental Store', 'family', 'Monday – Friday: 9:00 AM – 6:00 PM, Saturday: 9:00 AM – 2:00 PM (Sunday Closed)')
+ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, working_hours = EXCLUDED.working_hours;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_appointments_date_time ON public.appointments (appointment_date, appointment_time);

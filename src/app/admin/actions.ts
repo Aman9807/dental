@@ -168,3 +168,21 @@ export async function changeAdminPassword(newPassword: string) {
     message: 'To permanently change the password, please update the ADMIN_PASSWORD variable in your .env.local file.' 
   }
 }
+
+// Settings: Update Branch Working Hours
+export async function updateBranchHours(branchId: string, workingHours: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data, error } = await adminDb
+      .from('branches')
+      .update({ working_hours: workingHours })
+      .eq('id', branchId)
+      .select()
+
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error updating branch hours:', err)
+    return { success: false, error: err.message || 'Failed to update branch hours.' }
+  }
+}

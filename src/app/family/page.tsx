@@ -1,7 +1,17 @@
 import Link from 'next/link'
 import { Calendar, Clock, MapPin, Phone, ArrowLeft, ArrowRight, Heart, Star } from 'lucide-react'
+import { getAdminSupabase } from '@/lib/supabase'
 
-export default function FamilyHome() {
+export default async function FamilyHome() {
+  const supabaseServer = getAdminSupabase()
+  const { data: branch } = await supabaseServer
+    .from('branches')
+    .select('working_hours')
+    .eq('slug', 'family')
+    .single()
+
+  const workingHours = branch?.working_hours || 'Monday – Friday: 9:00 AM – 6:00 PM, Saturday: 9:00 AM – 2:00 PM (Sunday Closed)'
+
   return (
     <div className="flex-1 bg-amber-50/20 flex flex-col justify-between min-h-screen font-sans">
       {/* Header */}
@@ -60,8 +70,7 @@ export default function FamilyHome() {
               </div>
               <div>
                 <h4 className="font-semibold text-slate-800 text-sm">Clinic Hours</h4>
-                <p className="text-slate-500 text-xs mt-1 font-light">Monday – Friday: 9:00 AM – 6:00 PM</p>
-                <p className="text-slate-400 text-xs mt-0.5 font-light">Saturday: 9:00 AM – 2:00 PM (Sunday Closed)</p>
+                <p className="text-slate-500 text-xs mt-1 font-light">{workingHours}</p>
               </div>
             </div>
 

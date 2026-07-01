@@ -1,17 +1,60 @@
 'use client'
 
-import React, { useState } from 'react'
-import { changeAdminPassword } from '@/app/admin/actions'
+import React, { useState, useEffect } from 'react'
+import { changeAdminPassword, updateBranchHours } from '@/app/admin/actions'
+import { supabase } from '@/lib/supabase'
 import { 
   Settings, Key, Server, Mail, ShieldAlert, 
-  CheckCircle, Loader2, RefreshCw
+  CheckCircle, Loader2, RefreshCw, Clock, Edit2, Check, X
 } from 'lucide-react'
 
 export default function AdminSettingsPage() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Branch hours management states
+  const [branches, setBranches] = useState<any[]>([])
+  const [loadingBranches, setLoadingBranches] = useState(true)
+  const [editingBranchId, setEditingBranchId] = useState<string | null>(null)
+  const [tempHours, setTempHours] = useState('')
+  const [updatingBranchId, setUpdatingBranchId] = useState<string | null>(null)
   
+  useEffect(() => {
+    async function fetchBranches() {
+      try {
+        const { data, error } = await supabase
+          .from('branches')
+          .select('id, name, slug, working_hours')
+          .order('name')
+        if (error) throw error
+        setBranches(data || [])
+      } catch (err) {
+        console.error('Error fetching branches:', err)
+      } finally {
+        setLoadingBranches(false)
+      }
+    }
+    fetchBranches()
+  }, [])
+
+  const handleSaveHours = async (branchId: string) => {
+    setUpdatingBranchId(branchId)
+    try {
+      const res = await updateBranchHours(branchId, tempHours)
+      if (res.success) {
+        setBranches(prev => prev.map(b => b.id === branchId ? { ...b, working_hours: tempHours } : b))
+        setEditingBranchId(null)
+      } else {
+        alert(res.error || 'Failed to update hours')
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUpdatingBranchId(null)
+    }
+  }
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
@@ -94,6 +137,78 @@ export default function AdminSettingsPage() {
                 <span className="text-slate-600 font-light">branches, doctors, patients, appointments</span>
               </div>
             </div>
+          </div>
+
+          {/* Clinic Branch Hours Card */}
+          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+              <Clock className="w-4 h-4 text-slate-500" />
+              Clinic Branch Hours (Store Timings)
+            </h3>
+
+            {loadingBranches ? (
+              <div className="flex justify-center items-center py-6">
+                <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {branches.map(branch => (
+                  <div key={branch.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-slate-700">{branch.name}</span>
+                      {editingBranchId === branch.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleSaveHours(branch.id)}
+                            disabled={updatingBranchId === branch.id}
+                            className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-md transition"
+                            title="Save changes"
+                          >
+                            {updatingBranchId === branch.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setEditingBranchId(null)}
+                            className="p-1 text-rose-500 hover:bg-rose-50 rounded-md transition"
+                            title="Cancel"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setEditingBranchId(branch.id)
+                            setTempHours(branch.working_hours || '')
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition"
+                          title="Edit branch hours"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    
+                    {editingBranchId === branch.id ? (
+                      <textarea
+                        rows={2}
+                        value={tempHours}
+                        onChange={e => setTempHours(e.target.value)}
+                        placeholder="e.g. Monday – Saturday: 9:00 AM – 6:00 PM"
+                        className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-slate-800 bg-white text-slate-800"
+                      />
+                    ) : (
+                      <p className="text-xs text-slate-500 font-light leading-relaxed">
+                        {branch.working_hours || 'No timings set yet.'}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
