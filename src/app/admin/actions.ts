@@ -46,9 +46,9 @@ async function saveProfileImage(file: File): Promise<string> {
 
     await writeFile(filePath, buffer)
     return `/uploads/${uniqueFileName}`
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving doctor image file:', error)
-    throw new Error('Failed to save profile image.')
+    throw new Error(`Failed to save profile image: ${error?.message || error}`)
   }
 }
 
