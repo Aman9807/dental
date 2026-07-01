@@ -26,7 +26,7 @@ export default function LogoutButton() {
     <button
       onClick={handleLogout}
       disabled={loading}
-      className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50/50 transition text-sm font-medium focus:outline-none"
+      className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-rose-400 hover:text-rose-300 hover:bg-white/5 transition-all duration-200 text-sm font-medium focus:outline-none group"
     >
       {loading ? (
         <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
