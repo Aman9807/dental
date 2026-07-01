@@ -1,0 +1,43 @@
+Part 1: Original Client Prompts
+​This section contains the exact requests provided by the client for the project.
+​Prompt 1 (Core Requirements):
+​"I have a dental store and I want to build a website for it , store have two branches 1.Hazara dental store and 2.Family dental store,. I these feature in my website (1.passent can book their appointment (no muney requied) 2.when pasent book their appointment then the doctor recived email to their email id with passent details (like name l,age,mobile no,email by which he is login in the website,and the problem if discribed)and add any feature if I forgot got).for bot store I want different website. Both web site need the admin panel from where owner can update information like doctor's e-mail name,pic etc and the ui both store should have minimalistic ui with beautiful fond and spacing"
+​Prompt 2 (First Document Request):
+​"Give a docs file that contains all promots"
+​Prompt 3 (Revision):
+​"No-Show Prevention: Add SMS or email reminders sent to the patient 24 hours before their visit no this I do not want only send to doctor email. And give in a docs file please as you give before"
+​Part 2: Technical Project Requirements Document (PRD)
+​This section translates the client's prompts into a structured guide for a web developer.
+​1. Project Overview
+​Development of a system to serve two distinct dental clinic branches: Hazara Dental Store and Family Dental Store. Both clinics will have separate, distinct patient-facing websites, but they will be managed from a single, centralized Admin Panel.
+​2. User Interface (UI/UX) Guidelines
+​Aesthetic: Minimalistic, clean, and modern.
+​Spacing: Generous padding and margins to prevent a cluttered look.
+​Typography: Beautiful, highly legible fonts (e.g., a modern serif for headings paired with a clean sans-serif for body text).
+​3. Core Features & User Roles
+​A. Patient Portal (The Frontend Websites)
+​Free Appointment Booking: Patients can book appointments without paying upfront or entering credit card details.
+​Intake Form: During booking, the system must collect:
+​Patient's Full Name
+​Age
+​Mobile Number
+​Email Address (used for login)
+​Description of their dental problem
+​B. Automated Notifications (Strict Routing)
+​Doctor Emails ONLY: Immediately after a patient books an appointment, the system automatically emails the assigned doctor.
+​No Patient Emails/SMS: The system should not send automated email or SMS reminders to the patient. Communication is strictly one-way to the clinic staff.
+​Email Content: The notification to the doctor must include all patient details collected from the intake form (Name, Age, Phone, Email, Problem Description).
+​C. Owner / Admin Panel (The Backend Management)
+A secured dashboard accessible only to the clinic owner.
+​Global Overview: Manage all appointments across both "Hazara" and "Family" clinics from one centralized dashboard.
+​Doctor Management: Add, update, or remove doctors from the system.
+​Profile Editing: Update doctor information (Name, Email Address, Profile Picture).
+​Branch Assignment: Assign specific doctors to either the Hazara branch or the Family branch.
+
+
+
+
+
+
+
+Resend API key :- re_Z5UgQKMi_HKGRAo8rzdUHNr21n1KHcf6K
