@@ -69,9 +69,15 @@ CREATE POLICY "Allow public read access to doctors" ON public.doctors
 CREATE POLICY "Allow admin full access to doctors" ON public.doctors
     FOR ALL TO authenticated USING (true);
 
--- Patients: Insert is public (for booking), read/write requires auth
+-- Patients: Public can insert, read (to check if email exists and for RETURNING id), and update (to update profile details)
+CREATE POLICY "Allow public read access to patients" ON public.patients
+    FOR SELECT USING (true);
+
 CREATE POLICY "Allow public insertion of patients" ON public.patients
     FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow public update access to patients" ON public.patients
+    FOR UPDATE USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow admin full access to patients" ON public.patients
     FOR ALL TO authenticated USING (true);
