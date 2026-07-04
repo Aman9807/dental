@@ -23,6 +23,7 @@ export default function MobileCapturePage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadSuccess, setUploadSuccess] = useState(false)
+  const [compressing, setCompressing] = useState(false)
 
   // Fetch branches on mount
   useEffect(() => {
@@ -103,13 +104,66 @@ export default function MobileCapturePage() {
     }
   }
 
-  // Handle Native Camera Trigger
+  // Handle Native Camera Trigger with local canvas image compression
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setSelectedFile(file)
-      setPreviewUrl(URL.createObjectURL(file))
+      setCompressing(true)
       setUploadSuccess(false)
+      
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+          
+          // Downscale high-resolution mobile camera pictures (max 1200px width/height)
+          const max_size = 1200
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width
+              width = max_size
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height
+              height = max_size
+            }
+          }
+          
+          canvas.width = width
+          canvas.height = height
+          
+          const ctx = canvas.getContext('2d')
+          ctx?.drawImage(img, 0, 0, width, height)
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name || 'prescription.jpg', {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              })
+              setSelectedFile(compressedFile)
+              setPreviewUrl(URL.createObjectURL(compressedFile))
+            }
+            setCompressing(false)
+          }, 'image/jpeg', 0.8) // 0.8 quality handles file compression perfectly
+        }
+        img.onerror = () => {
+          setCompressing(false)
+          setSelectedFile(file)
+          setPreviewUrl(URL.createObjectURL(file))
+        }
+        img.src = event.target?.result as string
+      }
+      reader.onerror = () => {
+        setCompressing(false)
+        setSelectedFile(file)
+        setPreviewUrl(URL.createObjectURL(file))
+      }
+      reader.readAsDataURL(file)
     }
   }
 
@@ -305,24 +359,34 @@ export default function MobileCapturePage() {
                     
                     {!previewUrl ? (
                       <div className="space-y-2">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          id="camera-input"
-                          onChange={handlePhotoCapture}
-                          className="hidden"
-                        />
-                        <label
-                          htmlFor="camera-input"
-                          className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 hover:border-cyan-500 rounded-3xl cursor-pointer hover:bg-slate-50/50 transition duration-300"
-                        >
-                          <Camera className="w-10 h-10 text-cyan-600 mb-3 animate-pulse" />
-                          <span className="text-xs font-semibold text-slate-800">Launch Mobile Camera</span>
-                          <span className="text-[10px] text-slate-400 font-light mt-1 text-center">
-                            Snap a picture of the written prescription paper
-                          </span>
-                        </label>
+                        {compressing ? (
+                          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-cyan-300 rounded-3xl bg-cyan-50/20 text-center animate-pulse">
+                            <Loader2 className="w-10 h-10 text-cyan-600 mb-3 animate-spin" />
+                            <span className="text-xs font-semibold text-slate-800">Processing & Compressing Photo...</span>
+                            <span className="text-[10px] text-slate-400 font-light mt-1">Optimizing image size for instant uploads</span>
+                          </div>
+                        ) : (
+                          <>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              id="camera-input"
+                              onChange={handlePhotoCapture}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor="camera-input"
+                              className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 hover:border-cyan-500 rounded-3xl cursor-pointer hover:bg-slate-50/50 transition duration-300"
+                            >
+                              <Camera className="w-10 h-10 text-cyan-600 mb-3 animate-pulse" />
+                              <span className="text-xs font-semibold text-slate-800">Launch Mobile Camera</span>
+                              <span className="text-[10px] text-slate-400 font-light mt-1 text-center">
+                                Snap a picture of the written prescription paper
+                              </span>
+                            </label>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-4 animate-fade-in">
