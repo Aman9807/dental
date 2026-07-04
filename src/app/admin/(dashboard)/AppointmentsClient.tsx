@@ -33,6 +33,10 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
   const [xrayFile, setXrayFile] = useState<File | null>(null)
   const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null)
   
+  // File previews
+  const [xrayPreview, setXrayPreview] = useState<string | null>(null)
+  const [prescPreview, setPrescPreview] = useState<string | null>(null)
+
   // Mobile upload syncing
   const [isWaitingForMobile, setIsWaitingForMobile] = useState(false)
   const [tempMobilePhoto, setTempMobilePhoto] = useState<string | null>(null)
@@ -41,6 +45,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
   const [sendingReport, setSendingReport] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [localIp, setLocalIp] = useState('localhost')
+  const [customIp, setCustomIp] = useState('localhost')
 
   // Fetch local IP address for the QR code link on mount
   useEffect(() => {
@@ -48,6 +53,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       const res = await getLocalIpAddress()
       if (res.success && res.ip) {
         setLocalIp(res.ip)
+        setCustomIp(res.ip)
       }
     }
     loadIp()
@@ -81,6 +87,8 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     setPrescriptionText(appt.prescription_text || '')
     setXrayFile(null)
     setPrescriptionFile(null)
+    setXrayPreview(null)
+    setPrescPreview(null)
     setTempMobilePhoto(appt.temp_mobile_photo || null)
     setIsWaitingForMobile(false)
     setShowReportsModal(true)
@@ -150,7 +158,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
 
   // Copy mobile camera link to clipboard
   const handleCopyLink = () => {
-    const link = `http://${localIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug}`
+    const link = `http://${customIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug}`
     navigator.clipboard.writeText(link)
     setCopiedLink(true)
     setTimeout(() => setCopiedLink(false), 2000)
@@ -203,7 +211,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     }
   }
 
-  const mobileCaptureUrl = `http://${localIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug}`
+  const mobileCaptureUrl = `http://${customIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug}`
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(mobileCaptureUrl)}`
 
   return (
@@ -482,14 +490,60 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
               </div>
 
               {/* X-Ray File Upload */}
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-500">Upload Patient X-Ray (PDF / Image)</label>
                 <input
                   type="file"
                   accept="image/*,application/pdf"
-                  onChange={e => setXrayFile(e.target.files?.[0] || null)}
+                  onChange={e => {
+                    const file = e.target.files?.[0] || null
+                    setXrayFile(file)
+                    if (file && file.type.startsWith('image/')) {
+                      setXrayPreview(URL.createObjectURL(file))
+                    } else {
+                      setXrayPreview(null)
+                    }
+                  }}
                   className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition cursor-pointer"
                 />
+
+                {/* Previews for X-Ray */}
+                {activeAppt.xray_url && (
+                  <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
+                    {activeAppt.xray_url.match(/\.(jpeg|jpg|gif|png|webp)/i) || activeAppt.xray_url.includes('storage/v1/object/public') ? (
+                      <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                        <img src={activeAppt.xray_url} alt="Existing X-Ray" className="object-cover h-full w-full" />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 bg-slate-100 border rounded-lg shrink-0 flex items-center justify-center text-[10px] text-slate-500 font-bold uppercase">
+                        PDF
+                      </div>
+                    )}
+                    <div className="text-[10px] text-slate-500 leading-normal">
+                      <p className="font-bold text-slate-700">Existing X-Ray Attached</p>
+                      <a href={activeAppt.xray_url} target="_blank" rel="noreferrer" className="text-cyan-600 hover:underline">View Document</a>
+                    </div>
+                  </div>
+                )}
+
+                {xrayPreview && (
+                  <div className="p-2 bg-cyan-50/50 border border-cyan-150 rounded-xl flex items-center gap-3 animate-fade-in">
+                    <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                      <img src={xrayPreview} alt="New X-Ray preview" className="object-cover h-full w-full" />
+                    </div>
+                    <div className="text-[10px] text-slate-600 leading-normal">
+                      <p className="font-bold text-cyan-800">New X-Ray Selected</p>
+                      <p className="text-slate-400 font-light truncate max-w-[200px]">{xrayFile?.name}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setXrayFile(null); setXrayPreview(null); }}
+                      className="ml-auto p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Prescription Photo Upload Source */}
@@ -515,13 +569,53 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
 
                 {/* Local Desktop Upload Form */}
                 {!isWaitingForMobile && (
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={e => setPrescriptionFile(e.target.files?.[0] || null)}
+                      onChange={e => {
+                        const file = e.target.files?.[0] || null
+                        setPrescriptionFile(file)
+                        if (file && file.type.startsWith('image/')) {
+                          setPrescPreview(URL.createObjectURL(file))
+                        } else {
+                          setPrescPreview(null)
+                        }
+                      }}
                       className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition cursor-pointer"
                     />
+                    
+                    {/* Previews for Prescription */}
+                    {activeAppt.prescription_url && !tempMobilePhoto && (
+                      <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                          <img src={activeAppt.prescription_url} alt="Existing Prescription" className="object-cover h-full w-full" />
+                        </div>
+                        <div className="text-[10px] text-slate-500 leading-normal">
+                          <p className="font-bold text-slate-700">Existing Prescription Attached</p>
+                          <a href={activeAppt.prescription_url} target="_blank" rel="noreferrer" className="text-cyan-600 hover:underline">View Image</a>
+                        </div>
+                      </div>
+                    )}
+
+                    {prescPreview && (
+                      <div className="p-2 bg-cyan-50/50 border border-cyan-150 rounded-xl flex items-center gap-3 animate-fade-in">
+                        <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                          <img src={prescPreview} alt="New Prescription preview" className="object-cover h-full w-full" />
+                        </div>
+                        <div className="text-[10px] text-slate-600 leading-normal">
+                          <p className="font-bold text-cyan-800">New Prescription Selected</p>
+                          <p className="text-slate-400 font-light truncate max-w-[200px]">{prescriptionFile?.name}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setPrescriptionFile(null); setPrescPreview(null); }}
+                          className="ml-auto p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -533,6 +627,18 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                       alt="Mobile scan QR code" 
                       className="w-32 h-32 border border-slate-200/60 rounded-xl p-1 bg-white"
                     />
+                    
+                    <div className="space-y-1 w-full max-w-xs">
+                      <label className="block text-[9px] font-bold text-slate-400 uppercase text-left tracking-wide">Target Server Host IP / Domain</label>
+                      <input 
+                        type="text" 
+                        value={customIp} 
+                        onChange={e => setCustomIp(e.target.value)} 
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-[11px] text-slate-800 focus:outline-none focus:border-slate-800 bg-white font-mono"
+                        placeholder="e.g. 192.168.1.10"
+                      />
+                    </div>
+
                     <div className="space-y-1">
                       <p className="text-xs font-bold text-slate-800">Scan QR Code with Phone</p>
                       <p className="text-[10px] text-slate-400 font-light leading-relaxed max-w-xs mx-auto">

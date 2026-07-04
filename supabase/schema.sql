@@ -241,3 +241,16 @@ INSERT INTO public.time_slots (time_value, time_label) VALUES
 ('17:00:00', '05:00 PM')
 ON CONFLICT (time_value) DO NOTHING;
 
+-- 7. Create Supabase Storage Bucket for Patient Reports & Prescriptions
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('reports', 'reports', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Create policies for storage.objects
+CREATE POLICY "Allow public read access to reports bucket" ON storage.objects
+    FOR SELECT USING (bucket_id = 'reports');
+
+CREATE POLICY "Allow admin service-role full access to reports bucket" ON storage.objects
+    FOR ALL USING (bucket_id = 'reports');
+
+

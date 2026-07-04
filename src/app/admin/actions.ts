@@ -31,24 +31,33 @@ export async function logoutAdmin() {
 
 // Handle local file uploads for Doctor Profile Pictures
 async function saveProfileImage(file: File): Promise<string> {
+  const adminDb = getAdminSupabase()
   try {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Ensure upload folder exists in public/uploads
-    const uploadDir = join(process.cwd(), 'public', 'uploads')
-    await mkdir(uploadDir, { recursive: true })
-
-    // Generate unique file name
     const fileExtension = file.name.split('.').pop() || 'jpg'
     const uniqueFileName = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExtension}`
-    const filePath = join(uploadDir, uniqueFileName)
 
-    await writeFile(filePath, buffer)
-    return `/uploads/${uniqueFileName}`
+    // Upload to Supabase Storage 'reports' bucket
+    const { data, error } = await adminDb.storage
+      .from('reports')
+      .upload(uniqueFileName, buffer, {
+        contentType: file.type,
+        upsert: true
+      })
+
+    if (error) throw error
+
+    // Get public URL
+    const { data: urlData } = adminDb.storage
+      .from('reports')
+      .getPublicUrl(uniqueFileName)
+
+    return urlData.publicUrl
   } catch (error: any) {
-    console.error('Error saving doctor image file:', error)
-    throw new Error(`Failed to save profile image: ${error?.message || error}`)
+    console.error('Error saving image to Supabase Storage:', error)
+    throw new Error(`Failed to save image to cloud storage: ${error?.message || error}`)
   }
 }
 
@@ -435,13 +444,28 @@ export async function sendPatientReport(formData: FormData) {
 
     const getFileAttachment = async (fileUrl: string, defaultName: string) => {
       try {
-        const filePath = path.join(process.cwd(), 'public', fileUrl)
-        const fileBuffer = await fs.readFile(filePath)
-        const base64Content = fileBuffer.toString('base64')
-        const filename = path.basename(filePath)
-        return {
-          filename,
-          content: base64Content
+        if (fileUrl.startsWith('http')) {
+          const res = await fetch(fileUrl)
+          if (!res.ok) throw new Error(`HTTP Error: ${res.statusText}`)
+          const arrayBuffer = await res.arrayBuffer()
+          const fileBuffer = Buffer.from(arrayBuffer)
+          const base64Content = fileBuffer.toString('base64')
+          
+          const urlObj = new URL(fileUrl)
+          const filename = path.basename(urlObj.pathname) || defaultName
+          return {
+            filename,
+            content: base64Content
+          }
+        } else {
+          const filePath = path.join(process.cwd(), 'public', fileUrl)
+          const fileBuffer = await fs.readFile(filePath)
+          const base64Content = fileBuffer.toString('base64')
+          const filename = path.basename(filePath)
+          return {
+            filename,
+            content: base64Content
+          }
         }
       } catch (err) {
         console.error("Error reading file for attachment:", fileUrl, err)
