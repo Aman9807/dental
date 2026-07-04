@@ -421,8 +421,6 @@ export async function sendPatientReport(formData: FormData) {
     if (updateErr) throw updateErr
 
     // 5. Build and Send Email
-    const resendApiKey = process.env.RESEND_API_KEY || 're_Z5UgQKMi_HKGRAo8rzdUHNr21n1KHcf6K'
-    
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; color: #1f2937;">
         <h2 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 10px; margin-top: 0;">Your Dental Report & Prescription</h2>
@@ -504,24 +502,42 @@ export async function sendPatientReport(formData: FormData) {
       if (att) attachments.push(att)
     }
 
-    const response = await fetch('https://api.resend.com/emails', {
+    const brevoApiKey = process.env.BREVO_API_KEY
+    if (!brevoApiKey) {
+      throw new Error('Missing BREVO_API_KEY environment variable.')
+    }
+    const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL || 'info@dentalstore.com'
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`
+        'api-key': brevoApiKey
       },
       body: JSON.stringify({
-        from: `${appt.branches.name} <onboarding@resend.dev>`,
-        to: patientEmail.trim().toLowerCase(),
+        sender: {
+          name: appt.branches.name,
+          email: brevoSenderEmail
+        },
+        to: [
+          {
+            email: patientEmail.trim().toLowerCase(),
+            name: appt.patients.name
+          }
+        ],
         subject: `Your Dental Diagnosis & Prescription | ${appt.branches.name}`,
-        html: emailHtml,
-        attachments: attachments.length > 0 ? attachments : undefined
+        htmlContent: emailHtml,
+        attachments: attachments.map(a => ({
+          name: a.filename,
+          content: a.content
+        }))
       })
     })
 
     if (!response.ok) {
       const resText = await response.text()
-      throw new Error(`Resend Error: ${resText}`)
+      throw new Error(`Brevo Error: ${resText}`)
     }
 
     return { success: true }
