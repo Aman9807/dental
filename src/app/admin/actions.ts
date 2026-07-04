@@ -2,8 +2,8 @@
 
 import { cookies } from 'next/headers'
 import { getAdminSupabase } from '@/lib/supabase'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
+import { writeFile, mkdir, readFile } from 'fs/promises'
+import { join, basename } from 'path'
 
 // Admin Cookie Login
 export async function loginAdmin(password: string) {
@@ -372,9 +372,9 @@ export async function sendPatientReport(formData: FormData) {
   const appointmentId = formData.get('appointmentId') as string
   const patientEmail = formData.get('patientEmail') as string
   const prescriptionText = formData.get('prescriptionText') as string
-  const xrayFile = formData.get('xrayFile') as File | null
-  const prescriptionFile = formData.get('prescriptionFile') as File | null
-  const tempMobilePhotoUrl = formData.get('tempMobilePhotoUrl') as string | null
+  const xrayFile = formData.get('xray') as File | null
+  const prescriptionFile = formData.get('prescription') as File | null
+  const tempMobilePhotoUrl = formData.get('tempMobilePhoto') as string | null
 
   try {
     // 1. Fetch appointment details
@@ -458,9 +458,6 @@ export async function sendPatientReport(formData: FormData) {
     `
 
     const attachments = []
-    const fs = require('fs/promises')
-    const path = require('path')
-
     const getFileAttachment = async (fileUrl: string, defaultName: string) => {
       try {
         if (fileUrl.startsWith('http')) {
@@ -471,16 +468,16 @@ export async function sendPatientReport(formData: FormData) {
           const base64Content = fileBuffer.toString('base64')
           
           const urlObj = new URL(fileUrl)
-          const filename = path.basename(urlObj.pathname) || defaultName
+          const filename = basename(urlObj.pathname) || defaultName
           return {
             filename,
             content: base64Content
           }
         } else {
-          const filePath = path.join(process.cwd(), 'public', fileUrl)
-          const fileBuffer = await fs.readFile(filePath)
+          const filePath = join(process.cwd(), 'public', fileUrl)
+          const fileBuffer = await readFile(filePath)
           const base64Content = fileBuffer.toString('base64')
-          const filename = path.basename(filePath)
+          const filename = basename(filePath)
           return {
             filename,
             content: base64Content
