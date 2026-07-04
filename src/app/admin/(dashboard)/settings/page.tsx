@@ -1,11 +1,11 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { changeAdminPassword, updateBranchHours, addTimeSlot, deleteTimeSlot } from '@/app/admin/actions'
+import { changeAdminPassword, updateBranchHours, addTimeSlot, deleteTimeSlot, updateCameraPasscode } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
   Settings, Key, Server, Mail, ShieldAlert, 
-  CheckCircle, Loader2, RefreshCw, Clock, Edit2, Check, X, Trash2, Plus
+  CheckCircle, Loader2, RefreshCw, Clock, Edit2, Check, X, Trash2, Plus, Camera
 } from 'lucide-react'
 
 export default function AdminSettingsPage() {
@@ -19,6 +19,11 @@ export default function AdminSettingsPage() {
   const [editingBranchId, setEditingBranchId] = useState<string | null>(null)
   const [tempHours, setTempHours] = useState('')
   const [updatingBranchId, setUpdatingBranchId] = useState<string | null>(null)
+
+  // Camera passcode management states
+  const [editingPasscodeId, setEditingPasscodeId] = useState<string | null>(null)
+  const [tempPasscode, setTempPasscode] = useState('')
+  const [updatingPasscodeId, setUpdatingPasscodeId] = useState<string | null>(null)
 
   // Time slots management states
   const [timeSlots, setTimeSlots] = useState<any[]>([])
@@ -51,7 +56,7 @@ export default function AdminSettingsPage() {
       try {
         const { data, error } = await supabase
           .from('branches')
-          .select('id, name, slug, working_hours')
+          .select('id, name, slug, working_hours, camera_passcode')
           .order('name')
         if (error) throw error
         setBranches(data || [])
@@ -79,6 +84,23 @@ export default function AdminSettingsPage() {
       console.error(err)
     } finally {
       setUpdatingBranchId(null)
+    }
+  }
+
+  const handleSavePasscode = async (branchId: string) => {
+    setUpdatingPasscodeId(branchId)
+    try {
+      const res = await updateCameraPasscode(branchId, tempPasscode)
+      if (res.success) {
+        setBranches(prev => prev.map(b => b.id === branchId ? { ...b, camera_passcode: tempPasscode } : b))
+        setEditingPasscodeId(null)
+      } else {
+        alert(res.error || 'Failed to update passcode')
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUpdatingPasscodeId(null)
     }
   }
 
@@ -268,6 +290,79 @@ export default function AdminSettingsPage() {
                     ) : (
                       <p className="text-xs text-slate-500 font-light leading-relaxed">
                         {branch.working_hours || 'No timings set yet.'}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Branch Passcodes Card */}
+          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+              <Camera className="w-4 h-4 text-slate-500" />
+              Branch Passcodes (Mobile camera upload)
+            </h3>
+
+            {loadingBranches ? (
+              <div className="flex justify-center items-center py-6">
+                <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {branches.map(branch => (
+                  <div key={branch.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-slate-700">{branch.name} Passcode</span>
+                      {editingPasscodeId === branch.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleSavePasscode(branch.id)}
+                            disabled={updatingPasscodeId === branch.id}
+                            className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-md transition"
+                            title="Save changes"
+                          >
+                            {updatingPasscodeId === branch.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setEditingPasscodeId(null)}
+                            className="p-1 text-rose-500 hover:bg-rose-50 rounded-md transition"
+                            title="Cancel"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setEditingPasscodeId(branch.id)
+                            setTempPasscode(branch.camera_passcode || '')
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition"
+                          title="Edit branch passcode"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    
+                    {editingPasscodeId === branch.id ? (
+                      <input
+                        type="text"
+                        maxLength={10}
+                        value={tempPasscode}
+                        onChange={e => setTempPasscode(e.target.value)}
+                        placeholder="e.g. 1234"
+                        className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-slate-800 bg-white text-slate-800 font-mono"
+                      />
+                    ) : (
+                      <p className="text-xs text-slate-500 font-mono leading-relaxed bg-slate-100/50 inline-block px-2 py-0.5 rounded border border-slate-150">
+                        {branch.camera_passcode || '1234'}
                       </p>
                     )}
                   </div>

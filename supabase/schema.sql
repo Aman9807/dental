@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.branches (
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
     working_hours TEXT,
+    camera_passcode TEXT DEFAULT '1234',
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -43,6 +44,11 @@ CREATE TABLE IF NOT EXISTS public.appointments (
     appointment_time TIME NOT NULL,
     problem_description TEXT,
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'completed', 'cancelled')) NOT NULL,
+    prescription_text TEXT,
+    prescription_url TEXT,
+    xray_url TEXT,
+    temp_mobile_photo TEXT,
+    report_sent_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
     -- Prevent double booking the same doctor at the same date and time slot
     CONSTRAINT unique_doctor_appointment UNIQUE (doctor_id, appointment_date, appointment_time)
