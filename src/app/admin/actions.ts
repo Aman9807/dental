@@ -29,7 +29,7 @@ export async function logoutAdmin() {
   return { success: true }
 }
 
-// Handle local file uploads for Doctor Profile Pictures
+// Handle file uploads to Supabase Storage (e.g. Doctor Profile pics, prescriptions, X-rays)
 async function saveProfileImage(file: File): Promise<string> {
   const adminDb = getAdminSupabase()
   try {
@@ -39,17 +39,38 @@ async function saveProfileImage(file: File): Promise<string> {
     const fileExtension = file.name.split('.').pop() || 'jpg'
     const uniqueFileName = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExtension}`
 
-    // Upload to Supabase Storage 'reports' bucket
-    const { data, error } = await adminDb.storage
+    // 1. Attempt upload
+    let uploadRes = await adminDb.storage
       .from('reports')
       .upload(uniqueFileName, buffer, {
         contentType: file.type,
         upsert: true
       })
 
-    if (error) throw error
+    // 2. If bucket is missing, create it dynamically on the fly
+    if (uploadRes.error && uploadRes.error.message.toLowerCase().includes('bucket not found')) {
+      console.log("Bucket 'reports' was not found. Creating bucket 'reports' dynamically...")
+      const { error: createErr } = await adminDb.storage.createBucket('reports', {
+        public: true
+      })
 
-    // Get public URL
+      if (createErr) {
+        console.error("Failed to dynamically create bucket 'reports':", createErr)
+        throw new Error(`Failed to automatically create cloud storage bucket: ${createErr.message}`)
+      }
+
+      // Retry upload after successful bucket creation
+      uploadRes = await adminDb.storage
+        .from('reports')
+        .upload(uniqueFileName, buffer, {
+          contentType: file.type,
+          upsert: true
+        })
+    }
+
+    if (uploadRes.error) throw uploadRes.error
+
+    // 3. Retrieve public URL
     const { data: urlData } = adminDb.storage
       .from('reports')
       .getPublicUrl(uniqueFileName)
