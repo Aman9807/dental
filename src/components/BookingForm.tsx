@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { 
   Calendar, Clock, User, Phone, Mail, FileText, 
@@ -37,6 +38,7 @@ interface BookingFormProps {
 
 export default function BookingForm({ branchSlug }: BookingFormProps) {
   const isHazara = branchSlug === 'hazara'
+  const router = useRouter()
   
   const theme = {
     accentText: isHazara ? 'text-cyan-600' : 'text-amber-700',
@@ -69,6 +71,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
   const [branch, setBranch] = useState<Branch | null>(null)
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [bookedSlots, setBookedSlots] = useState<string[]>([])
+  const [activeTimeSlots, setActiveTimeSlots] = useState<{ value: string; label: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -122,6 +125,21 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         setDoctors(doctorsData || [])
         if (doctorsData && doctorsData.length > 0) {
           setSelectedDoctorId(doctorsData[0].id)
+        }
+
+        // Load active time slots from db
+        const { data: dbSlots, error: slotsErr } = await supabase
+          .from('time_slots')
+          .select('time_value, time_label')
+          .order('time_value')
+
+        if (slotsErr || !dbSlots || dbSlots.length === 0) {
+          setActiveTimeSlots(TIME_SLOTS)
+        } else {
+          setActiveTimeSlots(dbSlots.map(s => ({
+            value: s.time_value,
+            label: s.time_label
+          })))
         }
       } catch (err: any) {
         console.error('Error loading booking data:', err)
@@ -219,7 +237,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         patientId = newPatient.id
       }
 
-      const { error: apptError } = await supabase
+      const { data: newAppt, error: apptError } = await supabase
         .from('appointments')
         .insert({
           patient_id: patientId,
@@ -230,6 +248,8 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
           problem_description: problemDescription.trim() || null,
           status: 'pending'
         })
+        .select('id')
+        .single()
 
       if (apptError) {
         if (apptError.code === '23505') {
@@ -238,7 +258,8 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         throw apptError
       }
 
-      setSuccess(true)
+      // Redirect to the success page
+      router.push(`/${branchSlug}/book/success?id=${newAppt.id}`)
     } catch (err: any) {
       console.error('Booking submission error:', err)
       setError(err.message || 'An error occurred during booking. Please try again.')
@@ -286,52 +307,6 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
             <div>SUPABASE_SERVICE_ROLE_KEY</div>
           </code>
         </div>
-      </div>
-    )
-  }
-
-  // ─── SUCCESS ───
-  if (success) {
-    const doctorObj = doctors.find(d => d.id === selectedDoctorId)
-    const selectedSlot = TIME_SLOTS.find(ts => ts.value === selectedTime)
-    
-    return (
-      <div className="max-w-xl mx-auto my-12 p-8 border border-slate-200/60 rounded-3xl shadow-xl bg-white/90 backdrop-blur-sm text-center animate-scale-in">
-        <div className={`w-20 h-20 bg-gradient-to-br ${theme.iconGradient} rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse-glow`}>
-          <CheckCircle className={`w-10 h-10 ${theme.accentText}`} />
-        </div>
-        <h2 className="text-2xl font-serif text-slate-900 mb-3">Appointment Booked Successfully!</h2>
-        <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto leading-relaxed font-light">
-          Your booking is confirmed. The clinic doctor has been notified via email with your intake details.
-        </p>
-
-        <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-100 text-left mb-6 text-sm animate-fade-in-up delay-200">
-          <h4 className="font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-200 text-xs uppercase tracking-wider">Booking Summary</h4>
-          <div className="space-y-2 text-slate-600 font-light">
-            <p><span className="font-medium text-slate-800">Branch:</span> {branch?.name}</p>
-            <p><span className="font-medium text-slate-800">Doctor:</span> Dr. {doctorObj?.name}</p>
-            <p><span className="font-medium text-slate-800">Date:</span> {selectedDate}</p>
-            <p><span className="font-medium text-slate-800">Time Slot:</span> {selectedSlot?.label}</p>
-            <p><span className="font-medium text-slate-800">Patient:</span> {patientName} ({patientAge} yrs)</p>
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            setSuccess(false)
-            setStep(1)
-            setPatientName('')
-            setPatientAge('')
-            setPatientMobile('')
-            setPatientEmail('')
-            setProblemDescription('')
-            setSelectedTime('')
-            setSelectedDate('')
-          }}
-          className={`w-full py-3.5 text-sm font-semibold text-white rounded-2xl transition-all duration-300 shadow-lg btn-shimmer ${theme.accentBg}`}
-        >
-          Book Another Appointment
-        </button>
       </div>
     )
   }
@@ -597,7 +572,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
                 <p className="text-xs text-rose-500 font-light">Please complete step 2 to select a date.</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {TIME_SLOTS.map(slot => {
+                  {activeTimeSlots.map(slot => {
                     const isBooked = bookedSlots.some(
                       bSlot => bSlot.startsWith(slot.value) || slot.value.startsWith(bSlot)
                     )

@@ -203,3 +203,35 @@ CREATE OR REPLACE TRIGGER on_appointment_created
     AFTER INSERT ON public.appointments
     FOR EACH ROW
     EXECUTE FUNCTION public.send_appointment_email_trigger();
+
+-- 6. Create Time Slots Table
+CREATE TABLE IF NOT EXISTS public.time_slots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    time_value TIME NOT NULL UNIQUE,
+    time_label TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE public.time_slots ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read access to time slots
+CREATE POLICY "Allow public read access to time_slots" ON public.time_slots
+    FOR SELECT USING (true);
+
+-- Allow admin full access to time slots
+CREATE POLICY "Allow admin full access to time_slots" ON public.time_slots
+    FOR ALL TO authenticated USING (true);
+
+-- Seed with default time slots
+INSERT INTO public.time_slots (time_value, time_label) VALUES
+('09:00:00', '09:00 AM'),
+('10:00:00', '10:00 AM'),
+('11:00:00', '11:00 AM'),
+('12:00:00', '12:00 PM'),
+('14:00:00', '02:00 PM'),
+('15:00:00', '03:00 PM'),
+('16:00:00', '04:00 PM'),
+('17:00:00', '05:00 PM')
+ON CONFLICT (time_value) DO NOTHING;
+

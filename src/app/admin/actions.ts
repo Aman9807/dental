@@ -186,3 +186,54 @@ export async function updateBranchHours(branchId: string, workingHours: string) 
     return { success: false, error: err.message || 'Failed to update branch hours.' }
   }
 }
+
+// Settings: Add Time Slot
+export async function addTimeSlot(timeValue: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    // Format label, e.g., '14:30' -> '02:30 PM'
+    const parts = timeValue.split(':')
+    let hours = parseInt(parts[0], 10)
+    const minutes = parts[1] || '00'
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    hours = hours % 12
+    hours = hours ? hours : 12
+    const hoursStr = String(hours).padStart(2, '0')
+    const timeLabel = `${hoursStr}:${minutes} ${ampm}`
+
+    // Postgres time values should match HH:MM:SS
+    const formattedTimeValue = parts.length === 2 ? `${timeValue}:00` : timeValue
+
+    const { data, error } = await adminDb
+      .from('time_slots')
+      .insert({
+        time_value: formattedTimeValue,
+        time_label: timeLabel
+      })
+      .select()
+
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error adding time slot:', err)
+    return { success: false, error: err.message || 'Failed to add time slot.' }
+  }
+}
+
+// Settings: Delete Time Slot
+export async function deleteTimeSlot(id: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { error } = await adminDb
+      .from('time_slots')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error deleting time slot:', err)
+    return { success: false, error: err.message || 'Failed to delete time slot.' }
+  }
+}
+

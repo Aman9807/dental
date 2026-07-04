@@ -51,7 +51,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans), "Inter", system-ui, sans-serif;
-  --font-serif: var(--font-serif), "Playfair Display", Georgia, serif;
+  --font-serif: var(--font-serif), "Poppins", sans-serif;
 }
 
 /* ═══════════════════════════════════════════

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Calendar, Shield, MapPin, ArrowRight, Sparkles, Heart, Star } from 'lucide-react'
+import AnimateOnScroll from '@/components/AnimateOnScroll'
 
 export default function Home() {
   return (
@@ -42,137 +43,147 @@ export default function Home() {
           
           {/* Hero Text */}
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <div className="animate-fade-in-up">
-              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-cyan-50 to-teal-50 border border-cyan-200/60 rounded-full text-cyan-700 text-xs font-semibold tracking-wide mb-6">
-                <Sparkles className="w-3.5 h-3.5" />
+            <AnimateOnScroll animation="fade-up" delay={0}>
+              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/70 backdrop-blur-sm border border-cyan-200/60 rounded-full text-cyan-700 text-xs font-semibold tracking-wide mb-6 shadow-sm shadow-cyan-500/5">
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                 Trusted Dental Care Network
               </span>
-            </div>
+            </AnimateOnScroll>
 
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif text-slate-900 font-normal leading-[1.1] tracking-tight animate-fade-in-up delay-100">
-              Premium Dental Care,{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-500">
-                Tailored to You
-              </span>
-            </h1>
+            <AnimateOnScroll animation="fade-up" delay={150}>
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif text-slate-900 font-normal leading-[1.1] tracking-tight">
+                Premium Dental Care,{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-500">
+                  Tailored to You
+                </span>
+              </h1>
+            </AnimateOnScroll>
 
-            <p className="mt-8 text-lg md:text-xl text-slate-500 font-light leading-relaxed max-w-2xl mx-auto animate-fade-in-up delay-300">
-              Welcome to our dental clinic network. We offer professional, gentle dental services across our two custom-designed local branches.
-            </p>
+            <AnimateOnScroll animation="fade-up" delay={300}>
+              <p className="mt-8 text-lg md:text-xl text-slate-500 font-light leading-relaxed max-w-2xl mx-auto">
+                Welcome to our dental clinic network. We offer professional, gentle dental services across our two custom-designed local branches.
+              </p>
+            </AnimateOnScroll>
 
             {/* Social proof strip */}
-            <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-400 animate-fade-in-up delay-500">
-              <div className="flex items-center gap-1.5">
-                <div className="flex -space-x-1.5">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-200 to-teal-300 border-2 border-white" />
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-200 to-orange-300 border-2 border-white" />
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-200 to-green-300 border-2 border-white" />
+            <AnimateOnScroll animation="fade-up" delay={450}>
+              <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-400">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex -space-x-1.5">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-200 to-teal-300 border-2 border-white" />
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-200 to-orange-300 border-2 border-white" />
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-200 to-green-300 border-2 border-white" />
+                  </div>
+                  <span className="font-medium text-slate-500">500+ Patients</span>
                 </div>
-                <span className="font-medium text-slate-500">500+ Patients</span>
+                <div className="w-px h-4 bg-slate-200" />
+                <div className="flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  <span className="font-medium text-slate-500">4.9 Rating</span>
+                </div>
+                <div className="w-px h-4 bg-slate-200" />
+                <div className="flex items-center gap-1">
+                  <Heart className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="font-medium text-slate-500">2 Branches</span>
+                </div>
               </div>
-              <div className="w-px h-4 bg-slate-200" />
-              <div className="flex items-center gap-1">
-                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                <span className="font-medium text-slate-500">4.9 Rating</span>
-              </div>
-              <div className="w-px h-4 bg-slate-200" />
-              <div className="flex items-center gap-1">
-                <Heart className="w-3.5 h-3.5 text-rose-400" />
-                <span className="font-medium text-slate-500">2 Branches</span>
-              </div>
-            </div>
+            </AnimateOnScroll>
           </div>
 
           {/* ═══ BRANCH CARDS ═══ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl mx-auto">
             
             {/* Branch 1: Hazara Dental Store */}
-            <div className="group relative bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-3xl p-8 hover-lift hover-glow-teal flex flex-col justify-between overflow-hidden animate-fade-in-up delay-400 cursor-pointer">
-              {/* Animated gradient border on hover */}
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-400/0 via-teal-400/0 to-emerald-400/0 group-hover:from-cyan-400/5 group-hover:via-teal-400/5 group-hover:to-emerald-400/5 transition-all duration-500" />
-              
-              {/* Decorative blob */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-cyan-400/8 to-teal-400/8 rounded-full blur-2xl group-hover:from-cyan-400/15 group-hover:to-teal-400/15 transition-all duration-700" />
-              
-              <div className="relative z-10">
-                <div className="inline-flex items-center justify-center p-3.5 bg-gradient-to-br from-cyan-50 to-teal-50 rounded-2xl text-cyan-600 mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-sm shadow-cyan-500/10">
-                  <MapPin className="w-6 h-6" />
-                </div>
-                <h2 className="text-2xl font-serif text-slate-900 mb-3 group-hover:text-cyan-700 transition-colors duration-300">
-                  Hazara Dental Store
-                </h2>
-                <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
-                  Specialized in clinical dental precision and advanced oral care. Modern, tranquil clinical environment.
-                </p>
+            <AnimateOnScroll animation="fade-left" delay={600} className="h-full">
+              <div className="group relative h-full bg-white/70 backdrop-blur-md border border-slate-200/50 rounded-3xl p-8 hover-lift hover-glow-teal flex flex-col justify-between overflow-hidden cursor-pointer shadow-lg shadow-slate-100/50 hover:shadow-2xl hover:shadow-cyan-500/5 transition-all duration-300">
+                {/* Animated gradient border on hover */}
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-400/0 via-teal-400/0 to-emerald-400/0 group-hover:from-cyan-400/5 group-hover:via-teal-400/5 group-hover:to-emerald-400/5 transition-all duration-500" />
                 
-                <ul className="space-y-2.5 text-xs text-slate-500 font-light mb-8">
-                  <li className="flex items-center gap-2.5 group-hover:translate-x-1 transition-transform duration-300" style={{ transitionDelay: '0ms' }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-teal-500 shrink-0" />
-                    Orthodontics & Braces
-                  </li>
-                  <li className="flex items-center gap-2.5 group-hover:translate-x-1 transition-transform duration-300" style={{ transitionDelay: '50ms' }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-teal-500 shrink-0" />
-                    Dental Implants & Surgery
-                  </li>
-                  <li className="flex items-center gap-2.5 group-hover:translate-x-1 transition-transform duration-300" style={{ transitionDelay: '100ms' }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-teal-500 shrink-0" />
-                    Professional Teeth Whitening
-                  </li>
-                </ul>
-              </div>
+                {/* Decorative blob */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-cyan-400/8 to-teal-400/8 rounded-full blur-2xl group-hover:from-cyan-400/15 group-hover:to-teal-400/15 transition-all duration-700" />
+                
+                <div className="relative z-10">
+                  <div className="inline-flex items-center justify-center p-3.5 bg-gradient-to-br from-cyan-50 to-teal-50 rounded-2xl text-cyan-600 mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-sm shadow-cyan-500/10">
+                    <MapPin className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <h2 className="text-2xl font-serif text-slate-900 mb-3 group-hover:text-cyan-700 transition-colors duration-300">
+                    Hazara Dental Store
+                  </h2>
+                  <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
+                    Specialized in clinical dental precision and advanced oral care. Modern, tranquil clinical environment.
+                  </p>
+                  
+                  <ul className="space-y-2.5 text-xs text-slate-500 font-light mb-8">
+                    <li className="flex items-center gap-2.5 group-hover:translate-x-1.5 transition-transform duration-300" style={{ transitionDelay: '0ms' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-teal-500 shrink-0" />
+                      Orthodontics & Braces
+                    </li>
+                    <li className="flex items-center gap-2.5 group-hover:translate-x-1.5 transition-transform duration-300" style={{ transitionDelay: '50ms' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-teal-500 shrink-0" />
+                      Dental Implants & Surgery
+                    </li>
+                    <li className="flex items-center gap-2.5 group-hover:translate-x-1.5 transition-transform duration-300" style={{ transitionDelay: '100ms' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-teal-500 shrink-0" />
+                      Professional Teeth Whitening
+                    </li>
+                  </ul>
+                </div>
 
-              <Link 
-                href="/hazara"
-                className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-2xl font-medium text-sm transition-all duration-300 shadow-lg shadow-cyan-600/15 hover:shadow-xl hover:shadow-cyan-600/25 btn-shimmer"
-              >
-                Visit Store Website
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
-              </Link>
-            </div>
+                <Link 
+                  href="/hazara"
+                  className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-2xl font-medium text-sm transition-all duration-300 shadow-lg shadow-cyan-600/15 hover:shadow-xl hover:shadow-cyan-600/25 btn-shimmer"
+                >
+                  Visit Store Website
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                </Link>
+              </div>
+            </AnimateOnScroll>
 
             {/* Branch 2: Family Dental Store */}
-            <div className="group relative bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-3xl p-8 hover-lift hover-glow-amber flex flex-col justify-between overflow-hidden animate-fade-in-up delay-600 cursor-pointer">
-              {/* Animated gradient border on hover */}
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-400/0 via-orange-400/0 to-yellow-400/0 group-hover:from-amber-400/5 group-hover:via-orange-400/5 group-hover:to-yellow-400/5 transition-all duration-500" />
-              
-              {/* Decorative blob */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-amber-400/8 to-orange-400/8 rounded-full blur-2xl group-hover:from-amber-400/15 group-hover:to-orange-400/15 transition-all duration-700" />
-
-              <div className="relative z-10">
-                <div className="inline-flex items-center justify-center p-3.5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl text-amber-700 mb-6 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500 shadow-sm shadow-amber-500/10">
-                  <MapPin className="w-6 h-6" />
-                </div>
-                <h2 className="text-2xl font-serif text-slate-900 mb-3 group-hover:text-amber-800 transition-colors duration-300">
-                  Family Dental Store
-                </h2>
-                <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
-                  Tailored for patients of all ages. Comfortable, warm, and stress-free dental care for the whole family.
-                </p>
+            <AnimateOnScroll animation="fade-right" delay={750} className="h-full">
+              <div className="group relative h-full bg-white/70 backdrop-blur-md border border-slate-200/50 rounded-3xl p-8 hover-lift hover-glow-amber flex flex-col justify-between overflow-hidden cursor-pointer shadow-lg shadow-slate-100/50 hover:shadow-2xl hover:shadow-amber-500/5 transition-all duration-300">
+                {/* Animated gradient border on hover */}
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-400/0 via-orange-400/0 to-yellow-400/0 group-hover:from-amber-400/5 group-hover:via-orange-400/5 group-hover:to-yellow-400/5 transition-all duration-500" />
                 
-                <ul className="space-y-2.5 text-xs text-slate-500 font-light mb-8">
-                  <li className="flex items-center gap-2.5 group-hover:translate-x-1 transition-transform duration-300" style={{ transitionDelay: '0ms' }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 shrink-0" />
-                    Pediatric Dental Care
-                  </li>
-                  <li className="flex items-center gap-2.5 group-hover:translate-x-1 transition-transform duration-300" style={{ transitionDelay: '50ms' }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 shrink-0" />
-                    Routine Hygiene & Cleanings
-                  </li>
-                  <li className="flex items-center gap-2.5 group-hover:translate-x-1 transition-transform duration-300" style={{ transitionDelay: '100ms' }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 shrink-0" />
-                    Restorations & White Fillings
-                  </li>
-                </ul>
-              </div>
+                {/* Decorative blob */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-amber-400/8 to-orange-400/8 rounded-full blur-2xl group-hover:from-amber-400/15 group-hover:to-orange-400/15 transition-all duration-700" />
 
-              <Link 
-                href="/family"
-                className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-2xl font-medium text-sm transition-all duration-300 shadow-lg shadow-amber-600/15 hover:shadow-xl hover:shadow-amber-600/25 btn-shimmer"
-              >
-                Visit Store Website
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
-              </Link>
-            </div>
+                <div className="relative z-10">
+                  <div className="inline-flex items-center justify-center p-3.5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl text-amber-700 mb-6 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500 shadow-sm shadow-amber-500/10">
+                    <MapPin className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <h2 className="text-2xl font-serif text-slate-900 mb-3 group-hover:text-amber-800 transition-colors duration-300">
+                    Family Dental Store
+                  </h2>
+                  <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
+                    Tailored for patients of all ages. Comfortable, warm, and stress-free dental care for the whole family.
+                  </p>
+                  
+                  <ul className="space-y-2.5 text-xs text-slate-500 font-light mb-8">
+                    <li className="flex items-center gap-2.5 group-hover:translate-x-1.5 transition-transform duration-300" style={{ transitionDelay: '0ms' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 shrink-0" />
+                      Pediatric Dental Care
+                    </li>
+                    <li className="flex items-center gap-2.5 group-hover:translate-x-1.5 transition-transform duration-300" style={{ transitionDelay: '50ms' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 shrink-0" />
+                      Routine Hygiene & Cleanings
+                    </li>
+                    <li className="flex items-center gap-2.5 group-hover:translate-x-1.5 transition-transform duration-300" style={{ transitionDelay: '100ms' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 shrink-0" />
+                      Restorations & White Fillings
+                    </li>
+                  </ul>
+                </div>
+
+                <Link 
+                  href="/family"
+                  className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-2xl font-medium text-sm transition-all duration-300 shadow-lg shadow-amber-600/15 hover:shadow-xl hover:shadow-amber-600/25 btn-shimmer"
+                >
+                  Visit Store Website
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                </Link>
+              </div>
+            </AnimateOnScroll>
 
           </div>
         </div>
@@ -186,3 +197,5 @@ export default function Home() {
     </div>
   )
 }
+
+

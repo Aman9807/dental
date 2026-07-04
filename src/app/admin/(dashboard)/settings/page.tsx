@@ -1,11 +1,11 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { changeAdminPassword, updateBranchHours } from '@/app/admin/actions'
+import { changeAdminPassword, updateBranchHours, addTimeSlot, deleteTimeSlot } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
   Settings, Key, Server, Mail, ShieldAlert, 
-  CheckCircle, Loader2, RefreshCw, Clock, Edit2, Check, X
+  CheckCircle, Loader2, RefreshCw, Clock, Edit2, Check, X, Trash2, Plus
 } from 'lucide-react'
 
 export default function AdminSettingsPage() {
@@ -19,7 +19,33 @@ export default function AdminSettingsPage() {
   const [editingBranchId, setEditingBranchId] = useState<string | null>(null)
   const [tempHours, setTempHours] = useState('')
   const [updatingBranchId, setUpdatingBranchId] = useState<string | null>(null)
+
+  // Time slots management states
+  const [timeSlots, setTimeSlots] = useState<any[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(true)
+  const [newTime, setNewTime] = useState('')
+  const [addingSlot, setAddingSlot] = useState(false)
+  const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null)
+  const [slotsError, setSlotsError] = useState<string | null>(null)
   
+  const fetchTimeSlots = async () => {
+    setLoadingSlots(true)
+    setSlotsError(null)
+    try {
+      const { data, error } = await supabase
+        .from('time_slots')
+        .select('id, time_value, time_label')
+        .order('time_value')
+      if (error) throw error
+      setTimeSlots(data || [])
+    } catch (err: any) {
+      console.error('Error fetching time slots:', err)
+      setSlotsError('Could not load time slots from database. Please ensure you executed the SQL migration.')
+    } finally {
+      setLoadingSlots(false)
+    }
+  }
+
   useEffect(() => {
     async function fetchBranches() {
       try {
@@ -36,6 +62,7 @@ export default function AdminSettingsPage() {
       }
     }
     fetchBranches()
+    fetchTimeSlots()
   }, [])
 
   const handleSaveHours = async (branchId: string) => {
@@ -52,6 +79,44 @@ export default function AdminSettingsPage() {
       console.error(err)
     } finally {
       setUpdatingBranchId(null)
+    }
+  }
+
+  const handleAddTimeSlot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTime) return
+    setAddingSlot(true)
+    try {
+      const res = await addTimeSlot(newTime)
+      if (res.success) {
+        setNewTime('')
+        await fetchTimeSlots()
+      } else {
+        alert(res.error || 'Failed to add time slot')
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'An error occurred')
+    } finally {
+      setAddingSlot(false)
+    }
+  }
+
+  const handleDeleteTimeSlot = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this time slot?')) return
+    setDeletingSlotId(id)
+    try {
+      const res = await deleteTimeSlot(id)
+      if (res.success) {
+        await fetchTimeSlots()
+      } else {
+        alert(res.error || 'Failed to delete time slot')
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'An error occurred')
+    } finally {
+      setDeletingSlotId(null)
     }
   }
 
@@ -207,6 +272,80 @@ export default function AdminSettingsPage() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Manage Time Slots Card */}
+          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+              <Clock className="w-4 h-4 text-slate-500" />
+              Manage Patient Time Slots
+            </h3>
+
+            {/* Add Slot Form */}
+            <form onSubmit={handleAddTimeSlot} className="flex gap-2">
+              <input
+                type="time"
+                required
+                value={newTime}
+                onChange={e => setNewTime(e.target.value)}
+                className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+              />
+              <button
+                type="submit"
+                disabled={addingSlot || !newTime}
+                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed rounded-xl transition flex items-center gap-1 shrink-0"
+              >
+                {addingSlot ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5" />
+                )}
+                Add Slot
+              </button>
+            </form>
+
+            {slotsError && (
+              <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-100 p-2.5 rounded-xl leading-normal">
+                {slotsError}
+              </p>
+            )}
+
+            {/* List Slots */}
+            {loadingSlots ? (
+              <div className="flex justify-center items-center py-6">
+                <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                {timeSlots.length === 0 ? (
+                  <p className="text-xs text-slate-400 font-light text-center py-4">
+                    No time slots configured. Add a new one above.
+                  </p>
+                ) : (
+                  timeSlots.map(slot => (
+                    <div key={slot.id} className="flex justify-between items-center px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                      <span className="text-xs font-semibold text-slate-700">{slot.time_label}</span>
+                      <span className="text-[10px] text-slate-400 font-light font-mono mr-auto ml-2 bg-slate-100 px-1.5 py-0.5 rounded">
+                        {slot.time_value}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTimeSlot(slot.id)}
+                        disabled={deletingSlotId === slot.id}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                        title="Delete slot"
+                      >
+                        {deletingSlotId === slot.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>
