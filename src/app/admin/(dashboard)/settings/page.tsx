@@ -271,10 +271,9 @@ export default function AdminSettingsPage() {
                             setEditingBranchId(branch.id)
                             setTempHours(branch.working_hours || '')
                           }}
-                          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition"
-                          title="Edit branch hours"
+                          className="px-2.5 py-1 text-[10px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200/50 rounded-lg transition duration-200"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          Edit Timings
                         </button>
                       )}
                     </div>
@@ -314,7 +313,7 @@ export default function AdminSettingsPage() {
                 {branches.map(branch => (
                   <div key={branch.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-semibold text-slate-700">{branch.name} Passcode</span>
+                      <span className="text-xs font-semibold text-slate-700">{branch.name}</span>
                       {editingPasscodeId === branch.id ? (
                         <div className="flex items-center gap-1.5">
                           <button
@@ -343,10 +342,9 @@ export default function AdminSettingsPage() {
                             setEditingPasscodeId(branch.id)
                             setTempPasscode(branch.camera_passcode || '')
                           }}
-                          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition"
-                          title="Edit branch passcode"
+                          className="px-2.5 py-1 text-[10px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-100/50 rounded-lg transition duration-200"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          Change Passcode
                         </button>
                       )}
                     </div>
@@ -361,9 +359,12 @@ export default function AdminSettingsPage() {
                         className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-slate-800 bg-white text-slate-800 font-mono"
                       />
                     ) : (
-                      <p className="text-xs text-slate-500 font-mono leading-relaxed bg-slate-100/50 inline-block px-2 py-0.5 rounded border border-slate-150">
-                        {branch.camera_passcode || '1234'}
-                      </p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-slate-400 font-light">Current Passcode:</span>
+                        <p className="text-xs text-slate-500 font-mono leading-relaxed bg-slate-100/50 inline-block px-2.5 py-0.5 rounded border border-slate-150 font-bold">
+                          {branch.camera_passcode || '1234'}
+                        </p>
+                      </div>
                     )}
                   </div>
                 ))}
