@@ -181,7 +181,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
 
   // Copy mobile camera link to clipboard
   const handleCopyLink = () => {
-    const link = `http://${customIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug}`
+    const link = `http://${customIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug}&appointment=${activeAppt?.id || ''}`
     navigator.clipboard.writeText(link)
     setCopiedLink(true)
     setTimeout(() => setCopiedLink(false), 2000)
@@ -234,7 +234,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     }
   }
 
-  const mobileCaptureUrl = `http://${customIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug}`
+  const mobileCaptureUrl = `http://${customIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug}&appointment=${activeAppt?.id || ''}`
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(mobileCaptureUrl)}`
 
   return (
@@ -595,9 +595,16 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                   <label className="block text-xs font-semibold text-slate-600">Prescription Sheet Attachment</label>
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsWaitingForMobile(!isWaitingForMobile)
+                    onClick={async () => {
+                      const nextState = !isWaitingForMobile
+                      setIsWaitingForMobile(nextState)
                       setTempMobilePhoto(null)
+                      if (nextState && activeAppt?.id) {
+                        await supabase
+                          .from('appointments')
+                          .update({ temp_mobile_photo: null })
+                          .eq('id', activeAppt.id)
+                      }
                     }}
                     className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border transition flex items-center gap-1 ${
                       isWaitingForMobile 

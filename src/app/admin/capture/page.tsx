@@ -30,19 +30,31 @@ export default function MobileCapturePage() {
     async function loadBranches() {
       const { data } = await supabase.from('branches').select('id, name, slug')
       setBranches(data || [])
+      
+      const searchParams = new URLSearchParams(window.location.search)
+      const branchParam = searchParams.get('branch')
+
       if (data && data.length > 0) {
-        setSelectedBranchSlug(data[0].slug)
+        const found = data.find(b => b.slug === branchParam)
+        if (found) {
+          setSelectedBranchSlug(found.slug)
+        } else {
+          setSelectedBranchSlug(data[0].slug)
+        }
       }
     }
     loadBranches()
   }, [])
 
-  // Fetch appointments for the selected branch (Next 3 Days)
+  // Fetch appointments for the selected branch (Next 3 Days + specific synced appointment)
   const fetchAppointments = async (branchSlug: string) => {
     setLoadingAppts(true)
     try {
       const branchId = branches.find(b => b.slug === branchSlug)?.id
       if (!branchId) return
+
+      const searchParams = new URLSearchParams(window.location.search)
+      const appointmentIdParam = searchParams.get('appointment')
 
       const today = new Date()
       const todayStr = today.toISOString().split('T')[0]
@@ -70,9 +82,38 @@ export default function MobileCapturePage() {
         .order('appointment_time', { ascending: true })
 
       if (error) throw error
-      setAppointments(data || [])
-      if (data && data.length > 0) {
-        setSelectedApptId(data[0].id)
+
+      let list = data || []
+
+      // Fetch specific appointment if passed via URL parameter and not in the main list
+      if (appointmentIdParam && !list.some(a => a.id === appointmentIdParam)) {
+        const { data: specificData } = await supabase
+          .from('appointments')
+          .select(`
+            id,
+            appointment_date,
+            appointment_time,
+            patients (
+              name
+            ),
+            doctors (
+              name
+            )
+          `)
+          .eq('id', appointmentIdParam)
+          .maybeSingle()
+
+        if (specificData) {
+          list = [specificData, ...list]
+        }
+      }
+
+      setAppointments(list)
+
+      if (appointmentIdParam && list.some(a => a.id === appointmentIdParam)) {
+        setSelectedApptId(appointmentIdParam)
+      } else if (list.length > 0) {
+        setSelectedApptId(list[0].id)
       } else {
         setSelectedApptId('')
       }

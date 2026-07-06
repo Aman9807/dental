@@ -350,7 +350,7 @@ export default function DoctorClient({
   }
 
   const handleCopyLink = () => {
-    const link = `http://${customIp}:3000/admin/capture?branch=${doctor.branches?.slug}`
+    const link = `http://${customIp}:3000/admin/capture?branch=${doctor.branches?.slug}&appointment=${activeAppt?.id || ''}`
     navigator.clipboard.writeText(link)
     setCopiedLink(true)
     setTimeout(() => setCopiedLink(false), 2000)
@@ -958,7 +958,16 @@ export default function DoctorClient({
                   <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sync Handheld Mobile Camera</h4>
                   <button
                     type="button"
-                    onClick={() => setIsWaitingForMobile(true)}
+                    onClick={async () => {
+                      setIsWaitingForMobile(true)
+                      setTempMobilePhoto(null)
+                      if (activeAppt?.id) {
+                        await supabase
+                          .from('appointments')
+                          .update({ temp_mobile_photo: null })
+                          .eq('id', activeAppt.id)
+                      }
+                    }}
                     className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-[10px] font-bold shadow-sm transition"
                   >
                     Start Sync
@@ -972,7 +981,7 @@ export default function DoctorClient({
                     </p>
                     
                     <div className="w-28 h-28 bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden">
-                      <img src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(`http://${customIp}:3000/admin/capture?branch=${doctor.branches?.slug}`)}`} alt="QR Sync code" />
+                      <img src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(`http://${customIp}:3000/admin/capture?branch=${doctor.branches?.slug}&appointment=${activeAppt?.id || ''}`)}`} alt="QR Sync code" />
                     </div>
 
                     <div className="flex gap-2 w-full">
