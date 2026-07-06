@@ -253,4 +253,7 @@ CREATE POLICY "Allow public read access to reports bucket" ON storage.objects
 CREATE POLICY "Allow admin service-role full access to reports bucket" ON storage.objects
     FOR ALL USING (bucket_id = 'reports');
 
+-- 8. Add active capture ticket column to branches table
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS active_capture_appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL;
+
 

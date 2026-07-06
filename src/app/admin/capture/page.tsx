@@ -25,6 +25,10 @@ export default function MobileCapturePage() {
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [compressing, setCompressing] = useState(false)
 
+  // Sync ticket states
+  const [activeTicketApptId, setActiveTicketApptId] = useState<string | null>(null)
+  const [ticketAppt, setTicketAppt] = useState<any | null>(null)
+
   // Fetch branches on mount
   useEffect(() => {
     async function loadBranches() {
@@ -45,6 +49,65 @@ export default function MobileCapturePage() {
     }
     loadBranches()
   }, [])
+
+  // Poll for active sync tickets in the branch
+  useEffect(() => {
+    let interval: any
+    if (isValidated && selectedBranchSlug) {
+      const pollTicket = async () => {
+        try {
+          const { data: branchData, error: branchErr } = await supabase
+            .from('branches')
+            .select('active_capture_appointment_id')
+            .eq('slug', selectedBranchSlug)
+            .single()
+
+          if (branchErr) throw branchErr
+
+          const ticketId = branchData?.active_capture_appointment_id || null
+          setActiveTicketApptId(ticketId)
+
+          if (ticketId) {
+            // Fetch patient details for this ticket
+            const { data: apptData } = await supabase
+              .from('appointments')
+              .select(`
+                id,
+                appointment_date,
+                appointment_time,
+                patients (name),
+                doctors (name)
+              `)
+              .eq('id', ticketId)
+              .maybeSingle()
+
+            if (apptData) {
+              setTicketAppt(apptData)
+              setSelectedApptId(ticketId) // Lock the selection to the ticket
+              setAppointments(prev => {
+                if (!prev.some(a => a.id === ticketId)) {
+                  return [apptData, ...prev]
+                }
+                return prev
+              })
+            }
+          } else {
+            setTicketAppt(null)
+          }
+        } catch (err) {
+          console.error('Error polling for ticket:', err)
+        }
+      }
+
+      pollTicket()
+      interval = setInterval(pollTicket, 3000)
+    } else {
+      setActiveTicketApptId(null)
+      setTicketAppt(null)
+    }
+
+    return () => clearInterval(interval)
+  }, [isValidated, selectedBranchSlug])
 
   // Fetch appointments for the selected branch (Next 3 Days + specific synced appointment)
   const fetchAppointments = async (branchSlug: string) => {
@@ -85,8 +148,9 @@ export default function MobileCapturePage() {
 
       let list = data || []
 
-      // Fetch specific appointment if passed via URL parameter and not in the main list
-      if (appointmentIdParam && !list.some(a => a.id === appointmentIdParam)) {
+      // Fetch specific appointment if passed via active ticket or URL parameter and not in the main list
+      const targetApptId = activeTicketApptId || appointmentIdParam
+      if (targetApptId && !list.some(a => a.id === targetApptId)) {
         const { data: specificData } = await supabase
           .from('appointments')
           .select(`
@@ -100,7 +164,7 @@ export default function MobileCapturePage() {
               name
             )
           `)
-          .eq('id', appointmentIdParam)
+          .eq('id', targetApptId)
           .maybeSingle()
 
         if (specificData) {
@@ -110,8 +174,8 @@ export default function MobileCapturePage() {
 
       setAppointments(list)
 
-      if (appointmentIdParam && list.some(a => a.id === appointmentIdParam)) {
-        setSelectedApptId(appointmentIdParam)
+      if (targetApptId && list.some(a => a.id === targetApptId)) {
+        setSelectedApptId(targetApptId)
       } else if (list.length > 0) {
         setSelectedApptId(list[0].id)
       } else {
@@ -357,41 +421,64 @@ export default function MobileCapturePage() {
               <div className="space-y-6">
                 
                 {/* 1. Appointment Selection Dropdown */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label className="block text-xs font-semibold text-slate-700">Select Patient Appointment</label>
-                    <button
-                      type="button"
-                      onClick={() => fetchAppointments(selectedBranchSlug)}
-                      disabled={loadingAppts}
-                      className="text-cyan-600 hover:text-cyan-800 transition disabled:opacity-50"
-                      title="Reload appointments"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${loadingAppts ? 'animate-spin' : ''}`} />
-                    </button>
-                  </div>
-
-                  {loadingAppts ? (
-                    <div className="flex justify-center items-center py-4">
-                      <Loader2 className="w-4 h-4 text-cyan-600 animate-spin" />
+                <div className="space-y-3">
+                  {ticketAppt && (
+                    <div className="p-4 bg-cyan-50 border border-cyan-100 rounded-2xl flex flex-col gap-1 items-start text-left animate-fade-in">
+                      <div className="flex items-center gap-1.5 text-cyan-800 font-bold text-xs uppercase tracking-wide">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                        </span>
+                        <span>Active Sync Ticket</span>
+                      </div>
+                      <p className="text-[11px] text-cyan-700 leading-normal font-medium mt-1">
+                        Dentist/Admin has requested a photo for: <strong className="text-cyan-900 font-bold">{ticketAppt?.patients?.name}</strong>
+                      </p>
+                      <p className="text-[9px] text-cyan-500 font-light">
+                        The screen has locked onto this patient. snap and upload below.
+                      </p>
                     </div>
-                  ) : appointments.length === 0 ? (
-                    <p className="text-xs text-slate-400 bg-slate-50 border p-4 rounded-2xl text-center font-light leading-relaxed">
-                      No appointments found for today, tomorrow, or the day after tomorrow.
-                    </p>
-                  ) : (
-                    <select
-                      value={selectedApptId}
-                      onChange={e => setSelectedApptId(e.target.value)}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 focus:outline-none focus:border-cyan-600"
-                    >
-                      {appointments.map(appt => (
-                        <option key={appt.id} value={appt.id}>
-                          {appt.patients?.name} ({appt.appointment_date} @ {appt.appointment_time.substring(0, 5)})
-                        </option>
-                      ))}
-                    </select>
                   )}
+
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-xs font-semibold text-slate-700">Select Patient Appointment</label>
+                      <button
+                        type="button"
+                        onClick={() => fetchAppointments(selectedBranchSlug)}
+                        disabled={loadingAppts || !!activeTicketApptId}
+                        className="text-cyan-600 hover:text-cyan-800 transition disabled:opacity-30"
+                        title="Reload appointments"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${loadingAppts ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
+
+                    {loadingAppts ? (
+                      <div className="flex justify-center items-center py-4">
+                        <Loader2 className="w-4 h-4 text-cyan-600 animate-spin" />
+                      </div>
+                    ) : appointments.length === 0 ? (
+                      <p className="text-xs text-slate-400 bg-slate-50 border p-4 rounded-2xl text-center font-light leading-relaxed">
+                        No appointments found for today, tomorrow, or the day after tomorrow.
+                      </p>
+                    ) : (
+                      <select
+                        value={selectedApptId}
+                        disabled={!!activeTicketApptId}
+                        onChange={e => setSelectedApptId(e.target.value)}
+                        className={`w-full px-4 py-3 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-cyan-600 ${
+                          activeTicketApptId ? 'bg-slate-100 cursor-not-allowed opacity-80' : 'bg-white'
+                        }`}
+                      >
+                        {appointments.map(appt => (
+                          <option key={appt.id} value={appt.id}>
+                            {appt.patients?.name} ({appt.appointment_date} @ {appt.appointment_time.substring(0, 5)})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
 
                 {/* 2. Photo capture inputs */}

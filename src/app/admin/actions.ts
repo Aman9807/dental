@@ -436,11 +436,21 @@ export async function sendPatientReport(formData: FormData) {
         prescription_text: prescriptionText || null,
         prescription_url: prescriptionUrl || null,
         xray_url: xrayUrl || null,
+        temp_mobile_photo: null, // Delete/clear temporary mobile capture once sent
         report_sent_at: new Date().toISOString()
       })
       .eq('id', appointmentId)
 
     if (updateErr) throw updateErr
+
+    // Clear active capture ticket on branch if matched
+    if (appt.branch_id) {
+      await adminDb
+        .from('branches')
+        .update({ active_capture_appointment_id: null })
+        .eq('id', appt.branch_id)
+        .eq('active_capture_appointment_id', appointmentId)
+    }
 
     // 5. Build and Send Email
     const emailHtml = `
@@ -895,6 +905,36 @@ export async function addExtraExpense(amount: number, note: string, date: string
   } catch (err: any) {
     console.error('Error adding extra expense:', err)
     return { success: false, error: err.message || 'Failed to add extra expense.' }
+  }
+}
+
+export async function createCaptureTicket(branchId: string, appointmentId: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { error } = await adminDb
+      .from('branches')
+      .update({ active_capture_appointment_id: appointmentId })
+      .eq('id', branchId)
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error creating capture ticket:', err)
+    return { success: false, error: err.message || 'Failed to create capture ticket.' }
+  }
+}
+
+export async function clearCaptureTicket(branchId: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { error } = await adminDb
+      .from('branches')
+      .update({ active_capture_appointment_id: null })
+      .eq('id', branchId)
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error clearing capture ticket:', err)
+    return { success: false, error: err.message || 'Failed to clear capture ticket.' }
   }
 }
 

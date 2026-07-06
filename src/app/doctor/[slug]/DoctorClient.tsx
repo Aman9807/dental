@@ -7,7 +7,9 @@ import {
   updateAppointmentStatus, 
   sendPatientReport, 
   logoutDoctor,
-  getLocalIpAddress
+  getLocalIpAddress,
+  createCaptureTicket,
+  clearCaptureTicket
 } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
@@ -209,6 +211,14 @@ export default function DoctorClient({
     if (res.success) {
       router.refresh()
       window.location.reload()
+    }
+  }
+
+  const handleCloseModal = async () => {
+    setShowReportsModal(false)
+    setIsWaitingForMobile(false)
+    if (doctor.branch_id) {
+      await clearCaptureTicket(doctor.branch_id)
     }
   }
 
@@ -874,7 +884,7 @@ export default function DoctorClient({
                 Update Report & Email Patient
               </h3>
               <button 
-                onClick={() => setShowReportsModal(false)}
+                onClick={handleCloseModal}
                 className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
               >
                 <X className="w-4 h-4" />
@@ -966,6 +976,7 @@ export default function DoctorClient({
                           .from('appointments')
                           .update({ temp_mobile_photo: null })
                           .eq('id', activeAppt.id)
+                        await createCaptureTicket(doctor.branch_id, activeAppt.id)
                       }
                     }}
                     className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-[10px] font-bold shadow-sm transition"
@@ -976,28 +987,18 @@ export default function DoctorClient({
 
                 {isWaitingForMobile && (
                   <div className="p-4 border rounded-2xl bg-slate-50 flex flex-col items-center justify-center gap-3 animate-fade-in">
-                    <p className="text-[10px] text-slate-500 text-center font-light">
-                      Scan this QR code with your mobile phone or click the link to capture and upload a prescription photo.
-                    </p>
+                    <div className="w-12 h-12 bg-cyan-50 border border-cyan-150 rounded-2xl flex items-center justify-center text-cyan-600">
+                      <Clock className="w-6 h-6 animate-pulse" />
+                    </div>
                     
-                    <div className="w-28 h-28 bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden">
-                      <img src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(`http://${customIp}:3000/admin/capture?branch=${doctor.branches?.slug}&appointment=${activeAppt?.id || ''}`)}`} alt="QR Sync code" />
-                    </div>
-
-                    <div className="flex gap-2 w-full">
-                      <button
-                        type="button"
-                        onClick={handleCopyLink}
-                        className="flex-1 py-1.5 text-[9px] font-bold bg-white hover:bg-slate-100 text-slate-600 border rounded-lg transition flex items-center justify-center gap-1"
-                      >
-                        <Copy className="w-3 h-3" />
-                        {copiedLink ? 'Copied' : 'Copy link'}
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-[9px] text-amber-600 bg-amber-50 px-2 py-1 rounded-lg font-medium">
-                      <Clock className="w-2.5 h-2.5 animate-spin" />
-                      <span>Waiting for mobile capture upload...</span>
+                    <div className="space-y-1 text-center">
+                      <p className="text-xs font-bold text-slate-800">Mobile Capture Ticket Active</p>
+                      <p className="text-[10px] text-slate-400 font-light leading-relaxed max-w-xs mx-auto">
+                        A sync ticket has been sent to the mobile capture page for <strong>{activeAppt?.patients?.name}</strong>.
+                      </p>
+                      <p className="text-[10px] text-slate-500 italic mt-2">
+                        Open the capture page on your phone, and it will automatically lock onto this patient's photo.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1026,7 +1027,7 @@ export default function DoctorClient({
               <div className="border-t border-slate-100 pt-4 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowReportsModal(false)}
+                  onClick={handleCloseModal}
                   className="flex-1 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 border rounded-xl transition"
                 >
                   Cancel

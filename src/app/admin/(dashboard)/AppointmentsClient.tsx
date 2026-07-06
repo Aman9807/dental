@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment } from '@/app/admin/actions'
+import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment, createCaptureTicket, clearCaptureTicket } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
   Search, Calendar, Check, X, AlertCircle, Info, Filter,
@@ -599,11 +599,16 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                       const nextState = !isWaitingForMobile
                       setIsWaitingForMobile(nextState)
                       setTempMobilePhoto(null)
-                      if (nextState && activeAppt?.id) {
-                        await supabase
-                          .from('appointments')
-                          .update({ temp_mobile_photo: null })
-                          .eq('id', activeAppt.id)
+                      if (activeAppt?.id && activeAppt?.branches?.id) {
+                        if (nextState) {
+                          await supabase
+                            .from('appointments')
+                            .update({ temp_mobile_photo: null })
+                            .eq('id', activeAppt.id)
+                          await createCaptureTicket(activeAppt.branches.id, activeAppt.id)
+                        } else {
+                          await clearCaptureTicket(activeAppt.branches.id)
+                        }
                       }
                     }}
                     className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border transition flex items-center gap-1 ${
@@ -671,40 +676,19 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
 
                 {/* Mobile Camera Scanner Integration */}
                 {isWaitingForMobile && (
-                  <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl space-y-3 flex flex-col items-center text-center animate-fade-in">
-                    <img 
-                      src={qrCodeUrl} 
-                      alt="Mobile scan QR code" 
-                      className="w-32 h-32 border border-slate-200/60 rounded-xl p-1 bg-white"
-                    />
+                  <div className="bg-slate-50 p-6 border border-slate-200 rounded-2xl space-y-4 flex flex-col items-center text-center animate-fade-in">
+                    <div className="w-12 h-12 bg-cyan-50 border border-cyan-150 rounded-2xl flex items-center justify-center text-cyan-600">
+                      <Clock className="w-6 h-6 animate-pulse" />
+                    </div>
                     
-                    <div className="space-y-1 w-full max-w-xs">
-                      <label className="block text-[9px] font-bold text-slate-400 uppercase text-left tracking-wide">Target Server Host IP / Domain</label>
-                      <input 
-                        type="text" 
-                        value={customIp} 
-                        onChange={e => setCustomIp(e.target.value)} 
-                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-[11px] text-slate-800 focus:outline-none focus:border-slate-800 bg-white font-mono"
-                        placeholder="e.g. 192.168.1.10"
-                      />
-                    </div>
-
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-slate-800">Scan QR Code with Phone</p>
+                      <p className="text-xs font-bold text-slate-800">Mobile Capture Ticket Active</p>
                       <p className="text-[10px] text-slate-400 font-light leading-relaxed max-w-xs mx-auto">
-                        Your phone must be on the same local network. Login with passcode: <strong className="text-slate-800 font-semibold font-mono">{activeAppt.branches?.camera_passcode || '1234'}</strong>
+                        A sync ticket has been sent to the mobile capture page for <strong>{activeAppt?.patients?.name}</strong>.
                       </p>
-                    </div>
-
-                    <div className="flex gap-2 w-full max-w-xs">
-                      <button
-                        type="button"
-                        onClick={handleCopyLink}
-                        className="flex-1 py-2 text-[10px] font-bold bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition flex items-center justify-center gap-1"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        {copiedLink ? 'Copied' : 'Copy link'}
-                      </button>
+                      <p className="text-[10px] text-slate-500 italic mt-2">
+                        Open the capture page on your phone, and it will automatically lock onto this patient's photo.
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-1.5 text-[10px] text-amber-600 bg-amber-50/50 border border-amber-100/60 px-3 py-1.5 rounded-xl font-medium w-full justify-center">
