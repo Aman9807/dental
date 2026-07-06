@@ -36,6 +36,11 @@ export default async function AdminDoctorsPage() {
           specialty,
           picture_url,
           branch_id,
+          compensation_type,
+          fixed_salary,
+          profit_percentage,
+          slug,
+          password,
           branches (id, name, slug)
         `)
         .order('created_at', { ascending: false })

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  LayoutDashboard, Users, Settings, ShieldAlert, Sparkles
+  LayoutDashboard, Users, Settings, ShieldAlert, Sparkles, CircleDollarSign
 } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 
@@ -41,6 +41,7 @@ export default async function AdminDashboardLayout({
             {[
               { href: '/admin', icon: LayoutDashboard, label: 'Appointments' },
               { href: '/admin/doctors', icon: Users, label: 'Manage Doctors' },
+              { href: '/admin/finances', icon: CircleDollarSign, label: 'Finances & Profits' },
               { href: '/admin/settings', icon: Settings, label: 'Settings' },
             ].map(item => (
               <Link

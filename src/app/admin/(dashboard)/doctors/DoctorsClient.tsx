@@ -16,6 +16,11 @@ interface Doctor {
   picture_url: string | null
   branch_id: string | null
   branches: { id: string; name: string; slug: string } | null
+  compensation_type?: string | null
+  fixed_salary?: number | null
+  profit_percentage?: number | null
+  password?: string | null
+  slug?: string | null
 }
 
 interface Branch {
@@ -43,6 +48,13 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   
+  // New portal & compensation states
+  const [compensationType, setCompensationType] = useState('fixed')
+  const [fixedSalary, setFixedSalary] = useState('0')
+  const [profitPercentage, setProfitPercentage] = useState('0')
+  const [password, setPassword] = useState('doctor123')
+  const [slug, setSlug] = useState('')
+  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -56,6 +68,11 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     setBranchId(branches[0]?.id || '')
     setImageFile(null)
     setImagePreview(null)
+    setCompensationType('fixed')
+    setFixedSalary('0')
+    setProfitPercentage('0')
+    setPassword('doctor123')
+    setSlug('')
     setError(null)
     setIsModalOpen(true)
   }
@@ -69,6 +86,11 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     setBranchId(doc.branch_id || '')
     setImageFile(null)
     setImagePreview(doc.picture_url)
+    setCompensationType(doc.compensation_type || 'fixed')
+    setFixedSalary(String(doc.fixed_salary || '0'))
+    setProfitPercentage(String(doc.profit_percentage || '0'))
+    setPassword(doc.password || 'doctor123')
+    setSlug(doc.slug || '')
     setError(null)
     setIsModalOpen(true)
   }
@@ -98,6 +120,11 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     formData.append('email', email)
     formData.append('specialty', specialty)
     formData.append('branch_id', branchId)
+    formData.append('compensation_type', compensationType)
+    formData.append('fixed_salary', fixedSalary)
+    formData.append('profit_percentage', profitPercentage)
+    formData.append('password', password)
+    formData.append('slug', slug.trim().toLowerCase())
     if (imageFile) {
       formData.append('picture', imageFile)
     }
@@ -363,6 +390,73 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Compensation details */}
+              <div className="border-t border-slate-100 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-slate-500">Compensation Type</label>
+                  <select
+                    value={compensationType}
+                    onChange={e => setCompensationType(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                  >
+                    <option value="fixed">Fixed Salary</option>
+                    <option value="percentage">Profit Percentage Share</option>
+                  </select>
+                </div>
+
+                {compensationType === 'fixed' ? (
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500">Monthly Fixed Salary (PKR)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={fixedSalary}
+                      onChange={e => setFixedSalary(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500">Branch Profit Share (%)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={profitPercentage}
+                      onChange={e => setProfitPercentage(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-slate-500">Portal Password</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="doctor123"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-slate-500">URL Slug (e.g. /doctor/name)</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. aman"
+                    value={slug}
+                    onChange={e => setSlug(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                  />
                 </div>
               </div>
 

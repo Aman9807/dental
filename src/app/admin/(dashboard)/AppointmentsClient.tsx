@@ -1,12 +1,12 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport } from '@/app/admin/actions'
+import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
   Search, Calendar, Check, X, AlertCircle, Info, Filter,
   Building, User2, RefreshCw, ChevronDown, CheckCircle2, Clock,
-  FileText, QrCode, UploadCloud, Copy, HelpCircle, User
+  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus
 } from 'lucide-react'
 
 interface AppointmentsClientProps {
@@ -47,7 +47,23 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
   const [localIp, setLocalIp] = useState('localhost')
   const [customIp, setCustomIp] = useState('localhost')
 
-  // Fetch local IP address for the QR code link on mount
+  // Offline Booking modal states
+  const [showOfflineModal, setShowOfflineModal] = useState(false)
+  const [offlineName, setOfflineName] = useState('')
+  const [offlineEmail, setOfflineEmail] = useState('')
+  const [offlineMobile, setOfflineMobile] = useState('')
+  const [offlineAge, setOfflineAge] = useState('')
+  const [offlineBranchId, setOfflineBranchId] = useState('')
+  const [offlineDoctorId, setOfflineDoctorId] = useState('')
+  const [offlineDate, setOfflineDate] = useState('')
+  const [offlineTime, setOfflineTime] = useState('')
+  const [offlineProblem, setOfflineProblem] = useState('')
+  
+  const [doctorsList, setDoctorsList] = useState<any[]>([])
+  const [timeSlotsList, setTimeSlotsList] = useState<any[]>([])
+  const [bookingOffline, setBookingOffline] = useState(false)
+
+  // Fetch local IP address for the QR code link and db lists on mount
   useEffect(() => {
     async function loadIp() {
       const res = await getLocalIpAddress()
@@ -56,7 +72,14 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
         setCustomIp(res.ip)
       }
     }
+    async function loadDbData() {
+      const { data: docs } = await supabase.from('doctors').select('id, name, branch_id, specialty')
+      const { data: times } = await supabase.from('time_slots').select('*').order('time_value')
+      if (docs) setDoctorsList(docs)
+      if (times) setTimeSlotsList(times)
+    }
     loadIp()
+    loadDbData()
   }, [])
 
   // Poll for mobile prescription photo upload
@@ -126,9 +149,9 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       formData.append('patientEmail', emailVal)
       formData.append('prescriptionText', prescriptionText)
       
-      if (xrayFile) formData.append('xrayFile', xrayFile)
-      if (prescriptionFile) formData.append('prescriptionFile', prescriptionFile)
-      if (tempMobilePhoto) formData.append('tempMobilePhotoUrl', tempMobilePhoto)
+      if (xrayFile) formData.append('xray', xrayFile)
+      if (prescriptionFile) formData.append('prescription', prescriptionFile)
+      if (tempMobilePhoto) formData.append('tempMobilePhoto', tempMobilePhoto)
 
       const res = await sendPatientReport(formData)
       if (res.success) {
@@ -266,27 +289,47 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           
-          {/* Branch Filter Tabs */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl self-start">
-            <button
-              onClick={() => setSelectedBranch('all')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                selectedBranch === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              All Clinics
-            </button>
-            {branches.map(b => (
+          {/* Branch Filter Tabs & Book Offline Button */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl self-start">
               <button
-                key={b.id}
-                onClick={() => setSelectedBranch(b.slug)}
+                onClick={() => setSelectedBranch('all')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                  selectedBranch === b.slug ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  selectedBranch === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {b.slug === 'hazara' ? 'Hazara' : 'Family'}
+                All Clinics
               </button>
-            ))}
+              {branches.map(b => (
+                <button
+                  key={b.id}
+                  onClick={() => setSelectedBranch(b.slug)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    selectedBranch === b.slug ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {b.slug === 'hazara' ? 'Hazara' : 'Family'}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                setOfflineName('')
+                setOfflineEmail('')
+                setOfflineMobile('')
+                setOfflineAge('')
+                setOfflineBranchId(branches[0]?.id || '')
+                setOfflineDoctorId('')
+                setOfflineDate('')
+                setOfflineTime('')
+                setOfflineProblem('')
+                setShowOfflineModal(true)
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+            >
+              <Plus className="w-3.5 h-3.5" /> Book Offline
+            </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -710,7 +753,235 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
         </div>
       )}
 
+      {/* 5. MODAL overlay for BOOK OFFLINE APPOINTMENT */}
+      {showOfflineModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-slate-500" />
+                Book Offline Appointment
+              </h3>
+              <button 
+                onClick={() => setShowOfflineModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form Body */}
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              if (!offlineBranchId || !offlineDoctorId || !offlineDate || !offlineTime) {
+                alert('Please fill in all booking fields.')
+                return
+              }
+
+              // Enforce date validation
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
+              const minDate = new Date()
+              minDate.setDate(today.getDate() - 3)
+              minDate.setHours(0, 0, 0, 0)
+              const selectedDateObj = new Date(offlineDate)
+              selectedDateObj.setHours(0, 0, 0, 0)
+              if (selectedDateObj < minDate) {
+                alert('Offline appointments can only be booked for the previous 3 days or future dates.')
+                return
+              }
+
+              setBookingOffline(true)
+              try {
+                const formData = new FormData()
+                formData.append('patientName', offlineName)
+                formData.append('patientEmail', offlineEmail)
+                formData.append('patientMobile', offlineMobile)
+                formData.append('patientAge', offlineAge)
+                formData.append('branchId', offlineBranchId)
+                formData.append('doctorId', offlineDoctorId)
+                formData.append('appointmentDate', offlineDate)
+                formData.append('appointmentTime', offlineTime)
+                formData.append('problemDescription', offlineProblem)
+
+                const res = await bookOfflineAppointment(formData)
+                if (res.success) {
+                  alert('Offline appointment booked successfully!')
+                  setShowOfflineModal(false)
+                  window.location.reload()
+                } else {
+                  alert(res.error || 'Failed to book offline appointment')
+                }
+              } catch (err: any) {
+                console.error(err)
+                alert('An error occurred during booking.')
+              } finally {
+                setBookingOffline(false)
+              }
+            }} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              
+              {/* Patient details section */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Patient Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-500">Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Jane Doe"
+                      value={offlineName}
+                      onChange={e => setOfflineName(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-500">Email</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="jane@example.com"
+                      value={offlineEmail}
+                      onChange={e => setOfflineEmail(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-500">Mobile</label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="03001234567"
+                      value={offlineMobile}
+                      onChange={e => setOfflineMobile(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-500">Age</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      max="120"
+                      placeholder="35"
+                      value={offlineAge}
+                      onChange={e => setOfflineAge(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Appointment details section */}
+              <div className="space-y-3 pt-3 border-t border-slate-100">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Appointment Details</h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-500">Branch</label>
+                    <select
+                      value={offlineBranchId}
+                      onChange={e => {
+                        setOfflineBranchId(e.target.value)
+                        setOfflineDoctorId('') // Reset doctor when branch changes
+                      }}
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    >
+                      <option value="">Select Branch</option>
+                      {branches.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-500">Doctor</label>
+                    <select
+                      value={offlineDoctorId}
+                      required
+                      onChange={e => setOfflineDoctorId(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    >
+                      <option value="">Select Doctor</option>
+                      {doctorsList
+                        .filter(d => !offlineBranchId || d.branch_id === offlineBranchId)
+                        .map(d => (
+                          <option key={d.id} value={d.id}>Dr. {d.name} ({d.specialty || 'General'})</option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-500">Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={offlineDate}
+                      onChange={e => setOfflineDate(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-500">Time Slot</label>
+                    <select
+                      value={offlineTime}
+                      required
+                      onChange={e => setOfflineTime(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    >
+                      <option value="">Select Time</option>
+                      {timeSlotsList.map(t => (
+                        <option key={t.id} value={t.time_value}>{t.time_label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-medium text-slate-500">Problem / Notes</label>
+                  <textarea
+                    placeholder="Describe symptoms or reasons for the booking..."
+                    value={offlineProblem}
+                    onChange={e => setOfflineProblem(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Form buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowOfflineModal(false)}
+                  className="px-4 py-2 text-xs font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bookingOffline}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition flex items-center gap-1.5"
+                >
+                  {bookingOffline && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  Book Appointment
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
+
+
+
 

@@ -91,6 +91,12 @@ export async function addDoctor(formData: FormData) {
   const branchId = formData.get('branch_id') as string
   const imageFile = formData.get('picture') as File | null
 
+  const compensationType = (formData.get('compensation_type') as string) || 'fixed'
+  const fixedSalary = parseFloat(formData.get('fixed_salary') as string || '0')
+  const profitPercentage = parseFloat(formData.get('profit_percentage') as string || '0')
+  const password = (formData.get('password') as string) || 'doctor123'
+  const slug = (formData.get('slug') as string) || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
   try {
     let pictureUrl = ''
     if (imageFile && imageFile.size > 0) {
@@ -104,7 +110,12 @@ export async function addDoctor(formData: FormData) {
         email: email.trim().toLowerCase(),
         specialty: specialty || null,
         branch_id: branchId || null,
-        picture_url: pictureUrl || null
+        picture_url: pictureUrl || null,
+        compensation_type: compensationType,
+        fixed_salary: fixedSalary,
+        profit_percentage: profitPercentage,
+        password,
+        slug
       })
       .select()
 
@@ -127,6 +138,12 @@ export async function updateDoctor(formData: FormData) {
   const imageFile = formData.get('picture') as File | null
   const currentPictureUrl = formData.get('current_picture_url') as string
 
+  const compensationType = (formData.get('compensation_type') as string) || 'fixed'
+  const fixedSalary = parseFloat(formData.get('fixed_salary') as string || '0')
+  const profitPercentage = parseFloat(formData.get('profit_percentage') as string || '0')
+  const password = (formData.get('password') as string) || 'doctor123'
+  const slug = (formData.get('slug') as string) || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
   try {
     let pictureUrl = currentPictureUrl
     if (imageFile && imageFile.size > 0) {
@@ -140,7 +157,12 @@ export async function updateDoctor(formData: FormData) {
         email: email.trim().toLowerCase(),
         specialty: specialty || null,
         branch_id: branchId || null,
-        picture_url: pictureUrl || null
+        picture_url: pictureUrl || null,
+        compensation_type: compensationType,
+        fixed_salary: fixedSalary,
+        profit_percentage: profitPercentage,
+        password,
+        slug
       })
       .eq('id', id)
       .select()
@@ -541,6 +563,338 @@ export async function sendPatientReport(formData: FormData) {
   } catch (err: any) {
     console.error('Error in sendPatientReport:', err)
     return { success: false, error: err.message || 'Failed to send reports' }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ═══ DOCTOR PORTAL LOGIN & ACTIONS ═══
+// ════════════════════════════════════════════════════════════════════════
+
+export async function loginDoctor(slug: string, password: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data: doctor, error } = await adminDb
+      .from('doctors')
+      .select('id, password, slug')
+      .eq('slug', slug)
+      .single()
+
+    if (error || !doctor) {
+      return { success: false, error: 'Doctor record not found.' }
+    }
+
+    if (doctor.password === password) {
+      const cookieStore = await cookies()
+      cookieStore.set('dental_doctor_token', doctor.slug, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24, // 1 day expiration
+        path: '/'
+      })
+      return { success: true }
+    }
+    return { success: false, error: 'Incorrect password.' }
+  } catch (err: any) {
+    console.error('Doctor login error:', err)
+    return { success: false, error: err.message || 'Login failed.' }
+  }
+}
+
+export async function logoutDoctor() {
+  const cookieStore = await cookies()
+  cookieStore.delete('dental_doctor_token')
+  return { success: true }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ═══ OFFLINE APPOINTMENTS & FINANCES ACTIONS ═══
+// ════════════════════════════════════════════════════════════════════════
+
+export async function bookOfflineAppointment(formData: FormData) {
+  const adminDb = getAdminSupabase()
+  const patientName = formData.get('patientName') as string
+  const patientEmail = formData.get('patientEmail') as string
+  const patientMobile = formData.get('patientMobile') as string
+  const patientAge = parseInt(formData.get('patientAge') as string || '0', 10)
+  
+  const branchId = formData.get('branchId') as string
+  const doctorId = formData.get('doctorId') as string
+  const appointmentDate = formData.get('appointmentDate') as string
+  const appointmentTime = formData.get('appointmentTime') as string
+  const problemDescription = formData.get('problemDescription') as string
+
+  try {
+    // 1. Validate date (must be within last 3 days to future)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const minDate = new Date()
+    minDate.setDate(today.getDate() - 3)
+    minDate.setHours(0, 0, 0, 0)
+    
+    const selectedDate = new Date(appointmentDate)
+    selectedDate.setHours(0, 0, 0, 0)
+    
+    if (selectedDate < minDate) {
+      return { success: false, error: 'Offline appointments can only be backdated up to 3 days.' }
+    }
+    
+    // 2. Query / create patient by email
+    const { data: existingPatient } = await adminDb
+      .from('patients')
+      .select('id')
+      .eq('email', patientEmail.trim().toLowerCase())
+      .maybeSingle()
+      
+    let patientId = ''
+    if (existingPatient) {
+      patientId = existingPatient.id
+      const { error: patientUpdateErr } = await adminDb
+        .from('patients')
+        .update({
+          name: patientName,
+          mobile: patientMobile,
+          age: patientAge
+        })
+        .eq('id', patientId)
+        
+      if (patientUpdateErr) throw patientUpdateErr
+    } else {
+      const { data: newPatient, error: patientInsertErr } = await adminDb
+        .from('patients')
+        .insert({
+          name: patientName,
+          email: patientEmail.trim().toLowerCase(),
+          mobile: patientMobile,
+          age: patientAge
+        })
+        .select('id')
+        .single()
+        
+      if (patientInsertErr) throw patientInsertErr
+      patientId = newPatient.id
+    }
+    
+    // 3. Create appointment
+    const { data: newAppt, error: apptErr } = await adminDb
+      .from('appointments')
+      .insert({
+        patient_id: patientId,
+        doctor_id: doctorId,
+        branch_id: branchId,
+        appointment_date: appointmentDate,
+        appointment_time: appointmentTime,
+        problem_description: problemDescription.trim() || null,
+        status: 'confirmed' // Offline bookings default to confirmed
+      })
+      .select()
+      .single()
+      
+    if (apptErr) {
+      if (apptErr.code === '23505') {
+        return { success: false, error: 'This time slot is already booked for this doctor on this day.' }
+      }
+      throw apptErr
+    }
+    
+    return { success: true, data: newAppt }
+  } catch (err: any) {
+    console.error('Error booking offline appointment:', err)
+    return { success: false, error: err.message || 'Failed to book offline appointment.' }
+  }
+}
+
+export async function updateAppointmentFinances(appointmentId: string, amountCharged: number, treatmentCost: number) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data, error } = await adminDb
+      .from('appointments')
+      .update({
+        amount_charged: amountCharged,
+        treatment_cost: treatmentCost
+      })
+      .eq('id', appointmentId)
+      .select()
+      
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error updating appointment finances:', err)
+    return { success: false, error: err.message || 'Failed to update financials.' }
+  }
+}
+
+export async function upsertMonthlyElectricity(branchId: string, monthYear: string, bill: number) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data: existing } = await adminDb
+      .from('monthly_expenses')
+      .select('id')
+      .eq('branch_id', branchId)
+      .eq('month_year', monthYear)
+      .maybeSingle()
+      
+    if (existing) {
+      const { data, error } = await adminDb
+        .from('monthly_expenses')
+        .update({ electricity_bill: bill })
+        .eq('id', existing.id)
+        .select()
+      if (error) throw error
+      return { success: true, data }
+    } else {
+      const { data, error } = await adminDb
+        .from('monthly_expenses')
+        .insert({
+          branch_id: branchId,
+          month_year: monthYear,
+          electricity_bill: bill
+        })
+        .select()
+      if (error) throw error
+      return { success: true, data }
+    }
+  } catch (err: any) {
+    console.error('Error updating electricity bill:', err)
+    return { success: false, error: err.message || 'Failed to update electricity bill.' }
+  }
+}
+
+export async function addHelperBoy(
+  name: string,
+  shift1Rate: number,
+  shift2Rate: number,
+  shift1Enabled: boolean,
+  shift2Enabled: boolean,
+  sundayEnabled: boolean,
+  branchId: string
+) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data, error } = await adminDb
+      .from('helper_boys')
+      .insert({
+        name,
+        shift_1_rate: shift1Rate,
+        shift_2_rate: shift2Rate,
+        shift_1_enabled: shift1Enabled,
+        shift_2_enabled: shift2Enabled,
+        sunday_enabled: sundayEnabled,
+        branch_id: branchId
+      })
+      .select()
+      
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error adding helper boy:', err)
+    return { success: false, error: err.message || 'Failed to add helper boy.' }
+  }
+}
+
+export async function deleteHelperBoy(helperId: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { error } = await adminDb
+      .from('helper_boys')
+      .delete()
+      .eq('id', helperId)
+      
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error deleting helper boy:', err)
+    return { success: false, error: err.message || 'Failed to delete helper boy.' }
+  }
+}
+
+export async function updateHelperAttendance(
+  helperBoyId: string,
+  date: string,
+  shift: number,
+  status: 'present' | 'absent'
+) {
+  const adminDb = getAdminSupabase()
+  try {
+    if (status === 'absent') {
+      const { data, error } = await adminDb
+        .from('helper_attendance')
+        .upsert(
+          { helper_boy_id: helperBoyId, date, shift, status },
+          { onConflict: 'helper_boy_id,date,shift' }
+        )
+        .select()
+      if (error) throw error
+      return { success: true, data }
+    } else {
+      const { error } = await adminDb
+        .from('helper_attendance')
+        .delete()
+        .eq('helper_boy_id', helperBoyId)
+        .eq('date', date)
+        .eq('shift', shift)
+      if (error) throw error
+      return { success: true }
+    }
+  } catch (err: any) {
+    console.error('Error updating helper attendance:', err)
+    return { success: false, error: err.message || 'Failed to update helper attendance.' }
+  }
+}
+
+export async function updateDoctorAttendance(
+  doctorId: string,
+  date: string,
+  status: 'present' | 'absent'
+) {
+  const adminDb = getAdminSupabase()
+  try {
+    if (status === 'absent') {
+      const { data, error } = await adminDb
+        .from('doctor_attendance')
+        .upsert(
+          { doctor_id: doctorId, date, status },
+          { onConflict: 'doctor_id,date' }
+        )
+        .select()
+      if (error) throw error
+      return { success: true, data }
+    } else {
+      const { error } = await adminDb
+        .from('doctor_attendance')
+        .delete()
+        .eq('doctor_id', doctorId)
+        .eq('date', date)
+      if (error) throw error
+      return { success: true }
+    }
+  } catch (err: any) {
+    console.error('Error updating doctor attendance:', err)
+    return { success: false, error: err.message || 'Failed to update doctor attendance.' }
+  }
+}
+
+export async function addExtraExpense(amount: number, note: string, date: string, branchId: string) {
+  const adminDb = getAdminSupabase()
+  if (!note || note.trim() === '') {
+    return { success: false, error: 'A description/note is compulsory for extra expenses.' }
+  }
+  try {
+    const { data, error } = await adminDb
+      .from('extra_expenses')
+      .insert({
+        amount,
+        note: note.trim(),
+        expense_date: date,
+        branch_id: branchId
+      })
+      .select()
+      
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error adding extra expense:', err)
+    return { success: false, error: err.message || 'Failed to add extra expense.' }
   }
 }
 
