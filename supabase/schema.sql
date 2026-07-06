@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS public.doctors (
     picture_url TEXT,
     specialty TEXT,
     branch_id UUID REFERENCES public.branches(id) ON DELETE SET NULL,
+    compensation_type TEXT DEFAULT 'fixed' CHECK (compensation_type IN ('fixed', 'percentage')),
+    fixed_salary NUMERIC DEFAULT 0,
+    profit_percentage NUMERIC DEFAULT 0,
+    slug TEXT UNIQUE,
+    password TEXT DEFAULT 'doctor123',
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -49,6 +54,8 @@ CREATE TABLE IF NOT EXISTS public.appointments (
     xray_url TEXT,
     temp_mobile_photo TEXT,
     report_sent_at TIMESTAMPTZ,
+    amount_charged NUMERIC DEFAULT 0,
+    treatment_cost NUMERIC DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
     -- Prevent double booking the same doctor at the same date and time slot
     CONSTRAINT unique_doctor_appointment UNIQUE (doctor_id, appointment_date, appointment_time)
@@ -99,12 +106,99 @@ CREATE POLICY "Allow public selection of appointments (to check time slots)" ON 
 CREATE POLICY "Allow admin full access to appointments" ON public.appointments
     FOR ALL TO authenticated USING (true);
 
+-- 5. Helper Boys Table
+CREATE TABLE IF NOT EXISTS public.helper_boys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    shift_1_rate NUMERIC NOT NULL DEFAULT 0,
+    shift_2_rate NUMERIC NOT NULL DEFAULT 0,
+    shift_1_enabled BOOLEAN DEFAULT TRUE,
+    shift_2_enabled BOOLEAN DEFAULT TRUE,
+    sunday_enabled BOOLEAN DEFAULT FALSE,
+    branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS for helper_boys
+ALTER TABLE public.helper_boys ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access to helper_boys" ON public.helper_boys FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to helper_boys" ON public.helper_boys FOR ALL TO authenticated USING (true);
+
+-- 6. Helper Attendance Table
+CREATE TABLE IF NOT EXISTS public.helper_attendance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    helper_boy_id UUID REFERENCES public.helper_boys(id) ON DELETE CASCADE NOT NULL,
+    date DATE NOT NULL,
+    shift INTEGER NOT NULL CHECK (shift IN (1, 2)),
+    status TEXT NOT NULL CHECK (status IN ('present', 'absent')),
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE (helper_boy_id, date, shift)
+);
+
+-- Enable RLS for helper_attendance
+ALTER TABLE public.helper_attendance ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access to helper_attendance" ON public.helper_attendance FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to helper_attendance" ON public.helper_attendance FOR ALL TO authenticated USING (true);
+
+-- 7. Doctor Attendance Table
+CREATE TABLE IF NOT EXISTS public.doctor_attendance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    doctor_id UUID REFERENCES public.doctors(id) ON DELETE CASCADE NOT NULL,
+    date DATE NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('present', 'absent')),
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE (doctor_id, date)
+);
+
+-- Enable RLS for doctor_attendance
+ALTER TABLE public.doctor_attendance ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access to doctor_attendance" ON public.doctor_attendance FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to doctor_attendance" ON public.doctor_attendance FOR ALL TO authenticated USING (true);
+
+-- 8. Monthly Expenses Table (Electricity)
+CREATE TABLE IF NOT EXISTS public.monthly_expenses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    month_year TEXT NOT NULL, -- e.g. '2026-07'
+    electricity_bill NUMERIC DEFAULT 0,
+    branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE (month_year, branch_id)
+);
+
+-- Enable RLS for monthly_expenses
+ALTER TABLE public.monthly_expenses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access to monthly_expenses" ON public.monthly_expenses FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to monthly_expenses" ON public.monthly_expenses FOR ALL TO authenticated USING (true);
+
+-- 9. Extra Expenses Table
+CREATE TABLE IF NOT EXISTS public.extra_expenses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    amount NUMERIC NOT NULL,
+    note TEXT NOT NULL,
+    expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS for extra_expenses
+ALTER TABLE public.extra_expenses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access to extra_expenses" ON public.extra_expenses FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to extra_expenses" ON public.extra_expenses FOR ALL TO authenticated USING (true);
+
 -- Helper Seed Data for branches
-INSERT INTO public.branches (name, slug, working_hours) 
+INSERT INTO public.branches (id, name, slug, working_hours) 
 VALUES 
-('Hazara Dental Store', 'hazara', 'Monday – Saturday: 9:00 AM – 6:00 PM (Closed on Sunday)'),
-('Family Dental Store', 'family', 'Monday – Friday: 9:00 AM – 6:00 PM, Saturday: 9:00 AM – 2:00 PM (Sunday Closed)')
-ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, working_hours = EXCLUDED.working_hours;
+('a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'Hazara Dental Store', 'hazara', 'Monday – Saturday: 9:00 AM – 6:00 PM (Closed on Sunday)'),
+('f1e2d3c4-b5a6-7988-9766-5e4d3c2b1a0f', 'Family Dental Store', 'family', 'Monday – Friday: 9:00 AM – 6:00 PM, Saturday: 9:00 AM – 2:00 PM (Sunday Closed)')
+ON CONFLICT (slug) DO UPDATE SET id = EXCLUDED.id, name = EXCLUDED.name, working_hours = EXCLUDED.working_hours;
+
+-- Seed Default Dentists to prevent empty drop-downs and redirect errors on fresh resets
+INSERT INTO public.doctors (id, name, email, specialty, branch_id, compensation_type, fixed_salary, profit_percentage, slug, password)
+VALUES
+('d1d1d1d1-d1d1-d1d1-d1d1-d1d1d1d1d1d1', 'Aman', 'aman@dental.com', 'Orthodontics', 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'percentage', 0, 20, 'aman', 'aman123'),
+('d2d2d2d2-d2d2-d2d2-d2d2-d2d2d2d2d2d2', 'Faisal', 'faisal@dental.com', 'General Dentist', 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'fixed', 60000, 0, 'faisal', 'faisal123'),
+('d3d3d3d3-d3d3-d3d3-d3d3-d3d3d3d3d3d3', 'Sarah', 'sarah@dental.com', 'Pediatric Dentist', 'f1e2d3c4-b5a6-7988-9766-5e4d3c2b1a0f', 'percentage', 0, 25, 'sarah', 'sarah123')
+ON CONFLICT (slug) DO NOTHING;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_appointments_date_time ON public.appointments (appointment_date, appointment_time);
@@ -253,7 +347,8 @@ CREATE POLICY "Allow public read access to reports bucket" ON storage.objects
 CREATE POLICY "Allow admin service-role full access to reports bucket" ON storage.objects
     FOR ALL USING (bucket_id = 'reports');
 
--- 8. Add active capture ticket column to branches table
-ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS active_capture_appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL;
+-- 8. Add active capture ticket column to branches table (using plain UUID to avoid query ambiguity in PostgREST)
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS active_capture_appointment_id UUID;
+ALTER TABLE public.branches DROP CONSTRAINT IF EXISTS branches_active_capture_appointment_id_fkey;
 
 
