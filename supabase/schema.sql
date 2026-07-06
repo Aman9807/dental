@@ -185,19 +185,19 @@ ALTER TABLE public.extra_expenses ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access to extra_expenses" ON public.extra_expenses FOR SELECT USING (true);
 CREATE POLICY "Allow admin full access to extra_expenses" ON public.extra_expenses FOR ALL TO authenticated USING (true);
 
--- Helper Seed Data for branches
-INSERT INTO public.branches (id, name, slug, working_hours) 
+-- Helper Seed Data for branches (no static IDs to prevent foreign key issues)
+INSERT INTO public.branches (name, slug, working_hours) 
 VALUES 
-('a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'Hazara Dental Store', 'hazara', 'Monday – Saturday: 9:00 AM – 6:00 PM (Closed on Sunday)'),
-('f1e2d3c4-b5a6-7988-9766-5e4d3c2b1a0f', 'Family Dental Store', 'family', 'Monday – Friday: 9:00 AM – 6:00 PM, Saturday: 9:00 AM – 2:00 PM (Sunday Closed)')
-ON CONFLICT (slug) DO UPDATE SET id = EXCLUDED.id, name = EXCLUDED.name, working_hours = EXCLUDED.working_hours;
+('Hazara Dental Store', 'hazara', 'Monday – Saturday: 9:00 AM – 6:00 PM (Closed on Sunday)'),
+('Family Dental Store', 'family', 'Monday – Friday: 9:00 AM – 6:00 PM, Saturday: 9:00 AM – 2:00 PM (Sunday Closed)')
+ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, working_hours = EXCLUDED.working_hours;
 
--- Seed Default Dentists to prevent empty drop-downs and redirect errors on fresh resets
-INSERT INTO public.doctors (id, name, email, specialty, branch_id, compensation_type, fixed_salary, profit_percentage, slug, password)
+-- Seed Default Dentists to prevent empty drop-downs and redirect errors on resets
+INSERT INTO public.doctors (name, email, specialty, branch_id, compensation_type, fixed_salary, profit_percentage, slug, password)
 VALUES
-('d1d1d1d1-d1d1-d1d1-d1d1-d1d1d1d1d1d1', 'Aman', 'aman@dental.com', 'Orthodontics', 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'percentage', 0, 20, 'aman', 'aman123'),
-('d2d2d2d2-d2d2-d2d2-d2d2-d2d2d2d2d2d2', 'Faisal', 'faisal@dental.com', 'General Dentist', 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'fixed', 60000, 0, 'faisal', 'faisal123'),
-('d3d3d3d3-d3d3-d3d3-d3d3-d3d3d3d3d3d3', 'Sarah', 'sarah@dental.com', 'Pediatric Dentist', 'f1e2d3c4-b5a6-7988-9766-5e4d3c2b1a0f', 'percentage', 0, 25, 'sarah', 'sarah123')
+('Aman', 'aman@dental.com', 'Orthodontics', (SELECT id FROM public.branches WHERE slug = 'hazara'), 'percentage', 0, 20, 'aman', 'aman123'),
+('Faisal', 'faisal@dental.com', 'General Dentist', (SELECT id FROM public.branches WHERE slug = 'hazara'), 'fixed', 60000, 0, 'faisal', 'faisal123'),
+('Sarah', 'sarah@dental.com', 'Pediatric Dentist', (SELECT id FROM public.branches WHERE slug = 'family'), 'percentage', 0, 25, 'sarah', 'sarah123')
 ON CONFLICT (slug) DO NOTHING;
 
 -- Indexes for performance
