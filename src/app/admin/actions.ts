@@ -535,7 +535,7 @@ export async function sendPatientReport(formData: FormData) {
     if (!brevoApiKey) {
       throw new Error('Missing BREVO_API_KEY environment variable.')
     }
-    const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL || 'info@dentalstore.com'
+    const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL || 'dental@flynx.site'
 
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
