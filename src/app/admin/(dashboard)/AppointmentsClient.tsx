@@ -164,7 +164,11 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
             ...appt, 
             report_sent_at: sentTime,
             prescription_text: prescriptionText,
-            temp_mobile_photo: tempMobilePhoto
+            prescription_url: res.prescriptionUrl || appt.prescription_url,
+            xray_url: res.xrayUrl || appt.xray_url,
+            temp_mobile_photo: tempMobilePhoto,
+            patient_id: res.updatedPatient?.id || appt.patient_id,
+            patients: res.updatedPatient || appt.patients
           } : appt)
         )
         setShowReportsModal(false)

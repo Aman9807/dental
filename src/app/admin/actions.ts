@@ -409,13 +409,34 @@ export async function sendPatientReport(formData: FormData) {
 
     const patientId = appt.patients.id
 
+    let finalPatientId = patientId
+    let finalPatient = appt.patients
+
     // 2. Update patient email in database if it changed
     if (patientEmail && patientEmail.trim().toLowerCase() !== appt.patients.email) {
-      const { error: emailErr } = await adminDb
+      const targetEmail = patientEmail.trim().toLowerCase()
+      // Check if a patient with this email already exists
+      const { data: existingPatient } = await adminDb
         .from('patients')
-        .update({ email: patientEmail.trim().toLowerCase() })
-        .eq('id', patientId)
-      if (emailErr) throw emailErr
+        .select('*')
+        .eq('email', targetEmail)
+        .maybeSingle()
+
+      if (existingPatient) {
+        // Re-link the appointment to the existing patient
+        finalPatientId = existingPatient.id
+        finalPatient = existingPatient
+      } else {
+        // Update current patient's email
+        const { data: updatedPat, error: emailErr } = await adminDb
+          .from('patients')
+          .update({ email: targetEmail })
+          .eq('id', patientId)
+          .select()
+          .single()
+        if (emailErr) throw emailErr
+        finalPatient = updatedPat
+      }
     }
 
     // 3. Save uploaded files
@@ -433,6 +454,7 @@ export async function sendPatientReport(formData: FormData) {
     const { error: updateErr } = await adminDb
       .from('appointments')
       .update({
+        patient_id: finalPatientId,
         prescription_text: prescriptionText || null,
         prescription_url: prescriptionUrl || null,
         xray_url: xrayUrl || null,
@@ -569,7 +591,12 @@ export async function sendPatientReport(formData: FormData) {
       throw new Error(`Brevo Error: ${resText}`)
     }
 
-    return { success: true }
+    return { 
+      success: true, 
+      updatedPatient: finalPatient,
+      xrayUrl: xrayUrl || null,
+      prescriptionUrl: prescriptionUrl || null
+    }
   } catch (err: any) {
     console.error('Error in sendPatientReport:', err)
     return { success: false, error: err.message || 'Failed to send reports' }

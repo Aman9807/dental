@@ -393,7 +393,10 @@ export default function DoctorClient({
             ...a, 
             report_sent_at: sentTime,
             prescription_text: prescriptionText,
-            temp_mobile_photo: tempMobilePhoto
+            prescription_url: res.prescriptionUrl || a.prescription_url,
+            xray_url: res.xrayUrl || a.xray_url,
+            temp_mobile_photo: tempMobilePhoto,
+            patients: res.updatedPatient || a.patients
           } : a)
         )
         setShowReportsModal(false)
