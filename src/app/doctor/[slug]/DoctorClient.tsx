@@ -668,6 +668,12 @@ export default function DoctorClient({
                                   Mark Completed
                                 </button>
                               )}
+                              {appt.status === 'completed' && (
+                                <span className="px-3 py-1.5 text-xs font-semibold text-slate-400 bg-slate-50 border border-slate-100 rounded-lg">Task completed</span>
+                              )}
+                              {appt.status === 'cancelled' && (
+                                <span className="px-3 py-1.5 text-xs font-semibold text-slate-400 bg-slate-50 border border-slate-100 rounded-lg">Cancelled</span>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
