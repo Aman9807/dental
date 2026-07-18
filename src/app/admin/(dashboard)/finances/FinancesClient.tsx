@@ -604,27 +604,27 @@ export default function FinancesClient({
         
         <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-1">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Gross Charged</p>
-          <p className="text-xl font-semibold text-slate-800">PKR {totals.totalCharged.toLocaleString()}</p>
+          <p className="text-xl font-semibold text-slate-800">INR {totals.totalCharged.toLocaleString()}</p>
         </div>
 
         <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-1">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Treatment Costs</p>
-          <p className="text-xl font-semibold text-slate-500">PKR {totals.totalTreatmentCost.toLocaleString()}</p>
+          <p className="text-xl font-semibold text-slate-500">INR {totals.totalTreatmentCost.toLocaleString()}</p>
         </div>
 
         <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-1">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Treatment Profits</p>
-          <p className="text-xl font-semibold text-teal-600">PKR {totals.treatmentProfit.toLocaleString()}</p>
+          <p className="text-xl font-semibold text-teal-600">INR {totals.treatmentProfit.toLocaleString()}</p>
         </div>
 
         <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-1">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Total Expenses</p>
-          <p className="text-xl font-semibold text-rose-600">PKR {totals.totalExpenses.toLocaleString()}</p>
+          <p className="text-xl font-semibold text-rose-600">INR {totals.totalExpenses.toLocaleString()}</p>
         </div>
 
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-5 border border-slate-900 rounded-2xl shadow-md text-white space-y-1">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Net Profits</p>
-          <p className="text-xl font-semibold">PKR {totals.netProfit.toLocaleString()}</p>
+          <p className="text-xl font-semibold">INR {totals.netProfit.toLocaleString()}</p>
         </div>
 
       </div>
@@ -908,8 +908,8 @@ export default function FinancesClient({
                       <tr key={helper.id} className="hover:bg-slate-50/50">
                         <td className="px-4 py-3 font-semibold text-slate-800">{helper.name}</td>
                         <td className="px-4 py-3">{branchName}</td>
-                        <td className="px-4 py-3">PKR {helper.shift_1_rate} {helper.shift_1_enabled ? '' : '(Disabled)'}</td>
-                        <td className="px-4 py-3">PKR {helper.shift_2_rate} {helper.shift_2_enabled ? '' : '(Disabled)'}</td>
+                        <td className="px-4 py-3">INR {helper.shift_1_rate} {helper.shift_1_enabled ? '' : '(Disabled)'}</td>
+                        <td className="px-4 py-3">INR {helper.shift_2_rate} {helper.shift_2_enabled ? '' : '(Disabled)'}</td>
                         <td className="px-4 py-3 font-medium">
                           {helper.sunday_enabled ? (
                             <span className="text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-100">Yes (Sunday Work)</span>
@@ -917,7 +917,7 @@ export default function FinancesClient({
                             <span className="text-slate-400 font-light">Off Sundays</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-800">PKR {pay.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-800">INR {pay.toLocaleString()}</td>
                         <td className="px-4 py-3 text-right">
                           <button
                             onClick={() => handleDeleteHelper(helper.id)}
@@ -945,7 +945,7 @@ export default function FinancesClient({
             ) : (
               <form onSubmit={handleSaveElectricity} className="flex items-end gap-3 max-w-sm">
                 <div className="space-y-1 flex-1">
-                  <label className="block text-[10px] font-semibold text-slate-400">Electricity Bill (PKR)</label>
+                  <label className="block text-[10px] font-semibold text-slate-400">Electricity Bill (INR)</label>
                   <div className="relative">
                     <Zap className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                     <input
@@ -1019,7 +1019,7 @@ export default function FinancesClient({
                       const worked = Math.max(0, docWorkingDays - absencesCount)
                       const dailyRate = doc.fixed_salary / docWorkingDays
                       pay = worked * dailyRate
-                      rateString = `PKR ${doc.fixed_salary.toLocaleString()} / mo (${absencesCount} absences)`
+                      rateString = `INR ${doc.fixed_salary.toLocaleString()} / mo (${absencesCount} absences)`
                     } else {
                       // Percentage based on branch net profit
                       let bProfit = totals.branchNetProfitBeforeDoctors
@@ -1057,7 +1057,7 @@ export default function FinancesClient({
                         <td className="px-4 py-3">{branchName}</td>
                         <td className="px-4 py-3 uppercase font-semibold text-slate-500">{doc.compensation_type}</td>
                         <td className="px-4 py-3">{rateString}</td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-850">PKR {Math.round(pay).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-850">INR {Math.round(pay).toLocaleString()}</td>
                       </tr>
                     )
                   })
@@ -1117,7 +1117,7 @@ export default function FinancesClient({
                         <td className="px-4 py-3">{exp.expense_date}</td>
                         <td className="px-4 py-3 font-semibold text-slate-800">{exp.note}</td>
                         <td className="px-4 py-3">{branchName}</td>
-                        <td className="px-4 py-3 text-right text-rose-600 font-bold">PKR {exp.amount.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-rose-600 font-bold">INR {exp.amount.toLocaleString()}</td>
                       </tr>
                     )
                   })
@@ -1264,7 +1264,7 @@ export default function FinancesClient({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Amount (PKR)</label>
+                  <label className="block text-xs font-medium text-slate-500">Amount (INR)</label>
                   <input
                     type="number"
                     required

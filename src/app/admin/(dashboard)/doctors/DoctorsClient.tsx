@@ -409,7 +409,7 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
 
                 {compensationType === 'fixed' ? (
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-slate-500">Monthly Fixed Salary (PKR)</label>
+                    <label className="block text-xs font-medium text-slate-500">Monthly Fixed Salary (INR)</label>
                     <input
                       type="number"
                       required

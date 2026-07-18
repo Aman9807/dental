@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   bookOfflineAppointment, 
   updateAppointmentStatus, 
@@ -122,6 +123,19 @@ function getWorkingDaysInMonth(year: number, month: number, includeSundays: bool
     date.setDate(date.getDate() + 1)
   }
   return count
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 }
 
 export default function DoctorClient({
@@ -507,549 +521,563 @@ export default function DoctorClient({
   const finances = getDoctorFinances()
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 font-['Inter',_sans-serif] text-slate-800 flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50 via-white to-slate-50">
       
-      {/* ═══ PORTAL HEADER ═══ */}
-      <header className="h-16 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 px-6 sm:px-8 flex items-center justify-between shrink-0 text-white shadow-md z-40">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-teal-500 rounded-xl flex items-center justify-center text-white shadow-lg">
-            <span className="font-serif font-bold text-sm">D</span>
+      {/* Abstract Background Elements for Spatial Depth */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-gradient-to-br from-cyan-400/10 to-transparent blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-tl from-teal-400/10 to-transparent blur-[120px] pointer-events-none" />
+
+      {/* ═══ PORTAL HEADER (Glassmorphic) ═══ */}
+      <header className="sticky top-0 z-40 w-full px-6 py-4 flex items-center justify-between border-b border-white/40 bg-white/60 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl flex items-center justify-center text-white shadow-[0_8px_16px_rgba(6,182,212,0.25)] border border-white/20 transform transition hover:scale-105">
+            <span className="font-['Poppins',_sans-serif] font-bold text-lg">D</span>
           </div>
           <div>
-            <h2 className="text-sm font-semibold leading-tight">Dr. {doctor.name}</h2>
-            <p className="text-[10px] text-cyan-400 font-light uppercase tracking-wider">{doctor.branches?.name || 'Dentist Portal'}</p>
+            <h2 className="text-lg font-['Poppins',_sans-serif] font-bold leading-tight text-slate-800">Dr. {doctor.name}</h2>
+            <p className="text-xs text-teal-600 font-medium uppercase tracking-widest">{doctor.branches?.name || 'Dentist Portal'}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-semibold tracking-wide transition duration-200 text-slate-200 hover:text-white"
-          >
-            <LogOut className="w-3.5 h-3.5" /> Logout
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-white/80 border border-slate-200/50 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 text-slate-600 hover:text-rose-600 hover:shadow-sm"
+        >
+          <LogOut className="w-4 h-4" /> Logout
+        </button>
       </header>
 
-      <div className="flex-1 p-6 sm:p-8 max-w-6xl w-full mx-auto space-y-6">
+      <div className="flex-1 p-6 sm:p-10 max-w-7xl w-full mx-auto space-y-8 z-10 relative">
         
-        {/* Navigation Tabs */}
-        <div className="border-b border-slate-200 flex gap-4 text-xs font-semibold">
+        {/* Floating Navigation Tabs */}
+        <div className="flex gap-2 p-1.5 bg-white/40 backdrop-blur-md rounded-2xl border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.03)] w-max mx-auto md:mx-0">
           <button
             onClick={() => setActiveTab('appointments')}
-            className={`pb-3 border-b-2 px-1 transition ${
-              activeTab === 'appointments' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'
+            className={`px-6 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
+              activeTab === 'appointments' ? 'bg-white text-teal-700 shadow-[0_4px_12px_rgba(0,0,0,0.05)]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}
           >
             My Appointments
           </button>
           <button
             onClick={() => setActiveTab('book')}
-            className={`pb-3 border-b-2 px-1 transition ${
-              activeTab === 'book' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'
+            className={`px-6 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
+              activeTab === 'book' ? 'bg-white text-teal-700 shadow-[0_4px_12px_rgba(0,0,0,0.05)]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}
           >
             Book Offline Patient
           </button>
           <button
             onClick={() => setActiveTab('finances')}
-            className={`pb-3 border-b-2 px-1 transition ${
-              activeTab === 'finances' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'
+            className={`px-6 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
+              activeTab === 'finances' ? 'bg-white text-teal-700 shadow-[0_4px_12px_rgba(0,0,0,0.05)]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}
           >
             Earnings & Attendance
           </button>
         </div>
 
-        {/* ═══ TAB 1: MY APPOINTMENTS ═══ */}
-        {activeTab === 'appointments' && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-slate-500" />
-              Patient Appointments
-            </h3>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-400 font-semibold">
-                    <th className="px-4 py-3">Patient Details</th>
-                    <th className="px-4 py-3">Date / Time</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Action</th>
-                    <th className="px-4 py-3 text-center">Reports</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
-                  {appointments.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="text-center py-8 text-slate-400 font-light">
-                        No appointments assigned to you.
-                      </td>
-                    </tr>
-                  ) : (
-                    appointments.map(appt => (
-                      <tr key={appt.id} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-3">
-                          <p className="font-semibold text-slate-800">{appt.patients?.name}</p>
-                          <p className="text-[10px] text-slate-400 font-light">{appt.patients?.age} years old | {appt.patients?.mobile}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-slate-700">{appt.appointment_date}</p>
-                          <p className="text-[10px] text-slate-400 font-light">{appt.appointment_time.substring(0, 5)}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full border text-[9px] font-semibold uppercase tracking-wider ${
-                            appt.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                            appt.status === 'confirmed' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                            appt.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                            'bg-rose-50 text-rose-700 border-rose-100'
-                          }`}>
-                            {appt.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1">
-                            {appt.status === 'pending' && (
-                              <>
-                                <button
-                                  onClick={() => handleUpdateStatus(appt.id, 'confirmed')}
-                                  disabled={updatingId === appt.id}
-                                  className="px-2 py-1 bg-blue-600 text-white rounded text-[10px] font-bold"
-                                >
-                                  Accept
-                                </button>
-                                <button
-                                  onClick={() => handleUpdateStatus(appt.id, 'cancelled')}
-                                  disabled={updatingId === appt.id}
-                                  className="px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[10px] font-bold"
-                                >
-                                  Decline
-                                </button>
-                              </>
-                            )}
-                            {appt.status === 'confirmed' && (
-                              <button
-                                onClick={() => handleUpdateStatus(appt.id, 'completed')}
-                                disabled={updatingId === appt.id}
-                                className="px-2 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold"
-                              >
-                                Mark Completed
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => handleOpenReportsModal(appt)}
-                            className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white text-[10px] rounded-lg font-semibold tracking-wide"
-                          >
-                            {appt.report_sent_at ? 'Resend Report' : 'Send Report'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ═══ TAB 2: BOOK OFFLINE PATIENT ═══ */}
-        {activeTab === 'book' && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm max-w-lg mx-auto space-y-4">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5 border-b pb-3">
-              <Calendar className="w-4 h-4 text-slate-500" />
-              Book Offline Patient
-            </h3>
-
-            <form onSubmit={handleBookOffline} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Patient Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="John Doe"
-                    value={offlineName}
-                    onChange={e => setOfflineName(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Email Address</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="john@example.com"
-                    value={offlineEmail}
-                    onChange={e => setOfflineEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Mobile Phone</label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="03001234567"
-                    value={offlineMobile}
-                    onChange={e => setOfflineMobile(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Age</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    max="120"
-                    placeholder="25"
-                    value={offlineAge}
-                    onChange={e => setOfflineAge(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Date (Min: Past 3 Days)</label>
-                  <input
-                    type="date"
-                    required
-                    value={offlineDate}
-                    onChange={e => setOfflineDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Time Slot</label>
-                  <select
-                    value={offlineTime}
-                    required
-                    onChange={e => setOfflineTime(e.target.value)}
-                    className="w-full px-2 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  >
-                    <option value="">Select Time</option>
-                    {timeSlots.map(t => (
-                      <option key={t.id} value={t.time_value}>{t.time_label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11px] font-medium text-slate-500">Problem / Symptom Notes</label>
-                <textarea
-                  placeholder="Notes about diagnostic..."
-                  value={offlineProblem}
-                  onChange={e => setOfflineProblem(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={bookingOffline}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow"
-              >
-                {bookingOffline && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                Confirm Booking
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* ═══ TAB 3: EARNINGS & ATTENDANCE ═══ */}
-        {activeTab === 'finances' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Monthly Earnings Card */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
-              <div className="flex items-center justify-between border-b pb-3">
-                <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4 text-slate-500" />
-                  Monthly Payout Calculator
-                </h3>
-                
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={e => setSelectedMonth(e.target.value)}
-                  className="px-3 py-1 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none"
-                />
-              </div>
-
-              <div className="bg-slate-50 p-5 rounded-2xl text-center space-y-1">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Earning Payout</p>
-                <p className="text-2xl font-semibold text-slate-800">PKR {finances.finalPayout.toLocaleString()}</p>
-              </div>
-
-              {/* Formula calculations view */}
-              {doctor.compensation_type === 'fixed' ? (
-                <div className="text-xs space-y-2 border-t pt-4 text-slate-650">
-                  <p className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">Compensation Basis: FIXED SALARY</p>
-                  <div className="flex justify-between">
-                    <span>Base monthly salary:</span>
-                    <span>PKR {finances.calculations.fixedSalary?.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Expected working days:</span>
-                    <span>{finances.calculations.workingDays} days</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Days absent:</span>
-                    <span className="text-rose-600">-{finances.calculations.absencesCount} days</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-slate-800 border-t pt-2 mt-2">
-                    <span>Days worked payout:</span>
-                    <span>PKR {finances.finalPayout?.toLocaleString()}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-xs space-y-2 border-t pt-4 text-slate-650">
-                  <p className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">Compensation Basis: {finances.calculations.profitPercentage}% PROFIT SHARE</p>
-                  
-                  <div className="flex justify-between">
-                    <span>Branch gross revenue:</span>
-                    <span>PKR {finances.calculations.totalRevenue?.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Branch materials cost:</span>
-                    <span className="text-rose-600">-{finances.calculations.totalTreatmentCost?.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Branch helper payouts:</span>
-                    <span className="text-rose-600">-{finances.calculations.branchHelpersPay?.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Branch electricity bill:</span>
-                    <span className="text-rose-600">-{finances.calculations.electricity?.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Branch extra expenses:</span>
-                    <span className="text-rose-600">-{finances.calculations.extras?.toLocaleString()}</span>
-                  </div>
-                  
-                  <div className="flex justify-between border-t border-dashed pt-2 font-medium text-slate-700">
-                    <span>Branch net profits:</span>
-                    <span>PKR {finances.calculations.branchProfit?.toLocaleString()}</span>
-                  </div>
-
-                  <div className="flex justify-between font-bold text-slate-800 border-t pt-2 mt-2">
-                    <span>Your {finances.calculations.profitPercentage}% share:</span>
-                    <span>PKR {finances.finalPayout?.toLocaleString()}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Attendance Absences logs */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5 border-b pb-3">
-                <Calendar className="w-4 h-4 text-slate-500" />
-                Marked Absences Logs
+        {/* ═══ MAIN CONTENT AREA ═══ */}
+        <AnimatePresence mode="wait">
+          
+          {/* TAB 1: MY APPOINTMENTS */}
+          {activeTab === 'appointments' && (
+            <motion.div 
+              key="appointments"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl p-6 sm:p-8 shadow-[0_20px_40px_rgba(0,0,0,0.04)] space-y-6"
+            >
+              <h3 className="text-xl font-['Poppins',_sans-serif] font-bold text-slate-800 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-teal-500" />
+                Patient Appointments
               </h3>
 
-              <div className="space-y-3">
-                {finances.absences.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-12 font-light">Great! You have no absences marked in this month.</p>
-                ) : (
-                  <div className="divide-y text-xs">
-                    {finances.absences.map((abs, index) => (
-                      <div key={index} className="py-2.5 flex items-center justify-between text-slate-650">
-                        <span className="font-semibold text-slate-800">{abs.date}</span>
-                        <span className="text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded text-[10px]">Absent</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="overflow-x-auto rounded-2xl border border-slate-100/50 bg-white/50">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-200/60 text-xs text-slate-500 font-semibold tracking-wider uppercase">
+                      <th className="px-6 py-4">Patient Details</th>
+                      <th className="px-6 py-4">Date / Time</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4">Action</th>
+                      <th className="px-6 py-4 text-center">Reports</th>
+                    </tr>
+                  </thead>
+                  <motion.tbody 
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="show"
+                    className="divide-y divide-slate-100/50 text-sm text-slate-700"
+                  >
+                    {appointments.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12 text-slate-400 font-medium">
+                          No appointments assigned to you.
+                        </td>
+                      </tr>
+                    ) : (
+                      appointments.map(appt => (
+                        <motion.tr variants={itemVariants} key={appt.id} className="hover:bg-white/60 transition-colors">
+                          <td className="px-6 py-4">
+                            <p className="font-semibold text-slate-800 font-['Poppins',_sans-serif]">{appt.patients?.name}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{appt.patients?.age} years old • {appt.patients?.mobile}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="font-medium text-slate-700">{appt.appointment_date}</p>
+                            <p className="text-xs text-slate-500 mt-0.5 font-mono">{appt.appointment_time.substring(0, 5)}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider ${
+                              appt.status === 'pending' ? 'bg-amber-50/80 text-amber-700 border-amber-200/50' :
+                              appt.status === 'confirmed' ? 'bg-cyan-50/80 text-cyan-700 border-cyan-200/50' :
+                              appt.status === 'completed' ? 'bg-emerald-50/80 text-emerald-700 border-emerald-200/50' :
+                              'bg-rose-50/80 text-rose-700 border-rose-200/50'
+                            }`}>
+                              {appt.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              {appt.status === 'pending' && (
+                                <>
+                                  <button
+                                    onClick={() => handleUpdateStatus(appt.id, 'confirmed')}
+                                    disabled={updatingId === appt.id}
+                                    className="px-4 py-1.5 bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 text-white rounded-lg text-xs font-semibold shadow-md shadow-cyan-500/20 transition-all hover:-translate-y-0.5"
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    onClick={() => handleUpdateStatus(appt.id, 'cancelled')}
+                                    disabled={updatingId === appt.id}
+                                    className="px-4 py-1.5 bg-white text-rose-500 border border-rose-100 hover:border-rose-200 hover:bg-rose-50 rounded-lg text-xs font-semibold transition-all"
+                                  >
+                                    Decline
+                                  </button>
+                                </>
+                              )}
+                              {appt.status === 'confirmed' && (
+                                <button
+                                  onClick={() => handleUpdateStatus(appt.id, 'completed')}
+                                  disabled={updatingId === appt.id}
+                                  className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-xs font-semibold shadow-md shadow-emerald-500/20 transition-all hover:-translate-y-0.5"
+                                >
+                                  Mark Completed
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => handleOpenReportsModal(appt)}
+                              className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs rounded-lg font-semibold tracking-wide shadow-md shadow-slate-800/20 transition-all hover:-translate-y-0.5"
+                            >
+                              {appt.report_sent_at ? 'Resend Report' : 'Send Report'}
+                            </button>
+                          </td>
+                        </motion.tr>
+                      ))
+                    )}
+                  </motion.tbody>
+                </table>
               </div>
-            </div>
+            </motion.div>
+          )}
 
-          </div>
-        )}
+          {/* TAB 2: BOOK OFFLINE PATIENT */}
+          {activeTab === 'book' && (
+            <motion.div 
+              key="book"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl p-8 shadow-[0_20px_40px_rgba(0,0,0,0.04)] max-w-2xl mx-auto space-y-8"
+            >
+              <div className="border-b border-slate-200/50 pb-4">
+                <h3 className="text-xl font-['Poppins',_sans-serif] font-bold text-slate-800 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-teal-500" />
+                  Book Offline Patient
+                </h3>
+                <p className="text-sm text-slate-500 mt-2">Register a walk-in patient directly into your schedule.</p>
+              </div>
 
+              <form onSubmit={handleBookOffline} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-600">Patient Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="John Doe"
+                      value={offlineName}
+                      onChange={e => setOfflineName(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white/50 backdrop-blur-sm transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-600">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="john@example.com"
+                      value={offlineEmail}
+                      onChange={e => setOfflineEmail(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white/50 backdrop-blur-sm transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-600">Mobile Phone</label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="03001234567"
+                      value={offlineMobile}
+                      onChange={e => setOfflineMobile(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white/50 backdrop-blur-sm transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-600">Age</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      max="120"
+                      placeholder="25"
+                      value={offlineAge}
+                      onChange={e => setOfflineAge(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white/50 backdrop-blur-sm transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-600">Date (Min: Past 3 Days)</label>
+                    <input
+                      type="date"
+                      required
+                      value={offlineDate}
+                      onChange={e => setOfflineDate(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white/50 backdrop-blur-sm transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-600">Time Slot</label>
+                    <select
+                      value={offlineTime}
+                      required
+                      onChange={e => setOfflineTime(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white/50 backdrop-blur-sm transition-all"
+                    >
+                      <option value="">Select Time</option>
+                      {timeSlots.map(t => (
+                        <option key={t.id} value={t.time_value}>{t.time_label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-600">Problem / Symptom Notes</label>
+                  <textarea
+                    placeholder="Notes about diagnostic..."
+                    value={offlineProblem}
+                    onChange={e => setOfflineProblem(e.target.value)}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white/50 backdrop-blur-sm transition-all resize-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={bookingOffline}
+                  className="w-full py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl text-sm font-['Poppins',_sans-serif] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20 transition-all hover:-translate-y-1 disabled:opacity-70 disabled:hover:translate-y-0"
+                >
+                  {bookingOffline && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  Confirm Booking
+                </button>
+              </form>
+            </motion.div>
+          )}
+
+          {/* TAB 3: EARNINGS & ATTENDANCE */}
+          {activeTab === 'finances' && (
+            <motion.div 
+              key="finances"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-8"
+            >
+              {/* Monthly Earnings Card */}
+              <div className="bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl p-8 shadow-[0_20px_40px_rgba(0,0,0,0.04)] flex flex-col relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-400/10 rounded-full blur-3xl" />
+                
+                <div className="flex items-center justify-between border-b border-slate-200/50 pb-4 mb-6 z-10">
+                  <h3 className="text-lg font-['Poppins',_sans-serif] font-bold text-slate-800 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-cyan-500" />
+                    Monthly Payout
+                  </h3>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={e => setSelectedMonth(e.target.value)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-sm bg-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  />
+                </div>
+
+                <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-100 p-6 rounded-2xl text-center shadow-inner mb-8 z-10">
+                  <p className="text-xs text-slate-400 uppercase tracking-[0.2em] font-medium mb-2">Total Earning</p>
+                  <p className="text-4xl font-['Poppins',_sans-serif] font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500">
+                    INR {finances.finalPayout.toLocaleString()}
+                  </p>
+                </div>
+
+                <div className="text-sm space-y-3 pt-4 border-t border-slate-100 text-slate-600 z-10 flex-1">
+                  {doctor.compensation_type === 'fixed' ? (
+                    <>
+                      <p className="font-bold text-slate-800 uppercase tracking-wider text-[10px] mb-4 text-cyan-700">Compensation: FIXED SALARY</p>
+                      <div className="flex justify-between items-center"><span className="font-medium">Base Salary:</span><span className="font-mono text-slate-800">INR {finances.calculations.fixedSalary?.toLocaleString()}</span></div>
+                      <div className="flex justify-between items-center"><span className="font-medium">Working Days:</span><span className="font-mono text-slate-800">{finances.calculations.workingDays}</span></div>
+                      <div className="flex justify-between items-center"><span className="font-medium">Absences:</span><span className="font-mono text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md">-{finances.calculations.absencesCount}</span></div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-bold uppercase tracking-wider text-[10px] mb-4 text-teal-700">Compensation: {finances.calculations.profitPercentage}% PROFIT SHARE</p>
+                      <div className="flex justify-between items-center"><span className="font-medium">Gross Revenue:</span><span className="font-mono text-slate-800">INR {finances.calculations.totalRevenue?.toLocaleString()}</span></div>
+                      <div className="flex justify-between items-center"><span className="font-medium">Materials Cost:</span><span className="font-mono text-slate-500">-{finances.calculations.totalTreatmentCost?.toLocaleString()}</span></div>
+                      <div className="flex justify-between items-center"><span className="font-medium">Helper Payouts:</span><span className="font-mono text-slate-500">-{finances.calculations.branchHelpersPay?.toLocaleString()}</span></div>
+                      <div className="flex justify-between items-center"><span className="font-medium">Electricity:</span><span className="font-mono text-slate-500">-{finances.calculations.electricity?.toLocaleString()}</span></div>
+                      <div className="flex justify-between items-center"><span className="font-medium">Extra Expenses:</span><span className="font-mono text-slate-500">-{finances.calculations.extras?.toLocaleString()}</span></div>
+                      <div className="flex justify-between items-center pt-3 mt-3 border-t border-slate-100 font-semibold text-slate-700">
+                        <span>Net Profit:</span><span className="font-mono text-teal-600">INR {finances.calculations.branchProfit?.toLocaleString()}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Attendance Card */}
+              <div className="bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl p-8 shadow-[0_20px_40px_rgba(0,0,0,0.04)] flex flex-col relative overflow-hidden">
+                <div className="absolute bottom-0 right-0 w-40 h-40 bg-rose-400/5 rounded-full blur-3xl" />
+                
+                <div className="flex items-center gap-2 border-b border-slate-200/50 pb-4 mb-6 z-10">
+                  <Calendar className="w-5 h-5 text-rose-400" />
+                  <h3 className="text-lg font-['Poppins',_sans-serif] font-bold text-slate-800">Absences Log</h3>
+                </div>
+
+                <div className="flex-1 overflow-y-auto z-10 pr-2 space-y-3">
+                  {finances.absences.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center space-y-3 opacity-60">
+                      <CheckCircle className="w-12 h-12 text-emerald-400" />
+                      <p className="text-sm font-medium text-slate-500">Perfect attendance this month!</p>
+                    </div>
+                  ) : (
+                    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-3">
+                      {finances.absences.map((abs, idx) => (
+                        <motion.div variants={itemVariants} key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                          <span className="font-semibold text-slate-700">{new Date(abs.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                          <span className="text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wide">Absent</span>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+
+            </motion.div>
+          )}
+
+        </AnimatePresence>
       </div>
 
       {/* ═══ MODAL OVERLAY FOR PATIENT REPORT EMAIL ═══ */}
-      {showReportsModal && activeAppt && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-slate-500" />
-                Update Report & Email Patient
-              </h3>
-              <button 
-                onClick={handleCloseModal}
-                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitReport} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+      <AnimatePresence>
+        {showReportsModal && activeAppt && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white/90 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Send To Email Address</label>
-                  <input
-                    type="email"
+              <div className="px-6 py-5 bg-white/50 border-b border-slate-200/50 flex items-center justify-between shrink-0">
+                <h3 className="text-lg font-['Poppins',_sans-serif] font-bold text-slate-800 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-teal-600" />
+                  Diagnostic Report
+                </h3>
+                <button 
+                  onClick={handleCloseModal}
+                  className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitReport} className="p-6 sm:p-8 space-y-6 overflow-y-auto">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-500">Patient Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={emailVal}
+                      onChange={e => setEmailVal(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-500">Patient Phone</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={activeAppt.patients?.mobile || ''}
+                      className="w-full px-4 py-2.5 border border-slate-100 bg-slate-50 text-slate-400 rounded-xl text-sm font-mono cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-500">Medical Advice & Prescription</label>
+                  <textarea
                     required
-                    placeholder="patient@email.com"
-                    value={emailVal}
-                    onChange={e => setEmailVal(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    rows={5}
+                    placeholder="Enter detailed medical advices, tests required, and medications..."
+                    value={prescriptionText}
+                    onChange={e => setPrescriptionText(e.target.value)}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white resize-none"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Patient Phone</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={activeAppt.patients?.mobile || ''}
-                    className="w-full px-3 py-1.5 border border-slate-100 bg-slate-50 text-slate-450 rounded-xl text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11px] font-medium text-slate-500">Doctor Advice & Prescription Details</label>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder="Enter medical advices, tests required, and medications details here..."
-                  value={prescriptionText}
-                  onChange={e => setPrescriptionText(e.target.value)}
-                  className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                />
-              </div>
-
-              {/* Upload boxes for PDFs and X-rays */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Diagnostic X-Ray (PDF/Image)</label>
-                  <div className="relative border border-dashed border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center hover:border-slate-400 cursor-pointer bg-slate-50 relative group">
-                    <input type="file" accept="image/*,application/pdf" onChange={handleXrayChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {xrayPreview ? (
-                      <div className="text-[10px] text-teal-700 font-semibold truncate max-w-full">File Attached</div>
-                    ) : (
-                      <>
-                        <Upload className="w-5 h-5 text-slate-400" />
-                        <span className="text-[9px] text-slate-400 mt-1">Upload files</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Prescription Paper Photo (Optional)</label>
-                  <div className="relative border border-dashed border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center hover:border-slate-400 cursor-pointer bg-slate-50 relative group">
-                    <input type="file" accept="image/*" onChange={handlePrescriptionChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {prescPreview ? (
-                      <div className="text-[10px] text-teal-700 font-semibold truncate max-w-full">File Attached</div>
-                    ) : (
-                      <>
-                        <Upload className="w-5 h-5 text-slate-400" />
-                        <span className="text-[9px] text-slate-400 mt-1">Upload photo</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Mobile Phone Sync box */}
-              <div className="border-t border-slate-100 pt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sync Handheld Mobile Camera</h4>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setIsWaitingForMobile(true)
-                      setTempMobilePhoto(null)
-                      if (activeAppt?.id) {
-                        await supabase
-                          .from('appointments')
-                          .update({ temp_mobile_photo: null })
-                          .eq('id', activeAppt.id)
-                        await createCaptureTicket(doctor.branch_id, activeAppt.id)
-                      }
-                    }}
-                    className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-[10px] font-bold shadow-sm transition"
-                  >
-                    Start Sync
-                  </button>
-                </div>
-
-                {isWaitingForMobile && (
-                  <div className="p-4 border rounded-2xl bg-slate-50 flex flex-col items-center justify-center gap-3 animate-fade-in">
-                    <div className="w-12 h-12 bg-cyan-50 border border-cyan-150 rounded-2xl flex items-center justify-center text-cyan-600">
-                      <Clock className="w-6 h-6 animate-pulse" />
-                    </div>
-                    
-                    <div className="space-y-1 text-center">
-                      <p className="text-xs font-bold text-slate-800">Mobile Capture Ticket Active</p>
-                      <p className="text-[10px] text-slate-400 font-light leading-relaxed max-w-xs mx-auto">
-                        A sync ticket has been sent to the mobile capture page for <strong>{activeAppt?.patients?.name}</strong>.
-                      </p>
-                      <p className="text-[10px] text-slate-500 italic mt-2">
-                        Open the capture page on your phone, and it will automatically lock onto this patient's photo.
-                      </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-500">Upload X-Ray (PDF/Image)</label>
+                    <div className="relative border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center hover:border-teal-400 hover:bg-teal-50/30 cursor-pointer bg-slate-50/50 transition-colors group">
+                      <input type="file" accept="image/*,application/pdf" onChange={handleXrayChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                      {xrayPreview ? (
+                        <div className="text-sm text-teal-700 font-bold truncate max-w-full flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Attached</div>
+                      ) : (
+                        <>
+                          <Upload className="w-6 h-6 text-slate-400 group-hover:text-teal-500 transition-colors" />
+                          <span className="text-xs text-slate-500 mt-2 font-medium">Click or drop file</span>
+                        </>
+                      )}
                     </div>
                   </div>
-                )}
 
-                {tempMobilePhoto && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 animate-fade-in">
-                    <div className="w-12 h-12 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                      <img src={tempMobilePhoto} alt="Mobile capture preview" className="object-cover h-full w-full" />
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-500">Prescription Photo (Optional)</label>
+                    <div className="relative border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center hover:border-teal-400 hover:bg-teal-50/30 cursor-pointer bg-slate-50/50 transition-colors group">
+                      <input type="file" accept="image/*" onChange={handlePrescriptionChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                      {prescPreview ? (
+                        <div className="text-sm text-teal-700 font-bold truncate max-w-full flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Attached</div>
+                      ) : (
+                        <>
+                          <Upload className="w-6 h-6 text-slate-400 group-hover:text-teal-500 transition-colors" />
+                          <span className="text-xs text-slate-500 mt-2 font-medium">Click or drop photo</span>
+                        </>
+                      )}
                     </div>
-                    <div className="text-xs">
-                      <p className="font-bold text-emerald-800 text-[10px]">Photo Uploaded from Mobile</p>
-                      <p className="text-emerald-600 font-light text-[9px]">Ready to email patient.</p>
+                  </div>
+                </div>
+
+                {/* Mobile Phone Sync box */}
+                <div className="border border-slate-200 bg-slate-50/50 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-cyan-100 text-cyan-600 rounded-lg"><Info className="w-4 h-4" /></div>
+                      <h4 className="text-sm font-bold text-slate-700">Mobile Camera Sync</h4>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setTempMobilePhoto(null)}
-                      className="ml-auto p-1 hover:bg-emerald-100 rounded-md text-emerald-700"
+                      onClick={async () => {
+                        setIsWaitingForMobile(true)
+                        setTempMobilePhoto(null)
+                        if (activeAppt?.id) {
+                          await supabase.from('appointments').update({ temp_mobile_photo: null }).eq('id', activeAppt.id)
+                          await createCaptureTicket(doctor.branch_id, activeAppt.id)
+                        }
+                      }}
+                      className="px-4 py-2 bg-white border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50 text-cyan-700 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <Sparkles className="w-3.5 h-3.5" /> Start Sync
                     </button>
                   </div>
-                )}
-              </div>
 
-              {/* Form buttons */}
-              <div className="border-t border-slate-100 pt-4 flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="flex-1 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 border rounded-xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={sendingReport}
-                  className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold text-xs transition flex items-center justify-center gap-1.5"
-                >
-                  {sendingReport && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  Send Diagnostic Report
-                </button>
-              </div>
+                  {isWaitingForMobile && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pt-2">
+                      <div className="p-4 border border-cyan-100 rounded-xl bg-white flex flex-col sm:flex-row items-center gap-4">
+                        <div className="w-12 h-12 bg-cyan-50 rounded-full flex items-center justify-center text-cyan-500 shrink-0 shadow-inner">
+                          <Clock className="w-5 h-5 animate-spin-slow" style={{ animationDuration: '3s' }} />
+                        </div>
+                        <div className="text-center sm:text-left">
+                          <p className="text-sm font-bold text-slate-800">Waiting for mobile capture...</p>
+                          <p className="text-xs text-slate-500 mt-0.5">Open the capture URL on your phone for <strong>{activeAppt?.patients?.name}</strong></p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
-            </form>
+                  {tempMobilePhoto && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="pt-2">
+                      <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl flex items-center gap-4">
+                        <div className="w-16 h-16 bg-white border border-slate-200 rounded-lg overflow-hidden shrink-0 shadow-sm p-1">
+                          <img src={tempMobilePhoto} alt="Preview" className="object-cover h-full w-full rounded-md" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-bold text-emerald-800 text-sm">Synced Successfully</p>
+                          <p className="text-emerald-600 font-medium text-xs mt-0.5">Photo ready to be sent.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setTempMobilePhoto(null)}
+                          className="p-2 hover:bg-emerald-100 rounded-lg text-emerald-700 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
 
-          </div>
-        </div>
-      )}
+                {/* Actions */}
+                <div className="pt-4 flex gap-4">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="flex-1 py-3.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={sendingReport}
+                    className="flex-[2] py-3.5 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 text-white rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 hover:-translate-y-0.5 disabled:opacity-70 disabled:hover:translate-y-0"
+                  >
+                    {sendingReport && <RefreshCw className="w-4 h-4 animate-spin" />}
+                    Send Report to Patient
+                  </button>
+                </div>
+
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   )
