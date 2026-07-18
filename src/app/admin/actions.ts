@@ -579,7 +579,7 @@ export async function sendPatientReport(formData: FormData) {
         ],
         subject: `Your Dental Diagnosis & Prescription | ${appt.branches.name}`,
         htmlContent: emailHtml,
-        attachments: attachments.map(a => ({
+        attachment: attachments.map(a => ({
           name: a.filename,
           content: a.content
         }))
