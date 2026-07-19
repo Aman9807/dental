@@ -1133,6 +1133,56 @@ export async function getTreatments() {
   }
 }
 
+// Action: Add new procedure/treatment
+export async function addTreatment(name: string, price: number) {
+  const adminDb = getAdminSupabase()
+  try {
+    if (!name || name.trim() === '') {
+      return { success: false, error: 'Procedure name is required.' }
+    }
+    if (isNaN(price) || price < 0) {
+      return { success: false, error: 'Price must be a positive number.' }
+    }
+
+    const { data, error } = await adminDb
+      .from('treatments')
+      .insert([{ name: name.trim(), price }])
+      .select()
+      .single()
+
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error adding treatment:', err)
+    return { success: false, error: err.message || 'Failed to add procedure.' }
+  }
+}
+
+// Action: Update procedure/treatment price
+export async function updateTreatmentPrice(id: string, price: number) {
+  const adminDb = getAdminSupabase()
+  try {
+    if (!id) {
+      return { success: false, error: 'Procedure ID is required.' }
+    }
+    if (isNaN(price) || price < 0) {
+      return { success: false, error: 'Price must be a positive number.' }
+    }
+
+    const { data, error } = await adminDb
+      .from('treatments')
+      .update({ price })
+      .eq('id', id)
+      .select()
+
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error updating treatment price:', err)
+    return { success: false, error: err.message || 'Failed to update procedure price.' }
+  }
+}
+
 // Action: Scan / Receive stock for medicine in TiDB Cloud
 export async function saveMedicineStock(barcode: string, quantityPatches: number, details: {
   name: string
