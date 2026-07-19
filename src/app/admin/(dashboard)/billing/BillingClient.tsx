@@ -262,17 +262,11 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
       const invoiceId = invoiceRes.invoiceId
 
-      // 2. Trigger automated Delivery & Supabase Auto-cleanup Edge Function
-      const cleanupRes = await triggerDeliverAndCleanup(selectedApptId, invoiceId)
-      if (!cleanupRes.success) {
-        throw new Error(cleanupRes.error || 'Invoice saved, but delivery pipeline failed.')
-      }
-
       setSuccessInfo({
         invoiceId,
         patientName: selectedAppt?.patients?.name,
         total: grandTotal,
-        logs: cleanupRes.data
+        logs: 'Invoice saved locally. Email delivery deferred until report submission.'
       })
       setCheckoutSuccess(true)
       setBillingItems([])
@@ -307,10 +301,16 @@ export default function BillingClient({ initialAppointments, initialTreatments }
             <CheckCircle className="w-8 h-8" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-xl font-serif text-slate-800">Checkout & Cleanup Completed!</h3>
+            <h3 className="text-xl font-serif text-slate-800">Bill Generated & Saved!</h3>
             <p className="text-xs text-slate-500 leading-relaxed px-4">
-              Invoice has been saved. Patient record delivery succeeded. In accordance with clinical data policies, Prescription & X-Ray files have been automatically purged from Supabase storage, and clinic charts cleared.
+              The invoice has been created and attached to the patient's record. The invoice details are saved below.
             </p>
+            <div className="mx-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded-xl font-normal leading-relaxed text-left flex items-start gap-2">
+              <span className="text-sm">⚠️</span>
+              <span>
+                <strong>Email delivery is deferred:</strong> This bill has not been emailed yet. Go to the <strong>Appointments</strong> tab and open the <strong>"Reports"</strong> modal for this patient to send this bill along with their prescription and X-ray in a single combined email.
+              </span>
+            </div>
           </div>
 
           <div className="bg-slate-50 border p-4 rounded-2xl text-left text-xs font-mono space-y-1.5 text-slate-600">
@@ -323,20 +323,12 @@ export default function BillingClient({ initialAppointments, initialTreatments }
               <span>Rs. {successInfo?.total?.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Email Dispatch (Brevo)</span>
-              <span className="text-emerald-600 font-semibold">201 Success</span>
+              <span>Invoice ID</span>
+              <span className="font-bold text-slate-700">{successInfo?.invoiceId?.substring(0, 8).toUpperCase()}</span>
             </div>
             <div className="flex justify-between">
-              <span>WhatsApp API (Meta)</span>
-              <span className="text-emerald-600 font-semibold">200 Success</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Supabase Storage Cleanup</span>
-              <span className="text-rose-600 font-semibold">Purged / Deleted</span>
-            </div>
-            <div className="flex justify-between">
-              <span>DB Medical Row Cleanup</span>
-              <span className="text-rose-600 font-semibold">Cleared / NULL</span>
+              <span>State</span>
+              <span className="text-amber-600 font-semibold">Saved / Awaiting Report Dispatch</span>
             </div>
           </div>
 
@@ -344,7 +336,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
             onClick={() => setCheckoutSuccess(false)}
             className="w-full py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition"
           >
-            Create New Invoice
+            Create Another Invoice
           </button>
         </div>
       ) : (

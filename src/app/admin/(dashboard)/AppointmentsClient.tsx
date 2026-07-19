@@ -1,12 +1,12 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment, createCaptureTicket, clearCaptureTicket } from '@/app/admin/actions'
+import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment, createCaptureTicket, clearCaptureTicket, triggerDeliverAndCleanup } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
   Search, Calendar, Check, X, AlertCircle, Info, Filter,
   Building, User2, RefreshCw, ChevronDown, CheckCircle2, Clock,
-  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus
+  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2
 } from 'lucide-react'
 
 interface AppointmentsClientProps {
@@ -103,8 +103,12 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     return () => clearInterval(interval)
   }, [isWaitingForMobile, activeAppt])
 
+  const [associatedInvoiceId, setAssociatedInvoiceId] = useState<string | null>(null)
+  const [associatedInvoiceTotal, setAssociatedInvoiceTotal] = useState<number | null>(null)
+  const [loadingInvoiceCheck, setLoadingInvoiceCheck] = useState(false)
+
   // Open Reports Modal and populate fields
-  const handleOpenReportsModal = (appt: any) => {
+  const handleOpenReportsModal = async (appt: any) => {
     setActiveAppt(appt)
     setEmailVal(appt.patients?.email || '')
     setPrescriptionText(appt.prescription_text || '')
@@ -115,6 +119,25 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     setTempMobilePhoto(appt.temp_mobile_photo || null)
     setIsWaitingForMobile(false)
     setShowReportsModal(true)
+
+    setAssociatedInvoiceId(null)
+    setAssociatedInvoiceTotal(null)
+    setLoadingInvoiceCheck(true)
+    try {
+      const { data } = await supabase
+        .from('invoices')
+        .select('id, total')
+        .eq('appointment_id', appt.id)
+        .maybeSingle()
+      if (data) {
+        setAssociatedInvoiceId(data.id)
+        setAssociatedInvoiceTotal(Number(data.total))
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingInvoiceCheck(false)
+    }
   }
 
   // Handle status update
@@ -141,6 +164,12 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
   const handleSendReport = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeAppt) return
+
+    if (!associatedInvoiceId) {
+      alert("Error: Please generate and save the patient's bill in the Billing tab first before sending the report!")
+      return
+    }
+
     setSendingReport(true)
 
     try {
@@ -153,31 +182,39 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       if (prescriptionFile) formData.append('prescription', prescriptionFile)
       if (tempMobilePhoto) formData.append('tempMobilePhoto', tempMobilePhoto)
 
+      // A. Save report data to DB and upload attachments
       const res = await sendPatientReport(formData)
-      if (res.success) {
-        alert('Diagnostic report and prescription sent to patient successfully!')
-        
-        // Update local appointments state with the report sent time
-        const sentTime = new Date().toISOString()
-        setAppointments(prev =>
-          prev.map(appt => appt.id === activeAppt.id ? { 
-            ...appt, 
-            report_sent_at: sentTime,
-            prescription_text: prescriptionText,
-            prescription_url: res.prescriptionUrl || appt.prescription_url,
-            xray_url: res.xrayUrl || appt.xray_url,
-            temp_mobile_photo: tempMobilePhoto,
-            patient_id: res.updatedPatient?.id || appt.patient_id,
-            patients: res.updatedPatient || appt.patients
-          } : appt)
-        )
-        setShowReportsModal(false)
-      } else {
-        alert(res.error || 'Failed to send reports')
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to save diagnostic reports.')
       }
+
+      // B. Trigger Automated Email/WhatsApp Delivery and Auto-Purge pipeline
+      const deliveryRes = await triggerDeliverAndCleanup(activeAppt.id, associatedInvoiceId)
+      if (!deliveryRes.success) {
+        throw new Error(deliveryRes.error || 'Reports saved, but delivery & cleanup dispatch pipeline failed.')
+      }
+
+      alert('Diagnostic reports and invoice bill sent to patient successfully! Cloud records have been auto-purged.')
+      
+      // Update local appointments state with the report sent time
+      const sentTime = new Date().toISOString()
+      setAppointments(prev =>
+        prev.map(appt => appt.id === activeAppt.id ? { 
+          ...appt, 
+          status: 'completed',
+          report_sent_at: sentTime,
+          prescription_text: null, // cleared as part of purge
+          prescription_url: null,
+          xray_url: null,
+          temp_mobile_photo: null,
+          patient_id: res.updatedPatient?.id || appt.patient_id,
+          patients: res.updatedPatient || appt.patients
+        } : appt)
+      )
+      setShowReportsModal(false)
     } catch (err: any) {
       console.error(err)
-      alert('An error occurred while sending reports')
+      alert(err.message || 'An error occurred while sending reports')
     } finally {
       setSendingReport(false)
     }
@@ -508,6 +545,37 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
             {/* Modal Body / Form */}
             <form onSubmit={handleSendReport} className="p-6 space-y-5 flex-1">
               
+              {/* Billing Status Badge */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col gap-1 text-xs">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Invoice / Billing Verification</span>
+                {loadingInvoiceCheck ? (
+                  <div className="flex items-center gap-1.5 text-slate-500 animate-pulse">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Checking billing records...</span>
+                  </div>
+                ) : associatedInvoiceId ? (
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-emerald-700 font-bold flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Bill Attached: Rs. {associatedInvoiceTotal?.toFixed(2)}
+                    </span>
+                    <span className="text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded font-mono font-bold border border-emerald-100">
+                      #{associatedInvoiceId.substring(0, 8).toUpperCase()}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="space-y-1 mt-1">
+                    <div className="flex items-center gap-1 text-amber-700 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      No bill compiled for this appointment
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-normal font-light">
+                      ⚠️ Please go to the <strong>Billing</strong> tab to create the patient's checkout invoice before sending the clinical report.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Patient Email (Editable) */}
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-slate-500">Patient Email Address</label>
@@ -734,11 +802,11 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                 </button>
                 <button
                   type="submit"
-                  disabled={sendingReport}
-                  className="flex-1 py-3 bg-slate-950 hover:bg-slate-800 text-white rounded-2xl font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-slate-900/10"
+                  disabled={sendingReport || !associatedInvoiceId || loadingInvoiceCheck}
+                  className="flex-1 py-3 bg-slate-950 hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-slate-900/10"
                 >
                   {sendingReport && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  Send Diagnostic Report
+                  {sendingReport ? 'Sending...' : 'Send Combined Report & Bill'}
                 </button>
               </div>
 
