@@ -417,11 +417,12 @@ export async function sendPatientReport(formData: FormData) {
     // 2. Update patient email in database if it changed
     if (patientEmail && patientEmail.trim().toLowerCase() !== appt.patients.email) {
       const targetEmail = patientEmail.trim().toLowerCase()
-      // Check if a patient with this email already exists
+      // Check if a patient with this email and matching name already exists
       const { data: existingPatient } = await adminDb
         .from('patients')
         .select('*')
         .eq('email', targetEmail)
+        .ilike('name', appt.patients.name)
         .maybeSingle()
 
       if (existingPatient) {
@@ -793,11 +794,12 @@ export async function bookOfflineAppointment(formData: FormData) {
       return { success: false, error: 'Offline appointments can only be backdated up to 3 days.' }
     }
     
-    // 2. Query / create patient by email
+    // 2. Query / create patient by email and name
     const { data: existingPatient } = await adminDb
       .from('patients')
       .select('id')
       .eq('email', patientEmail.trim().toLowerCase())
+      .ilike('name', patientName.trim())
       .maybeSingle()
       
     let patientId = ''

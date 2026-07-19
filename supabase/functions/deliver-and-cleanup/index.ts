@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.21.0"
+import { PDFDocument, rgb, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -126,35 +127,159 @@ serve(async (req) => {
       if (att) attachments.push(att)
     }
 
-    // Generate simulated invoice attachment (base64 string of text/json bill representation)
-    const invoiceSummaryText = `
-      =======================================================
-      DENTAL CLINIC INVOICE
-      =======================================================
-      Branch: ${branch.name}
-      Invoice ID: ${invoiceId}
-      Date: ${new Date(invoice.created_at).toLocaleDateString()}
-      Patient: ${patient.name}
-      Doctor: Dr. ${doctor.name}
-      
-      ITEMS:
-      ${(items || []).map((it: any) => `- [${it.item_type.toUpperCase()}] Qty: ${it.quantity} x Rs. ${it.unit_price} = Rs. ${it.total_price}`).join('\n      ')}
-      
-      -------------------------------------------------------
-      Subtotal: Rs. ${invoice.subtotal}
-      Discount: ${invoice.discount_percentage}%
-      Grand Total: Rs. ${invoice.total}
-      =======================================================
-    `
-    const invoiceUint8 = new TextEncoder().encode(invoiceSummaryText)
-    let invoiceBinary = ''
-    for (let i = 0; i < invoiceUint8.length; i++) {
-      invoiceBinary += String.fromCharCode(invoiceUint8[i])
+    // Generate professional PDF invoice using pdf-lib
+    const pdfDoc = await PDFDocument.create()
+    const page = pdfDoc.addPage([595.275, 841.89]) // A4 size in points
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique)
+
+    // Colors
+    const tealColor = rgb(0.059, 0.463, 0.431) // #0f766e
+    const darkColor = rgb(0.122, 0.161, 0.216) // #1f2937
+    const grayColor = rgb(0.419, 0.447, 0.502) // #6b7280
+    const lightGray = rgb(0.898, 0.91, 0.922) // #e5e7eb
+    const backgroundTeal = rgb(0.941, 0.992, 0.98) // #f0fdfa
+
+    // 1. Draw top teal header bar
+    page.drawRectangle({
+      x: 0,
+      y: 770,
+      width: 595.275,
+      height: 72,
+      color: tealColor
+    })
+
+    page.drawText('FAMILY DENTAL STORE & CLINIC', {
+      x: 40,
+      y: 805,
+      size: 18,
+      font: boldFont,
+      color: rgb(1, 1, 1)
+    })
+
+    page.drawText('Official Billing Invoice & Receipt', {
+      x: 40,
+      y: 785,
+      size: 11,
+      font: font,
+      color: rgb(0.8, 1, 1)
+    })
+
+    // 2. Metadata Section (Invoice info & Patient Info)
+    page.drawText('INVOICE TO:', { x: 40, y: 730, size: 10, font: boldFont, color: grayColor })
+    page.drawText(`Patient Name: ${patient.name}`, { x: 40, y: 712, size: 11, font: boldFont, color: darkColor })
+    page.drawText(`Age: ${patient.age || 'N/A'} yrs | Mobile: ${patient.mobile || 'N/A'}`, { x: 40, y: 696, size: 10, font: font, color: darkColor })
+    page.drawText(`Email: ${patient.email || 'N/A'}`, { x: 40, y: 680, size: 10, font: font, color: darkColor })
+
+    page.drawText('INVOICE DETAILS:', { x: 380, y: 730, size: 10, font: boldFont, color: grayColor })
+    page.drawText(`Invoice ID: #${invoiceId.substring(0, 8).toUpperCase()}`, { x: 380, y: 712, size: 10, font: boldFont, color: darkColor })
+    page.drawText(`Date: ${new Date(invoice.created_at).toLocaleDateString()}`, { x: 380, y: 696, size: 10, font: font, color: darkColor })
+    page.drawText(`Branch: ${branch.name}`, { x: 380, y: 680, size: 10, font: font, color: darkColor })
+    page.drawText(`Doctor: Dr. ${doctor.name}`, { x: 380, y: 664, size: 10, font: font, color: darkColor })
+
+    // Draw horizontal separator line
+    page.drawLine({
+      start: { x: 40, y: 645 },
+      end: { x: 555, y: 645 },
+      thickness: 1,
+      color: lightGray
+    })
+
+    // 3. Render Invoice Items Table
+    page.drawText('ITEM DESCRIPTION', { x: 45, y: 625, size: 9, font: boldFont, color: grayColor })
+    page.drawText('QTY', { x: 320, y: 625, size: 9, font: boldFont, color: grayColor })
+    page.drawText('UNIT PRICE', { x: 400, y: 625, size: 9, font: boldFont, color: grayColor })
+    page.drawText('TOTAL PRICE', { x: 485, y: 625, size: 9, font: boldFont, color: grayColor })
+
+    page.drawLine({
+      start: { x: 40, y: 615 },
+      end: { x: 555, y: 615 },
+      thickness: 1,
+      color: lightGray
+    })
+
+    let yPosition = 595
+    const rowHeight = 25
+
+    for (const it of (items || [])) {
+      page.drawText(`[${it.item_type.toUpperCase()}] ${it.item_name || 'Clinical Item'}`, { x: 45, y: yPosition, size: 9, font: font, color: darkColor })
+      page.drawText(`${it.quantity}`, { x: 325, y: yPosition, size: 9, font: font, color: darkColor })
+      page.drawText(`Rs. ${Number(it.unit_price).toFixed(2)}`, { x: 400, y: yPosition, size: 9, font: font, color: darkColor })
+      page.drawText(`Rs. ${Number(it.total_price).toFixed(2)}`, { x: 485, y: yPosition, size: 9, font: boldFont, color: darkColor })
+      yPosition -= rowHeight
     }
-    const invoiceBase64 = btoa(invoiceBinary)
+
+    // Draw separator line under items list
+    page.drawLine({
+      start: { x: 40, y: yPosition + 12 },
+      end: { x: 555, y: yPosition + 12 },
+      thickness: 1,
+      color: lightGray
+    })
+
+    // 4. Summary box
+    const summaryBoxY = yPosition - 10
+    
+    // Draw background for totals summary
+    page.drawRectangle({
+      x: 350,
+      y: summaryBoxY - 70,
+      width: 205,
+      height: 75,
+      color: backgroundTeal,
+      borderColor: lightGray,
+      borderWidth: 1
+    })
+
+    page.drawText('Subtotal:', { x: 365, y: summaryBoxY - 18, size: 10, font: font, color: darkColor })
+    page.drawText(`Rs. ${Number(invoice.subtotal).toFixed(2)}`, { x: 475, y: summaryBoxY - 18, size: 10, font: font, color: darkColor })
+
+    page.drawText(`Discount (${invoice.discount_percentage}%):`, { x: 365, y: summaryBoxY - 38, size: 10, font: font, color: darkColor })
+    page.drawText(`- Rs. ${((Number(invoice.subtotal) * Number(invoice.discount_percentage)) / 100).toFixed(2)}`, { x: 475, y: summaryBoxY - 38, size: 10, font: font, color: darkColor })
+
+    page.drawLine({
+      start: { x: 360, y: summaryBoxY - 45 },
+      end: { x: 545, y: summaryBoxY - 45 },
+      thickness: 1,
+      color: lightGray
+    })
+
+    page.drawText('Grand Total:', { x: 365, y: summaryBoxY - 60, size: 11, font: boldFont, color: tealColor })
+    page.drawText(`Rs. ${Number(invoice.total).toFixed(2)}`, { x: 475, y: summaryBoxY - 60, size: 11, font: boldFont, color: tealColor })
+
+    // 5. Prescription Copy Box if prescription exists
+    let advisoryBoxY = summaryBoxY - 95
+    if (appt.prescription_text) {
+      page.drawRectangle({
+        x: 40,
+        y: advisoryBoxY - 90,
+        width: 515,
+        height: 80,
+        color: rgb(0.98, 0.98, 0.99),
+        borderColor: tealColor,
+        borderWidth: 1
+      })
+
+      page.drawText("DOCTOR'S PRESCRIPTION & ADVICE:", { x: 50, y: advisoryBoxY - 25, size: 9, font: boldFont, color: tealColor })
+      page.drawText(appt.prescription_text.substring(0, 180), { x: 50, y: advisoryBoxY - 45, size: 9, font: italicFont, color: darkColor })
+      advisoryBoxY -= 110
+    }
+
+    // 6. Footer Section
+    page.drawText(`Thank you for choosing ${branch.name}.`, { x: 40, y: 50, size: 10, font: boldFont, color: tealColor })
+    page.drawText('This invoice is a dynamically generated patient receipt. For any billing query, contact support.', { x: 40, y: 35, size: 8, font: font, color: grayColor })
+
+    const pdfBytes = await pdfDoc.save()
+    let pdfBinary = ''
+    for (let i = 0; i < pdfBytes.length; i++) {
+      pdfBinary += String.fromCharCode(pdfBytes[i])
+    }
+    const pdfBase64 = btoa(pdfBinary)
+    
     attachments.push({
-      name: 'invoice_receipt.txt',
-      content: invoiceBase64
+      name: 'invoice_receipt.pdf',
+      content: pdfBase64
     })
 
     // 3. Parallel API Deliveries (Email & WhatsApp)

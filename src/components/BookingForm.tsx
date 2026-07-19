@@ -204,6 +204,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         .from('patients')
         .select('id')
         .eq('email', patientEmail.trim().toLowerCase())
+        .ilike('name', patientName.trim())
         .maybeSingle()
 
       if (getPatientError) throw getPatientError
