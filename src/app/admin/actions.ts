@@ -2,6 +2,8 @@
 
 import { cookies } from 'next/headers'
 import { getAdminSupabase } from '@/lib/supabase'
+import { queryTiDB } from '@/lib/tidb'
+import { randomUUID } from 'crypto'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join, basename } from 'path'
 
@@ -603,6 +605,121 @@ export async function sendPatientReport(formData: FormData) {
   }
 }
 
+// Action: Send New Appointment alert to doctor via Brevo
+export async function sendAppointmentEmail(appointmentId: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    // 1. Fetch appointment details with patient, doctor, and branch relations
+    const { data: appt, error: apptErr } = await adminDb
+      .from('appointments')
+      .select('*, patients(*), doctors(*), branches(*)')
+      .eq('id', appointmentId)
+      .single()
+
+    if (apptErr || !appt) {
+      throw new Error(`Appointment not found: ${apptErr?.message || 'Unknown error'}`)
+    }
+
+    const patient = appt.patients
+    const doctor = appt.doctors
+    const branch = appt.branches
+
+    if (!doctor || !doctor.email) {
+      throw new Error('Doctor email is missing or not assigned.')
+    }
+
+    const brevoApiKey = process.env.BREVO_API_KEY
+    if (!brevoApiKey) {
+      throw new Error('Missing BREVO_API_KEY environment variable.')
+    }
+    const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL || 'dental@flynx.site'
+
+    const emailSubject = `[Booking Alert] New Patient Appointment - ${branch.name}`
+    const problemText = appt.problem_description
+      ? appt.problem_description.trim()
+      : 'No problem description provided.'
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; color: #1f2937;">
+        <h2 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 10px; margin-top: 0;">New Appointment Details</h2>
+        <p style="font-size: 16px; line-height: 1.5;">Hello Dr. <strong>${doctor.name}</strong>,</p>
+        <p style="font-size: 14px; color: #4b5563; margin-bottom: 20px;">A new appointment has been scheduled for you at <strong>${branch.name}</strong>.</p>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <tr style="background-color: #f9fafb;">
+            <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold; width: 30%;">Patient Name:</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;">${patient.name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Age:</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;">${patient.age} years old</td>
+          </tr>
+          <tr style="background-color: #f9fafb;">
+            <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Mobile:</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;">${patient.mobile}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Email:</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;"><a href="mailto:${patient.email}">${patient.email}</a></td>
+          </tr>
+          <tr style="background-color: #f9fafb;">
+            <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Date:</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;">${appt.appointment_date}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Time:</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;">${appt.appointment_time}</td>
+          </tr>
+        </table>
+
+        <div style="background-color: #f0fdfa; border-left: 4px solid #0f766e; padding: 15px; margin-bottom: 20px; border-radius: 0 4px 4px 0;">
+          <h4 style="margin: 0 0 8px 0; color: #0f766e; font-size: 14px; font-weight: bold;">Problem Description:</h4>
+          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #374151; font-style: italic;">"${problemText}"</p>
+        </div>
+
+        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+          This is an automated notification from the clinic dashboard. Please do not reply directly to this email.
+        </p>
+      </div>
+    `
+
+    console.log(`Sending booking notification email via Brevo to doctor: ${doctor.email} (Dr. ${doctor.name})`)
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'api-key': brevoApiKey
+      },
+      body: JSON.stringify({
+        sender: {
+          name: branch.name,
+          email: brevoSenderEmail
+        },
+        to: [
+          {
+            email: doctor.email.trim().toLowerCase(),
+            name: doctor.name
+          }
+        ],
+        subject: emailSubject,
+        htmlContent: emailHtml
+      })
+    })
+
+    if (!response.ok) {
+      const resText = await response.text()
+      throw new Error(`Brevo Error: ${resText}`)
+    }
+
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error in sendAppointmentEmail:', err)
+    return { success: false, error: err.message || 'Failed to send email to doctor.' }
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // ═══ DOCTOR PORTAL LOGIN & ACTIONS ═══
 // ════════════════════════════════════════════════════════════════════════
@@ -962,6 +1079,265 @@ export async function clearCaptureTicket(branchId: string) {
   } catch (err: any) {
     console.error('Error clearing capture ticket:', err)
     return { success: false, error: err.message || 'Failed to clear capture ticket.' }
+  }
+}
+
+// Action: Search medicines from TiDB Cloud MySQL database
+export async function searchMedicines(query: string) {
+  try {
+    const searchQuery = `%${query.trim()}%`
+    
+    // Find medicines matching name, generic_name, or barcode
+    const sql = `
+      SELECT m.*, COALESCE(SUM(b.stock), 0) as stock
+      FROM medicines m
+      LEFT JOIN medicine_batches b ON m.id = b.medicine_id
+      WHERE m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode = ?
+      GROUP BY m.id
+    `
+    const medicines = await queryTiDB(sql, [searchQuery, searchQuery, query.trim()])
+
+    // For each medicine, get its active batches sorted by oldest expiry date (FIFO)
+    for (const medicine of medicines) {
+      const batchSql = `
+        SELECT id, batch_number, expiry_date, price, stock
+        FROM medicine_batches
+        WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE()
+        ORDER BY expiry_date ASC
+      `
+      const batches = await queryTiDB(batchSql, [medicine.id])
+      medicine.batches = batches
+    }
+
+    return { success: true, data: medicines }
+  } catch (err: any) {
+    console.error('Error searching medicines:', err)
+    return { success: false, error: err.message || 'Failed to search medicines.' }
+  }
+}
+
+// Action: Get all procedures/treatments from Supabase
+export async function getTreatments() {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data, error } = await adminDb
+      .from('treatments')
+      .select('*')
+      .order('name', { ascending: true })
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error fetching treatments:', err)
+    return { success: false, error: err.message || 'Failed to fetch treatments.' }
+  }
+}
+
+// Action: Scan / Receive stock for medicine in TiDB Cloud
+export async function saveMedicineStock(barcode: string, quantity: number, details: {
+  name: string
+  genericName?: string
+  batchNumber: string
+  expiryDate: string // YYYY-MM-DD
+  price: number
+}) {
+  try {
+    // 1. Look up if medicine exists by barcode
+    let medicineId: string
+    const medicines = await queryTiDB('SELECT id FROM medicines WHERE barcode = ?', [barcode])
+    
+    if (medicines.length > 0) {
+      medicineId = medicines[0].id
+    } else {
+      // Create new medicine product
+      medicineId = randomUUID()
+      await queryTiDB(
+        'INSERT INTO medicines (id, name, generic_name, barcode) VALUES (?, ?, ?, ?)',
+        [medicineId, details.name, details.genericName || null, barcode]
+      )
+    }
+
+    // 2. Insert or update stock in medicine_batches
+    const batches = await queryTiDB(
+      'SELECT id, stock FROM medicine_batches WHERE medicine_id = ? AND batch_number = ?',
+      [medicineId, details.batchNumber]
+    )
+
+    if (batches.length > 0) {
+      // Update existing batch stock and price
+      const newStock = Number(batches[0].stock) + Number(quantity)
+      await queryTiDB(
+        'UPDATE medicine_batches SET stock = ?, price = ?, expiry_date = ? WHERE id = ?',
+        [newStock, details.price, details.expiryDate, batches[0].id]
+      )
+    } else {
+      // Insert new batch
+      const batchId = randomUUID()
+      await queryTiDB(
+        'INSERT INTO medicine_batches (id, medicine_id, batch_number, expiry_date, price, stock) VALUES (?, ?, ?, ?, ?, ?)',
+        [batchId, medicineId, details.batchNumber, details.expiryDate, details.price, quantity]
+      )
+    }
+
+    return { success: true, medicineId }
+  } catch (err: any) {
+    console.error('Error saving medicine stock:', err)
+    return { success: false, error: err.message || 'Failed to save medicine stock.' }
+  }
+}
+
+// Action: Create and save invoice in Supabase and deduct stock from TiDB (FIFO)
+export async function createInvoice(
+  appointmentId: string,
+  items: any[], // { type: 'medicine'|'treatment'|'custom', id?: string, name?: string, quantity: number, price: number }
+  subtotal: number,
+  discountPercent: number,
+  total: number
+) {
+  const adminDb = getAdminSupabase()
+  try {
+    // 1. Fetch patient ID from appointment
+    const { data: appt, error: apptErr } = await adminDb
+      .from('appointments')
+      .select('patient_id')
+      .eq('id', appointmentId)
+      .single()
+      
+    if (apptErr || !appt) {
+      throw new Error(`Appointment not found: ${apptErr?.message || 'Unknown'}`)
+    }
+
+    const patientId = appt.patient_id
+
+    // 2. Insert Invoice row in Supabase
+    const { data: invoice, error: invoiceErr } = await adminDb
+      .from('invoices')
+      .insert({
+        appointment_id: appointmentId,
+        patient_id: patientId,
+        subtotal,
+        discount_percentage: discountPercent,
+        total
+      })
+      .select('id')
+      .single()
+
+    if (invoiceErr || !invoice) {
+      throw invoiceErr
+    }
+
+    const invoiceId = invoice.id
+
+    // 3. Save line items and perform FIFO stock deduction for medicines
+    for (const item of items) {
+      if (item.type === 'medicine') {
+        const medicineId = item.id
+        let remainingQtyToDeduct = item.quantity
+
+        // Query active batches for this medicine in TiDB, sorted by expiry_date (FIFO)
+        const batches = await queryTiDB(
+          'SELECT id, stock FROM medicine_batches WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() ORDER BY expiry_date ASC',
+          [medicineId]
+        )
+
+        let totalDeducted = 0
+        for (const batch of batches) {
+          if (remainingQtyToDeduct <= 0) break
+
+          const batchStock = Number(batch.stock)
+          const deduct = Math.min(batchStock, remainingQtyToDeduct)
+
+          // Deduct from batch in TiDB
+          await queryTiDB(
+            'UPDATE medicine_batches SET stock = stock - ? WHERE id = ?',
+            [deduct, batch.id]
+          )
+
+          remainingQtyToDeduct -= deduct
+          totalDeducted += deduct
+        }
+
+        // Save invoice item line in Supabase
+        const { error: itemErr } = await adminDb
+          .from('invoice_items')
+          .insert({
+            invoice_id: invoiceId,
+            item_type: 'medicine',
+            medicine_id: medicineId,
+            quantity: item.quantity,
+            unit_price: item.price,
+            total_price: item.quantity * item.price
+          })
+
+        if (itemErr) throw itemErr
+      } else if (item.type === 'treatment') {
+        const { error: itemErr } = await adminDb
+          .from('invoice_items')
+          .insert({
+            invoice_id: invoiceId,
+            item_type: 'treatment',
+            treatment_id: item.id,
+            quantity: 1,
+            unit_price: item.price,
+            total_price: item.price
+          })
+
+        if (itemErr) throw itemErr
+      } else if (item.type === 'custom') {
+        const { error: itemErr } = await adminDb
+          .from('invoice_items')
+          .insert({
+            invoice_id: invoiceId,
+            item_type: 'custom',
+            custom_name: item.name,
+            quantity: 1,
+            unit_price: item.price,
+            total_price: item.price
+          })
+
+        if (itemErr) throw itemErr
+      }
+    }
+
+    return { success: true, invoiceId }
+  } catch (err: any) {
+    console.error('Error creating invoice:', err)
+    return { success: false, error: err.message || 'Failed to create invoice.' }
+  }
+}
+
+// Action: Trigger delivering the reports via edge function and running Supabase auto-cleanup
+export async function triggerDeliverAndCleanup(appointmentId: string, invoiceId: string) {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jmifnlqtcfdctvldukdw.supabase.co'
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!serviceRoleKey) {
+      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY in environment')
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/deliver-and-cleanup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`
+      },
+      body: JSON.stringify({
+        appointmentId,
+        invoiceId
+      })
+    })
+
+    const result = await response.json()
+    console.log('deliver-and-cleanup Edge Function Response:', JSON.stringify(result))
+
+    if (!response.ok) {
+      throw new Error(`Edge function failed: ${result.error || JSON.stringify(result)}`)
+    }
+
+    return { success: true, data: result }
+  } catch (err: any) {
+    console.error('Error triggering delivery & cleanup:', err)
+    return { success: false, error: err.message || 'Failed to run delivery and cleanup pipeline.' }
   }
 }
 

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { validateCameraPasscode, uploadMobilePrescription } from '@/app/admin/actions'
-import { Camera, ShieldAlert, Loader2, CheckCircle2, RefreshCw, Calendar, Clock, ChevronRight, User } from 'lucide-react'
+import { validateCameraPasscode, uploadMobilePrescription, saveMedicineStock } from '@/app/admin/actions'
+import { Camera, ShieldAlert, Loader2, CheckCircle2, RefreshCw, Calendar, Clock, ChevronRight, User, Barcode, Scan } from 'lucide-react'
 
 export default function MobileCapturePage() {
   const [branches, setBranches] = useState<any[]>([])
@@ -28,6 +28,156 @@ export default function MobileCapturePage() {
   // Sync ticket states
   const [activeTicketApptId, setActiveTicketApptId] = useState<string | null>(null)
   const [ticketAppt, setTicketAppt] = useState<any | null>(null)
+
+  // Mode selection state: prescription or barcode receiving
+  const [mode, setMode] = useState<'prescription' | 'barcode'>('prescription')
+
+  // Barcode scanner states
+  const [barcodeInput, setBarcodeInput] = useState('')
+  const [parsedGtin, setParsedGtin] = useState('')
+  const [parsedBatch, setParsedBatch] = useState('')
+  const [parsedExpiry, setParsedExpiry] = useState('')
+  const [medName, setMedName] = useState('')
+  const [medGeneric, setMedGeneric] = useState('')
+  const [medPrice, setMedPrice] = useState('150')
+  const [medQty, setMedQty] = useState('10')
+  const [registeringStock, setRegisteringStock] = useState(false)
+  const [stockSuccess, setStockSuccess] = useState(false)
+  const [cameraScanActive, setCameraScanActive] = useState(false)
+
+  // GS1 DataMatrix and standard 1D/2D parser
+  const parseGS1Barcode = (rawText: string) => {
+    let str = rawText.replace(/^\]d2/, '').trim()
+    const result = { gtin: '', batch: '', expiry: '' }
+
+    // Case 1: Parentheses format, e.g. (01)08901117210103(17)280731(10)ABC123
+    if (str.includes('(01)') || str.includes('(17)') || str.includes('(10)')) {
+      const gtinMatch = str.match(/\(01\)(\d{14})/)
+      const expiryMatch = str.match(/\(17\)(\d{6})/)
+      const batchMatch = str.match(/\(10\)([^()]+)/)
+      
+      if (gtinMatch) result.gtin = gtinMatch[1]
+      if (expiryMatch) result.expiry = expiryMatch[1]
+      if (batchMatch) result.batch = batchMatch[1]
+    } else {
+      // Case 2: Concatenated format, e.g. 01089011172101031728073110ABC123
+      let index = 0
+      while (index < str.length) {
+        if (str.substring(index, index + 2) === '01') {
+          result.gtin = str.substring(index + 2, index + 16)
+          index += 16
+        } else if (str.substring(index, index + 2) === '17') {
+          result.expiry = str.substring(index + 2, index + 8)
+          index += 8
+        } else if (str.substring(index, index + 2) === '10') {
+          const gsIndex = str.indexOf('\u001d', index + 2)
+          const gsIndexAlt = str.indexOf('\\u001d', index + 2)
+          const endIdx = gsIndex !== -1 ? gsIndex : (gsIndexAlt !== -1 ? gsIndexAlt : str.length)
+          result.batch = str.substring(index + 2, endIdx)
+          index = endIdx
+          if (gsIndex !== -1) index += 1
+          else if (gsIndexAlt !== -1) index += 6
+        } else {
+          index++
+        }
+      }
+    }
+
+    // Fallback: If it's a simple 1D barcode/QR (no GTIN AI found), treat entire raw string as GTIN
+    if (!result.gtin && str.length > 0) {
+      result.gtin = str
+    }
+
+    return result
+  }
+
+  // Convert YYMMDD to YYYY-MM-DD
+  const formatExpiryDate = (yymmdd: string) => {
+    if (!yymmdd || yymmdd.length !== 6) {
+      const defaultDate = new Date()
+      defaultDate.setFullYear(defaultDate.getFullYear() + 1)
+      return defaultDate.toISOString().split('T')[0]
+    }
+    const year = parseInt(yymmdd.substring(0, 2)) + 2000
+    const month = yymmdd.substring(2, 4)
+    const day = yymmdd.substring(4, 6)
+    return `${year}-${month}-${day}`
+  }
+
+  // Handle barcode input change
+  const handleBarcodeChange = (val: string) => {
+    setBarcodeInput(val)
+    if (!val) return
+
+    const parsed = parseGS1Barcode(val)
+    setParsedGtin(parsed.gtin)
+    setParsedBatch(parsed.batch)
+    
+    if (parsed.expiry) {
+      setParsedExpiry(formatExpiryDate(parsed.expiry))
+    } else {
+      setParsedExpiry(formatExpiryDate(''))
+    }
+
+    // Auto-fill names matching our seed products
+    if (parsed.gtin === '8901117210103') {
+      setMedName('Amoxicillin 500mg')
+      setMedGeneric('Amoxicillin')
+      setMedPrice('120')
+    } else if (parsed.gtin === '8901234567890') {
+      setMedName('Paracetamol 650mg')
+      setMedGeneric('Paracetamol')
+      setMedPrice('30')
+    } else if (parsed.gtin === '8901122334455') {
+      setMedName('Ibuprofen 400mg')
+      setMedGeneric('Ibuprofen')
+      setMedPrice('45')
+    } else if (parsed.gtin === '8901030704944') {
+      setMedName('Sensodyne Rapid Relief')
+      setMedGeneric('Potassium Nitrate')
+      setMedPrice('180')
+    } else {
+      setMedName('')
+      setMedGeneric('')
+      setMedPrice('150')
+    }
+  }
+
+  // Handle register stock
+  const handleRegisterStock = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!parsedGtin || !medName) return
+    setRegisteringStock(true)
+
+    try {
+      const res = await saveMedicineStock(parsedGtin, parseInt(medQty), {
+        name: medName,
+        genericName: medGeneric || undefined,
+        batchNumber: parsedBatch || 'GEN-BATCH',
+        expiryDate: parsedExpiry,
+        price: parseFloat(medPrice)
+      })
+
+      if (res.success) {
+        setStockSuccess(true)
+        setBarcodeInput('')
+        setParsedGtin('')
+        setParsedBatch('')
+        setParsedExpiry('')
+        setMedName('')
+        setMedGeneric('')
+        setMedPrice('150')
+        setMedQty('10')
+      } else {
+        alert(res.error || 'Failed to register stock')
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'An error occurred')
+    } finally {
+      setRegisteringStock(false)
+    }
+  }
 
   // Fetch branches on mount
   useEffect(() => {
@@ -393,6 +543,7 @@ export default function MobileCapturePage() {
                   setSelectedFile(null)
                   setPreviewUrl(null)
                   setUploadSuccess(false)
+                  setStockSuccess(false)
                 }}
                 className="text-[10px] text-slate-400 hover:text-slate-600 underline font-light"
               >
@@ -400,167 +551,406 @@ export default function MobileCapturePage() {
               </button>
             </div>
 
-            {/* Upload Success Alert */}
-            {uploadSuccess && (
-              <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-2xl flex flex-col gap-1 items-center text-center animate-fade-in">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-                <h4 className="text-xs font-bold mt-1">Prescription Uploaded Successfully!</h4>
-                <p className="text-[10px] text-emerald-700/80 font-light leading-relaxed">
-                  The photo is now instantly loaded inside the admin panel report card. You can capture another prescription or close this page.
-                </p>
-                <button
-                  onClick={() => setUploadSuccess(false)}
-                  className="mt-2 text-[10px] font-bold text-emerald-800 bg-white border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-50/50 transition"
-                >
-                  Capture Another
-                </button>
-              </div>
-            )}
+            {/* Dual Options Toggle */}
+            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/40">
+              <button
+                type="button"
+                onClick={() => setMode('prescription')}
+                className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition-all duration-300 ${
+                  mode === 'prescription'
+                    ? 'bg-white text-cyan-700 shadow-sm border border-slate-200/10'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Capture Prescription
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('barcode')}
+                className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition-all duration-300 ${
+                  mode === 'barcode'
+                    ? 'bg-white text-cyan-700 shadow-sm border border-slate-200/10'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Scan Medicine Barcode
+              </button>
+            </div>
 
-            {!uploadSuccess && (
-              <div className="space-y-6">
-                
-                {/* 1. Appointment Selection Dropdown */}
-                <div className="space-y-3">
-                  {ticketAppt && (
-                    <div className="p-4 bg-cyan-50 border border-cyan-100 rounded-2xl flex flex-col gap-1 items-start text-left animate-fade-in">
-                      <div className="flex items-center gap-1.5 text-cyan-800 font-bold text-xs uppercase tracking-wide">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-                        </span>
-                        <span>Active Sync Ticket</span>
-                      </div>
-                      <p className="text-[11px] text-cyan-700 leading-normal font-medium mt-1">
-                        Dentist/Admin has requested a photo for: <strong className="text-cyan-900 font-bold">{ticketAppt?.patients?.name}</strong>
-                      </p>
-                      <p className="text-[9px] text-cyan-500 font-light">
-                        The screen has locked onto this patient. snap and upload below.
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="block text-xs font-semibold text-slate-700">Select Patient Appointment</label>
-                      <button
-                        type="button"
-                        onClick={() => fetchAppointments(selectedBranchSlug)}
-                        disabled={loadingAppts || !!activeTicketApptId}
-                        className="text-cyan-600 hover:text-cyan-800 transition disabled:opacity-30"
-                        title="Reload appointments"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${loadingAppts ? 'animate-spin' : ''}`} />
-                      </button>
-                    </div>
-
-                    {loadingAppts ? (
-                      <div className="flex justify-center items-center py-4">
-                        <Loader2 className="w-4 h-4 text-cyan-600 animate-spin" />
-                      </div>
-                    ) : appointments.length === 0 ? (
-                      <p className="text-xs text-slate-400 bg-slate-50 border p-4 rounded-2xl text-center font-light leading-relaxed">
-                        No appointments found for today, tomorrow, or the day after tomorrow.
-                      </p>
-                    ) : (
-                      <select
-                        value={selectedApptId}
-                        disabled={!!activeTicketApptId}
-                        onChange={e => setSelectedApptId(e.target.value)}
-                        className={`w-full px-4 py-3 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-cyan-600 ${
-                          activeTicketApptId ? 'bg-slate-100 cursor-not-allowed opacity-80' : 'bg-white'
-                        }`}
-                      >
-                        {appointments.map(appt => (
-                          <option key={appt.id} value={appt.id}>
-                            {appt.patients?.name} ({appt.appointment_date} @ {appt.appointment_time.substring(0, 5)})
-                          </option>
-                        ))}
-                      </select>
-                    )}
+            {/* Mode 1: Capture Prescription */}
+            {mode === 'prescription' && (
+              <>
+                {/* Upload Success Alert */}
+                {uploadSuccess && (
+                  <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-2xl flex flex-col gap-1 items-center text-center animate-fade-in">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                    <h4 className="text-xs font-bold mt-1">Prescription Uploaded Successfully!</h4>
+                    <p className="text-[10px] text-emerald-700/80 font-light leading-relaxed">
+                      The photo is now instantly loaded inside the admin panel report card. You can capture another prescription or close this page.
+                    </p>
+                    <button
+                      onClick={() => setUploadSuccess(false)}
+                      className="mt-2 text-[10px] font-bold text-emerald-800 bg-white border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-50/50 transition"
+                    >
+                      Capture Another
+                    </button>
                   </div>
-                </div>
+                )}
 
-                {/* 2. Photo capture inputs */}
-                {selectedApptId && (
-                  <div className="space-y-4">
-                    
-                    {!previewUrl ? (
-                      <div className="space-y-2">
-                        {compressing ? (
-                          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-cyan-300 rounded-3xl bg-cyan-50/20 text-center animate-pulse">
-                            <Loader2 className="w-10 h-10 text-cyan-600 mb-3 animate-spin" />
-                            <span className="text-xs font-semibold text-slate-800">Processing & Compressing Photo...</span>
-                            <span className="text-[10px] text-slate-400 font-light mt-1">Optimizing image size for instant uploads</span>
+                {!uploadSuccess && (
+                  <div className="space-y-6">
+                    {/* 1. Appointment Selection Dropdown */}
+                    <div className="space-y-3">
+                      {ticketAppt && (
+                        <div className="p-4 bg-cyan-50 border border-cyan-100 rounded-2xl flex flex-col gap-1 items-start text-left animate-fade-in">
+                          <div className="flex items-center gap-1.5 text-cyan-800 font-bold text-xs uppercase tracking-wide">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                            </span>
+                            <span>Active Sync Ticket</span>
                           </div>
+                          <p className="text-[11px] text-cyan-700 leading-normal font-medium mt-1">
+                            Dentist/Admin has requested a photo for: <strong className="text-cyan-900 font-bold">{ticketAppt?.patients?.name}</strong>
+                          </p>
+                          <p className="text-[9px] text-cyan-500 font-light">
+                            The screen has locked onto this patient. snap and upload below.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-xs font-semibold text-slate-700">Select Patient Appointment</label>
+                          <button
+                            type="button"
+                            onClick={() => fetchAppointments(selectedBranchSlug)}
+                            disabled={loadingAppts || !!activeTicketApptId}
+                            className="text-cyan-600 hover:text-cyan-800 transition disabled:opacity-30"
+                            title="Reload appointments"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${loadingAppts ? 'animate-spin' : ''}`} />
+                          </button>
+                        </div>
+
+                        {loadingAppts ? (
+                          <div className="flex justify-center items-center py-4">
+                            <Loader2 className="w-4 h-4 text-cyan-600 animate-spin" />
+                          </div>
+                        ) : appointments.length === 0 ? (
+                          <p className="text-xs text-slate-400 bg-slate-50 border p-4 rounded-2xl text-center font-light leading-relaxed">
+                            No appointments found for today, tomorrow, or the day after tomorrow.
+                          </p>
                         ) : (
-                          <>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              capture="environment"
-                              id="camera-input"
-                              onChange={handlePhotoCapture}
-                              className="hidden"
-                            />
-                            <label
-                              htmlFor="camera-input"
-                              className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 hover:border-cyan-500 rounded-3xl cursor-pointer hover:bg-slate-50/50 transition duration-300"
-                            >
-                              <Camera className="w-10 h-10 text-cyan-600 mb-3 animate-pulse" />
-                              <span className="text-xs font-semibold text-slate-800">Launch Mobile Camera</span>
-                              <span className="text-[10px] text-slate-400 font-light mt-1 text-center">
-                                Snap a picture of the written prescription paper
-                              </span>
-                            </label>
-                          </>
+                          <select
+                            value={selectedApptId}
+                            disabled={!!activeTicketApptId}
+                            onChange={e => setSelectedApptId(e.target.value)}
+                            className={`w-full px-4 py-3 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-cyan-600 ${
+                              activeTicketApptId ? 'bg-slate-100 cursor-not-allowed opacity-80' : 'bg-white'
+                            }`}
+                          >
+                            {appointments.map(appt => (
+                              <option key={appt.id} value={appt.id}>
+                                {appt.patients?.name} ({appt.appointment_date} @ {appt.appointment_time.substring(0, 5)})
+                              </option>
+                            ))}
+                          </select>
                         )}
                       </div>
-                    ) : (
-                      <div className="space-y-4 animate-fade-in">
-                        <div className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-[4/3] bg-slate-900 flex items-center justify-center">
-                          <img
-                            src={previewUrl}
-                            alt="Captured prescription preview"
-                            className="max-h-full max-w-full object-contain"
+                    </div>
+
+                    {/* 2. Photo capture inputs */}
+                    {selectedApptId && (
+                      <div className="space-y-4">
+                        {!previewUrl ? (
+                          <div className="space-y-2">
+                            {compressing ? (
+                              <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-cyan-300 rounded-3xl bg-cyan-50/20 text-center animate-pulse">
+                                <Loader2 className="w-10 h-10 text-cyan-600 mb-3 animate-spin" />
+                                <span className="text-xs font-semibold text-slate-800">Processing & Compressing Photo...</span>
+                                <span className="text-[10px] text-slate-400 font-light mt-1">Optimizing image size for instant uploads</span>
+                              </div>
+                            ) : (
+                              <>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  id="camera-input"
+                                  onChange={handlePhotoCapture}
+                                  className="hidden"
+                                />
+                                <label
+                                  htmlFor="camera-input"
+                                  className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 hover:border-cyan-500 rounded-3xl cursor-pointer hover:bg-slate-50/50 transition duration-300"
+                                >
+                                  <Camera className="w-10 h-10 text-cyan-600 mb-3 animate-pulse" />
+                                  <span className="text-xs font-semibold text-slate-800">Launch Mobile Camera</span>
+                                  <span className="text-[10px] text-slate-400 font-light mt-1 text-center">
+                                    Snap a picture of the written prescription paper
+                                  </span>
+                                </label>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-4 animate-fade-in">
+                            <div className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-[4/3] bg-slate-900 flex items-center justify-center">
+                              <img
+                                src={previewUrl}
+                                alt="Captured prescription preview"
+                                className="max-h-full max-w-full object-contain"
+                              />
+                            </div>
+                            
+                            <div className="bg-slate-50 border p-3 rounded-2xl flex items-start gap-2 text-xs">
+                              <User className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-semibold text-slate-800">Confirm Patient</p>
+                                <p className="text-slate-500 text-[11px] font-light">
+                                  Uploading prescription for: <strong className="text-cyan-700 font-semibold">{selectedPatientName}</strong>
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedFile(null)
+                                  setPreviewUrl(null)
+                                }}
+                                className="flex-1 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl font-semibold text-xs transition text-center"
+                              >
+                                Retake Photo
+                              </button>
+                              
+                              <button
+                                type="button"
+                                onClick={handleUploadPhoto}
+                                disabled={uploading}
+                                className="flex-1 py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-2xl font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-cyan-600/10"
+                              >
+                                {uploading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                Confirm & Upload
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Mode 2: Scan Medicine Barcode (TiDB Cloud inventory) */}
+            {mode === 'barcode' && (
+              <div className="space-y-6 animate-fade-in">
+                {stockSuccess && (
+                  <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-2xl flex flex-col gap-1 items-center text-center animate-fade-in">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                    <h4 className="text-xs font-bold mt-1">Stock Registered Successfully!</h4>
+                    <p className="text-[10px] text-emerald-700/80 font-light leading-relaxed">
+                      The medicine inventory has been updated in TiDB Cloud. You can scan/receive another item or toggle back to prescriptions.
+                    </p>
+                    <button
+                      onClick={() => setStockSuccess(false)}
+                      className="mt-2 text-xs font-bold text-emerald-800 bg-white border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-50/50 transition"
+                    >
+                      Receive More Stock
+                    </button>
+                  </div>
+                )}
+
+                {!stockSuccess && (
+                  <form onSubmit={handleRegisterStock} className="space-y-5">
+                    {/* Barcode input scanning section */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-slate-700">Scan or Enter Barcode</label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Barcode className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Scan gun code or type 1D/2D GS1 barcode..."
+                            value={barcodeInput}
+                            onChange={e => handleBarcodeChange(e.target.value)}
+                            className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:outline-none focus:border-cyan-600"
+                            autoFocus
                           />
                         </div>
-                        
-                        <div className="bg-slate-50 border p-3 rounded-2xl flex items-start gap-2 text-xs">
-                          <User className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-semibold text-slate-800">Confirm Patient</p>
-                            <p className="text-slate-500 text-[11px] font-light">
-                              Uploading prescription for: <strong className="text-cyan-700 font-semibold">{selectedPatientName}</strong>
-                            </p>
-                          </div>
+                        <button
+                          type="button"
+                          onClick={() => setCameraScanActive(!cameraScanActive)}
+                          className={`p-3 border rounded-xl transition ${
+                            cameraScanActive ? 'bg-cyan-50 border-cyan-300 text-cyan-600' : 'bg-white border-slate-200 text-slate-500'
+                          }`}
+                          title="Use device camera to scan"
+                        >
+                          <Scan className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Camera simulation view */}
+                    {cameraScanActive && (
+                      <div className="relative rounded-2xl overflow-hidden border border-cyan-200 aspect-[4/3] bg-slate-900 flex flex-col items-center justify-center animate-scale-in">
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-slate-950/40 z-10"></div>
+                        <div className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_10px_#ef4444] animate-bounce z-20"></div>
+                        <div className="w-40 h-40 border-2 border-dashed border-cyan-400 rounded-3xl z-20 flex items-center justify-center bg-cyan-400/5">
+                          <span className="text-[10px] text-cyan-300 font-light text-center px-4 leading-normal">
+                            Position 1D / GS1 Datamatrix barcode here
+                          </span>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
                           <button
                             type="button"
                             onClick={() => {
-                              setSelectedFile(null)
-                              setPreviewUrl(null)
+                              handleBarcodeChange('01089011172101031728073110ABC123')
+                              setCameraScanActive(false)
                             }}
-                            className="flex-1 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl font-semibold text-xs transition text-center"
+                            className="px-3 py-1.5 bg-cyan-600/90 text-white text-[10px] font-semibold rounded-lg hover:bg-cyan-700 transition backdrop-blur-sm"
                           >
-                            Retake Photo
+                            Simulate GS1 Scan
                           </button>
-                          
                           <button
                             type="button"
-                            onClick={handleUploadPhoto}
-                            disabled={uploading}
-                            className="flex-1 py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-2xl font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-cyan-600/10"
+                            onClick={() => {
+                              handleBarcodeChange('8901234567890')
+                              setCameraScanActive(false)
+                            }}
+                            className="px-3 py-1.5 bg-slate-800/90 text-white text-[10px] font-semibold rounded-lg hover:bg-slate-700 transition backdrop-blur-sm"
                           >
-                            {uploading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                            Confirm & Upload
+                            Simulate 1D Scan
                           </button>
                         </div>
                       </div>
                     )}
-                  </div>
+
+                    {/* Placeholder when no barcode has been scanned yet */}
+                    {!parsedGtin && (
+                      <div className="p-8 border border-dashed border-slate-200 rounded-2xl text-center text-slate-400 text-xs font-light space-y-2 animate-pulse">
+                        <Barcode className="w-8 h-8 mx-auto text-slate-300" />
+                        <p>Waiting for medicine barcode scan...</p>
+                        <p className="text-[10px] text-slate-400/80">Scan with barcode gun, type code, or click scanner icon above to unlock details form.</p>
+                      </div>
+                    )}
+
+                    {/* Parsed & Auto-filled details form unlocked upon scanning */}
+                    {parsedGtin && (
+                      <div className="space-y-5 animate-fade-in-up">
+                        {/* Parsed Details Card (Glassmorphism layout) */}
+                        {(parsedBatch || parsedExpiry) && (
+                          <div className="p-4 bg-slate-50/50 border border-slate-200/60 rounded-2xl space-y-3 text-xs">
+                            <h4 className="font-bold text-slate-700 border-b border-slate-200 pb-1.5">Parsed GS1 Scanner Fields</h4>
+                            
+                            <div className="grid grid-cols-2 gap-3 text-[11px]">
+                              <div>
+                                <span className="text-slate-400 font-light block uppercase text-[9px] tracking-wide">GTIN / Code</span>
+                                <span className="font-mono text-slate-850 font-bold">{parsedGtin}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 font-light block uppercase text-[9px] tracking-wide">Batch No</span>
+                                <span className="font-mono text-slate-850 font-bold">{parsedBatch || 'GEN-BATCH'}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-slate-400 font-light block uppercase text-[9px] tracking-wide">Expiry Date</span>
+                                <span className="font-mono text-slate-850 font-bold">{parsedExpiry || 'Default Expiry'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Stock Registration Fields */}
+                        <div className="space-y-3.5 border-t border-slate-100 pt-3">
+                          <div className="space-y-1">
+                            <label className="block text-xs font-semibold text-slate-700">Medicine Name</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Amoxicillin 500mg"
+                              value={medName}
+                              onChange={e => setMedName(e.target.value)}
+                              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="block text-xs font-medium text-slate-500">Generic Name</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Amoxicillin"
+                                value={medGeneric}
+                                onChange={e => setMedGeneric(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-xs font-medium text-slate-500">Unit Price (INR)</label>
+                              <input
+                                type="number"
+                                required
+                                placeholder="120"
+                                value={medPrice}
+                                onChange={e => setMedPrice(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="block text-xs font-medium text-slate-500">Quantity to Receive</label>
+                              <input
+                                type="number"
+                                required
+                                placeholder="10"
+                                value={medQty}
+                                onChange={e => setMedQty(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-xs font-medium text-slate-500">Batch Number</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. AMX2026"
+                                value={parsedBatch}
+                                onChange={e => setParsedBatch(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white font-mono focus:outline-none focus:border-cyan-600"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-slate-500">Expiry Date</label>
+                            <input
+                              type="date"
+                              required
+                              value={parsedExpiry}
+                              onChange={e => setParsedExpiry(e.target.value)}
+                              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white font-mono focus:outline-none focus:border-cyan-600"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={registeringStock || !parsedGtin || !medName}
+                          className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-2xl font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-cyan-600/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {registeringStock && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          Register Medicine Stock (TiDB)
+                        </button>
+                      </div>
+                    )}
+                  </form>
                 )}
               </div>
             )}

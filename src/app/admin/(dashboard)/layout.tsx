@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  LayoutDashboard, Users, Settings, ShieldAlert, Sparkles, CircleDollarSign
+  LayoutDashboard, Users, Settings, ShieldAlert, Sparkles, CircleDollarSign, Receipt
 } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 
@@ -20,7 +20,7 @@ export default async function AdminDashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen font-sans">
+    <div className="flex bg-slate-50 min-h-screen font-sans">
       
       {/* ═══ SIDEBAR ═══ */}
       <aside className="w-64 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen">
@@ -41,6 +41,7 @@ export default async function AdminDashboardLayout({
             {[
               { href: '/admin', icon: LayoutDashboard, label: 'Appointments' },
               { href: '/admin/doctors', icon: Users, label: 'Manage Doctors' },
+              { href: '/admin/billing', icon: Receipt, label: 'Billing & Checkout' },
               { href: '/admin/finances', icon: CircleDollarSign, label: 'Finances & Profits' },
               { href: '/admin/settings', icon: Settings, label: 'Settings' },
             ].map(item => (

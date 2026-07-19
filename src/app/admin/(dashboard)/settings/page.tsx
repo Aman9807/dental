@@ -177,11 +177,11 @@ export default function AdminSettingsPage() {
         {/* Left Side: Environment variables / connection statuses */}
         <div className="space-y-6">
           
-          {/* SMTP / Resend Integration Status Card */}
+          {/* SMTP / Brevo Integration Status Card */}
           <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
             <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
               <Mail className="w-4 h-4 text-slate-500" />
-              Email Integration (Resend)
+              Email Integration (Brevo)
             </h3>
             
             <div className="space-y-3 text-xs">
@@ -192,13 +192,13 @@ export default function AdminSettingsPage() {
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-light">API Key Prefix:</span>
+                <span className="text-slate-500 font-light">Sender Domain:</span>
                 <code className="text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-150">
-                  re_Z5UgQKM...
+                  dental@flynx.site
                 </code>
               </div>
               <div className="text-[11px] text-slate-400 font-light leading-relaxed pt-2">
-                New appointment bookings automatically trigger webhook payloads, calling the Supabase Deno Edge Function which notifies doctors instantly via Resend email.
+                New appointment bookings and diagnosis reports automatically send notification emails to doctors and patients via Brevo API.
               </div>
             </div>
           </div>

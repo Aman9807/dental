@@ -279,18 +279,27 @@ BEGIN
       </div>
     ';
 
-    -- Call Resend API using pg_net
+    -- Call Brevo API using pg_net
     PERFORM net.http_post(
-        url := 'https://api.resend.com/emails',
+        url := 'https://api.brevo.com/v3/smtp/email',
         headers := jsonb_build_object(
-            'Content-Type', 'application/json',
-            'Authorization', 'Bearer re_Z5UgQKMi_HKGRAo8rzdUHNr21n1KHcf6K'
+            'accept', 'application/json',
+            'content-type', 'application/json',
+            'api-key', 'YOUR_BREVO_API_KEY'
         ),
         body := jsonb_build_object(
-            'from', 'Dental Clinic Booking <onboarding@resend.dev>',
-            'to', doctor_record.email,
+            'sender', jsonb_build_object(
+                'name', branch_record.name,
+                'email', 'dental@flynx.site'
+            ),
+            'to', jsonb_build_array(
+                jsonb_build_object(
+                    'email', doctor_record.email,
+                    'name', doctor_record.name
+                )
+            ),
             'subject', email_subject,
-            'html', email_html
+            'htmlContent', email_html
         )
     );
 
@@ -350,5 +359,66 @@ CREATE POLICY "Allow admin service-role full access to reports bucket" ON storag
 -- 8. Add active capture ticket column to branches table (using plain UUID to avoid query ambiguity in PostgREST)
 ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS active_capture_appointment_id UUID;
 ALTER TABLE public.branches DROP CONSTRAINT IF EXISTS branches_active_capture_appointment_id_fkey;
+
+-- 9. Create Billing and Treatment Tables (Medicines are stored in TiDB Cloud)
+CREATE TABLE IF NOT EXISTS public.treatments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT UNIQUE NOT NULL,
+    price NUMERIC NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.invoices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
+    patient_id UUID REFERENCES public.patients(id) ON DELETE SET NULL,
+    subtotal NUMERIC NOT NULL DEFAULT 0,
+    discount_percentage NUMERIC NOT NULL DEFAULT 0,
+    total NUMERIC NOT NULL DEFAULT 0,
+    pdf_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.invoice_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_id UUID REFERENCES public.invoices(id) ON DELETE CASCADE NOT NULL,
+    item_type TEXT NOT NULL CHECK (item_type IN ('medicine', 'treatment', 'custom')),
+    medicine_id VARCHAR(36), -- References TiDB Cloud medicines(id)
+    treatment_id UUID REFERENCES public.treatments(id) ON DELETE SET NULL,
+    custom_name TEXT,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit_price NUMERIC NOT NULL DEFAULT 0,
+    total_price NUMERIC NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS for new tables
+ALTER TABLE public.treatments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invoice_items ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read access (necessary for frontend booking/lookup)
+CREATE POLICY "Allow public read access to treatments" ON public.treatments FOR SELECT USING (true);
+CREATE POLICY "Allow public read access to invoices" ON public.invoices FOR SELECT USING (true);
+CREATE POLICY "Allow public read access to invoice_items" ON public.invoice_items FOR SELECT USING (true);
+
+-- Allow public/admin write access
+CREATE POLICY "Allow public insert to invoices" ON public.invoices FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert to invoice_items" ON public.invoice_items FOR INSERT WITH CHECK (true);
+
+-- Allow admin full access
+CREATE POLICY "Allow admin full access to treatments" ON public.treatments FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow admin full access to invoices" ON public.invoices FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow admin full access to invoice_items" ON public.invoice_items FOR ALL TO authenticated USING (true);
+
+-- Seed default treatments
+INSERT INTO public.treatments (name, price) VALUES
+('Teeth Cleaning', 1500),
+('Tooth Extraction', 2500),
+('Dental Filling', 2000),
+('Root Canal Therapy', 8500),
+('Dental Crown', 12000),
+('Teeth Whitening', 15000)
+ON CONFLICT (name) DO NOTHING;
 
 

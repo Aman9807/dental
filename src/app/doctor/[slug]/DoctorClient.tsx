@@ -10,12 +10,16 @@ import {
   logoutDoctor,
   getLocalIpAddress,
   createCaptureTicket,
-  clearCaptureTicket
+  clearCaptureTicket,
+  searchMedicines,
+  createInvoice,
+  triggerDeliverAndCleanup
 } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
   Calendar, Clock, Check, X, FileText, Upload, Copy, Info, Mail, Phone,
-  TrendingUp, Award, LogOut, Sparkles, RefreshCw, User, HelpCircle, CheckCircle
+  TrendingUp, Award, LogOut, Sparkles, RefreshCw, User, HelpCircle, CheckCircle,
+  Search, PlusCircle, Trash2, Loader2, Percent, AlertCircle, ShoppingCart, Send, Barcode, Activity
 } from 'lucide-react'
 
 interface Doctor {
@@ -99,6 +103,12 @@ interface Appointment {
   branches: { id: string; name: string; slug: string } | null
 }
 
+interface Treatment {
+  id: string
+  name: string
+  price: number
+}
+
 interface DoctorClientProps {
   doctor: Doctor
   initialAppointments: Appointment[]
@@ -109,6 +119,7 @@ interface DoctorClientProps {
   electricityExpenses: ElectricityExpense[]
   extraExpenses: ExtraExpense[]
   branchAppointments: BranchAppointment[]
+  treatments: Treatment[]
 }
 
 // Utility to count working days in a month
@@ -147,7 +158,8 @@ export default function DoctorClient({
   doctorAttendance,
   electricityExpenses,
   extraExpenses,
-  branchAppointments
+  branchAppointments,
+  treatments
 }: DoctorClientProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'appointments' | 'book' | 'finances'>('appointments')
@@ -181,6 +193,22 @@ export default function DoctorClient({
   const [isWaitingForMobile, setIsWaitingForMobile] = useState(false)
   const [tempMobilePhoto, setTempMobilePhoto] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+
+  // Billing States
+  const [billingItems, setBillingItems] = useState<any[]>([])
+  const [discountPercent, setDiscountPercent] = useState<number>(0)
+  const [generatedInvoiceId, setGeneratedInvoiceId] = useState<string | null>(null)
+  const [generatingBill, setGeneratingBill] = useState(false)
+
+  // Medicine search autocomplete states
+  const [medQuery, setMedQuery] = useState('')
+  const [medResults, setMedResults] = useState<any[]>([])
+  const [searchingMeds, setSearchingMeds] = useState(false)
+  const [showMedDropdown, setShowMedDropdown] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Treatment selection
+  const [selectedTreatmentId, setSelectedTreatmentId] = useState('')
   
   // Month selector for earnings
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
@@ -219,6 +247,160 @@ export default function DoctorClient({
     }
     return () => clearInterval(interval)
   }, [isWaitingForMobile, activeAppt])
+
+  // Detect clicks outside search dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowMedDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Billing Actions
+  const handleMedSearch = async (val: string) => {
+    setMedQuery(val)
+    if (!val.trim()) {
+      setMedResults([])
+      setShowMedDropdown(false)
+      return
+    }
+
+    setSearchingMeds(true)
+    try {
+      const res = await searchMedicines(val)
+      if (res.success && res.data) {
+        setMedResults(res.data)
+        setShowMedDropdown(true)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSearchingMeds(false)
+    }
+  }
+
+  const addMedicineItem = (med: any) => {
+    const stock = Number(med.stock)
+    if (stock <= 0) return
+
+    const existingIndex = billingItems.findIndex(item => item.type === 'medicine' && item.id === med.id)
+    if (existingIndex !== -1) {
+      const updated = [...billingItems]
+      const newQty = updated[existingIndex].quantity + 1
+      if (newQty <= stock) {
+        updated[existingIndex].quantity = newQty
+        setBillingItems(updated)
+      } else {
+        alert(`Cannot add more. Only ${stock} units available in stock.`)
+      }
+    } else {
+      const price = med.batches && med.batches.length > 0 ? Number(med.batches[0].price) : Number(med.price)
+      const newItem = {
+        key: `med_${med.id}_${Date.now()}`,
+        type: 'medicine',
+        id: med.id,
+        name: med.name,
+        quantity: 1,
+        price: price,
+        maxStock: stock
+      }
+      setBillingItems([...billingItems, newItem])
+    }
+    setMedQuery('')
+    setShowMedDropdown(false)
+  }
+
+  const handleAddTreatment = () => {
+    if (!selectedTreatmentId) return
+    const treat = treatments.find(t => t.id === selectedTreatmentId)
+    if (!treat) return
+
+    const newItem = {
+      key: `treat_${treat.id}_${Date.now()}`,
+      type: 'treatment',
+      id: treat.id,
+      name: treat.name,
+      quantity: 1,
+      price: Number(treat.price)
+    }
+
+    setBillingItems([...billingItems, newItem])
+    setSelectedTreatmentId('')
+  }
+
+  const handleAddCustom = () => {
+    const newItem = {
+      key: `custom_${Date.now()}`,
+      type: 'custom',
+      name: 'Custom Dental Work',
+      quantity: 1,
+      price: 1000
+    }
+    setBillingItems([...billingItems, newItem])
+  }
+
+  const updateItem = (key: string, field: 'quantity' | 'price' | 'name', value: any) => {
+    const updated = billingItems.map(item => {
+      if (item.key === key) {
+        if (field === 'quantity') {
+          let val = parseInt(value) || 1
+          if (item.type === 'medicine' && item.maxStock) {
+            val = Math.min(val, item.maxStock)
+          }
+          return { ...item, quantity: Math.max(1, val) }
+        }
+        if (field === 'price') {
+          return { ...item, price: Math.max(0, parseFloat(value) || 0) }
+        }
+        if (field === 'name') {
+          return { ...item, name: value }
+        }
+      }
+      return item
+    })
+    setBillingItems(updated)
+  }
+
+  const removeItem = (key: string) => {
+    setBillingItems(billingItems.filter(item => item.key !== key))
+  }
+
+  const subtotal = billingItems.reduce((acc, item) => acc + (item.price * item.quantity), 0)
+  const discountAmount = subtotal * (discountPercent / 100)
+  const grandTotal = subtotal - discountAmount
+
+  const handleGenerateBill = async () => {
+    if (!activeAppt) return
+    if (billingItems.length === 0) {
+      alert('Please add medicines or procedures to generate a bill.')
+      return
+    }
+
+    setGeneratingBill(true)
+    try {
+      const res = await createInvoice(
+        activeAppt.id,
+        billingItems,
+        subtotal,
+        discountPercent,
+        grandTotal
+      )
+      if (res.success && res.invoiceId) {
+        setGeneratedInvoiceId(res.invoiceId)
+        alert('Bill generated and attached to patient report successfully!')
+      } else {
+        alert(res.error || 'Failed to generate bill')
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'An error occurred while generating invoice')
+    } finally {
+      setGeneratingBill(false)
+    }
+  }
 
   const handleLogout = async () => {
     const res = await logoutDoctor()
@@ -355,6 +537,13 @@ export default function DoctorClient({
     setTempMobilePhoto(appt.temp_mobile_photo || null)
     setIsWaitingForMobile(false)
     setShowReportsModal(true)
+    
+    // Clear billing states
+    setBillingItems([])
+    setDiscountPercent(0)
+    setGeneratedInvoiceId(null)
+    setMedQuery('')
+    setMedResults([])
   }
 
   const handleXrayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -380,10 +569,17 @@ export default function DoctorClient({
     setTimeout(() => setCopiedLink(false), 2000)
   }
 
-  // Submit patient report (calls sendPatientReport server action)
+  // Submit patient report (calls sendPatientReport server action and then triggers delivery & cleanup pipeline)
   const handleSubmitReport = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeAppt) return
+
+    // 1. Enforce that the bill must be generated first before sending reports
+    if (!generatedInvoiceId) {
+      alert('Error: Please generate and attach the bill first before sending the report!')
+      return
+    }
+
     setSendingReport(true)
 
     try {
@@ -396,30 +592,37 @@ export default function DoctorClient({
       if (prescriptionFile) formData.append('prescription', prescriptionFile)
       if (tempMobilePhoto) formData.append('tempMobilePhoto', tempMobilePhoto)
 
+      // A. Save/Upload reports to database/storage first
       const res = await sendPatientReport(formData)
-      if (res.success) {
-        alert('Diagnostic report and prescription sent to patient successfully!')
-        
-        // Update local state
-        const sentTime = new Date().toISOString()
-        setAppointments(prev =>
-          prev.map(a => a.id === activeAppt.id ? { 
-            ...a, 
-            report_sent_at: sentTime,
-            prescription_text: prescriptionText,
-            prescription_url: res.prescriptionUrl || a.prescription_url,
-            xray_url: res.xrayUrl || a.xray_url,
-            temp_mobile_photo: tempMobilePhoto,
-            patients: res.updatedPatient || a.patients
-          } : a)
-        )
-        setShowReportsModal(false)
-      } else {
-        alert(res.error || 'Failed to send reports')
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to upload diagnostic reports.')
       }
+
+      // B. Trigger Automated Email/WhatsApp Delivery and Auto-Purge pipeline
+      const deliveryRes = await triggerDeliverAndCleanup(activeAppt.id, generatedInvoiceId)
+      if (!deliveryRes.success) {
+        throw new Error(deliveryRes.error || 'Reports saved, but delivery & cleanup dispatch pipeline failed.')
+      }
+
+      alert('Diagnostic reports and invoice bill sent to patient successfully! Cloud records have been auto-purged.')
+      
+      // Update local state
+      const sentTime = new Date().toISOString()
+      setAppointments(prev =>
+        prev.map(a => a.id === activeAppt.id ? { 
+          ...a, 
+          status: 'completed',
+          report_sent_at: sentTime,
+          prescription_text: null, // cleared as part of purge
+          prescription_url: null,
+          xray_url: null,
+          temp_mobile_photo: null
+        } : a)
+      )
+      setShowReportsModal(false)
     } catch (err: any) {
       console.error(err)
-      alert('An error occurred.')
+      alert(err.message || 'An error occurred during report submission and billing delivery.')
     } finally {
       setSendingReport(false)
     }
@@ -999,6 +1202,224 @@ export default function DoctorClient({
                       )}
                     </div>
                   </div>
+                </div>
+
+                {/* ═══ BILLING & CHECKOUT SECTION ═══ */}
+                <div className="border border-slate-200 bg-slate-50/30 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-teal-100 text-teal-600 rounded-lg"><ShoppingCart className="w-4 h-4" /></div>
+                      <h4 className="text-sm font-bold text-slate-700">Compile Invoice / Bill</h4>
+                    </div>
+                    {generatedInvoiceId ? (
+                      <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl border border-emerald-100 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Bill Generated & Attached (Rs. {grandTotal.toFixed(2)})
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 bg-rose-50 text-rose-700 text-[10px] rounded-xl border border-rose-100 font-bold uppercase tracking-wider flex items-center gap-1 animate-pulse">
+                        <AlertCircle className="w-3.5 h-3.5" /> Bill Not Generated
+                      </span>
+                    )}
+                  </div>
+
+                  {!generatedInvoiceId && (
+                    <div className="space-y-4">
+                      {/* Search Medicines */}
+                      <div className="space-y-1 relative" ref={dropdownRef}>
+                        <label className="block text-[11px] font-semibold text-slate-500">Search & Add Medicines (TiDB Cloud)</label>
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Type generic/brand name or barcode..."
+                            value={medQuery}
+                            onChange={e => handleMedSearch(e.target.value)}
+                            onFocus={() => setShowMedDropdown(medResults.length > 0)}
+                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-teal-500"
+                          />
+                          {searchingMeds && (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin absolute right-3 top-2.5 text-teal-600" />
+                          )}
+                        </div>
+
+                        {showMedDropdown && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                            {medResults.length === 0 ? (
+                              <div className="p-3 text-xs text-slate-400 text-center">No inventory match.</div>
+                            ) : (
+                              medResults.map(med => {
+                                const stock = Number(med.stock)
+                                const isOutOfStock = stock <= 0
+                                return (
+                                  <div
+                                    key={med.id}
+                                    onClick={() => !isOutOfStock && addMedicineItem(med)}
+                                    className={`flex justify-between items-center px-3 py-2 border-b border-slate-50 hover:bg-slate-50 transition text-xs cursor-pointer ${
+                                      isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
+                                  >
+                                    <div>
+                                      <p className="font-semibold text-slate-800">{med.name}</p>
+                                      <p className="text-[9px] text-slate-400">Generic: {med.generic_name || 'N/A'}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      {isOutOfStock ? (
+                                        <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 text-[9px] rounded-md font-bold uppercase">Out of Stock</span>
+                                      ) : (
+                                        <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] rounded-md font-medium">Stock: {stock}</span>
+                                      )}
+                                      <span className="font-mono font-bold text-slate-600">Rs. {med.price}</span>
+                                    </div>
+                                  </div>
+                                )
+                              })
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Select Treatment & Custom Button */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-semibold text-slate-500">Fixed Procedures</label>
+                          <div className="flex gap-2.5">
+                            <select
+                              value={selectedTreatmentId}
+                              onChange={e => setSelectedTreatmentId(e.target.value)}
+                              className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 focus:outline-none focus:border-teal-500"
+                            >
+                              <option value="">-- Choose procedure --</option>
+                              {treatments.map(t => (
+                                <option key={t.id} value={t.id}>{t.name} (Rs. {t.price})</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={handleAddTreatment}
+                              disabled={!selectedTreatmentId}
+                              className="px-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl transition disabled:opacity-40"
+                            >
+                              <PlusCircle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col justify-end">
+                          <button
+                            type="button"
+                            onClick={handleAddCustom}
+                            className="w-full py-2 border border-dashed border-slate-300 hover:border-teal-600 hover:bg-white/50 rounded-xl text-xs font-semibold text-slate-600 hover:text-teal-700 transition flex items-center justify-center gap-1.5"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Add Custom Item
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Line Items List */}
+                      {billingItems.length > 0 && (
+                        <div className="border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100">
+                          {billingItems.map(item => (
+                            <div key={item.key} className="p-3 flex items-center justify-between gap-3 text-xs">
+                              <div className="flex-1 min-w-0">
+                                {item.type === 'custom' ? (
+                                  <input
+                                    type="text"
+                                    value={item.name}
+                                    onChange={e => updateItem(item.key, 'name', e.target.value)}
+                                    className="px-1.5 py-0.5 border border-slate-200 rounded text-xs font-semibold text-slate-800 w-full"
+                                  />
+                                ) : (
+                                  <p className="font-semibold text-slate-800 truncate">{item.name}</p>
+                                )}
+                                <span className="text-[9px] text-slate-400 capitalize font-light">{item.type}</span>
+                              </div>
+
+                              <div className="flex items-center gap-3 shrink-0">
+                                {item.type === 'custom' ? (
+                                  <input
+                                    type="number"
+                                    value={item.price}
+                                    onChange={e => updateItem(item.key, 'price', e.target.value)}
+                                    className="w-16 px-1 py-0.5 border border-slate-200 rounded text-center font-mono font-medium"
+                                  />
+                                ) : (
+                                  <span className="font-mono text-slate-500">Rs. {item.price}</span>
+                                )}
+
+                                {item.type === 'medicine' ? (
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={item.quantity}
+                                      onChange={e => updateItem(item.key, 'quantity', e.target.value)}
+                                      className="w-10 px-1 py-0.5 border border-slate-200 rounded text-center font-mono font-medium"
+                                    />
+                                    <span className="text-[9px] text-slate-400 font-light">/ {item.maxStock}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-400 text-[10px] font-mono px-2">Qty: 1</span>
+                                )}
+
+                                <span className="font-mono font-bold text-slate-800 w-16 text-right">
+                                  Rs. {(item.price * item.quantity).toFixed(2)}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(item.key)}
+                                  className="text-slate-400 hover:text-rose-600 transition"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Totals & Generate Button */}
+                      {billingItems.length > 0 && (
+                        <div className="bg-slate-100/50 p-4 rounded-xl space-y-3 text-xs text-slate-600">
+                          <div className="flex justify-between">
+                            <span>Subtotal:</span>
+                            <span className="font-mono font-bold">Rs. {subtotal.toFixed(2)}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center border-t border-slate-200/50 pt-2">
+                            <span className="flex items-center gap-1">
+                              <Percent className="w-3 h-3 text-teal-600" />
+                              Discount %:
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              placeholder="0"
+                              value={discountPercent || ''}
+                              onChange={e => setDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                              className="w-12 px-1 py-0.5 border border-slate-200 rounded text-center font-mono font-bold"
+                            />
+                          </div>
+
+                          <div className="flex justify-between border-t border-slate-200 pt-2 text-sm font-bold text-slate-800">
+                            <span>Grand Total:</span>
+                            <span className="font-mono text-teal-700">Rs. {grandTotal.toFixed(2)}</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleGenerateBill}
+                            disabled={generatingBill}
+                            className="w-full py-2.5 mt-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          >
+                            {generatingBill ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                            Generate & Attach Bill
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile Phone Sync box */}

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { sendAppointmentEmail } from '@/app/admin/actions'
 import { 
   Calendar, Clock, User, Phone, Mail, FileText, 
   CheckCircle, AlertCircle, ChevronRight, Loader2, ArrowLeft, Sparkles
@@ -257,6 +258,11 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         }
         throw apptError
       }
+
+      // Trigger doctor notification email asynchronously (non-blocking for user redirect)
+      sendAppointmentEmail(newAppt.id).catch(emailErr => {
+        console.error('Failed to send doctor notification email:', emailErr)
+      })
 
       // Redirect to the success page
       router.push(`/${branchSlug}/book/success?id=${newAppt.id}`)

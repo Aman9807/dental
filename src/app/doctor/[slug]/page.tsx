@@ -129,6 +129,12 @@ export default async function DoctorPortalPage({ params }: DoctorPageProps) {
     branches: Array.isArray(appt.branches) ? appt.branches[0] : appt.branches
   })) as any[]
 
+  // Fetch clinical treatments list for portal billing support
+  const { data: treatments } = await adminDb
+    .from('treatments')
+    .select('*')
+    .order('name', { ascending: true })
+
   return (
     <DoctorClient
       doctor={formattedDoctor}
@@ -140,6 +146,7 @@ export default async function DoctorPortalPage({ params }: DoctorPageProps) {
       electricityExpenses={electricityExpenses || []}
       extraExpenses={extraExpenses || []}
       branchAppointments={branchAppointments || []}
+      treatments={treatments || []}
     />
   )
 }

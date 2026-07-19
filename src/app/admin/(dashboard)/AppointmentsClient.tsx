@@ -137,7 +137,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     }
   }
 
-  // Submit diagnostic reports and trigger Resend email
+  // Submit diagnostic reports and trigger Brevo email
   const handleSendReport = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeAppt) return

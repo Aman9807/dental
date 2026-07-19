@@ -15,14 +15,15 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')
+    const brevoApiKey = Deno.env.get('BREVO_API_KEY')
+    const brevoSenderEmail = Deno.env.get('BREVO_SENDER_EMAIL') || 'dental@flynx.site'
 
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Missing Supabase credentials in environment')
     }
 
-    if (!resendApiKey) {
-      throw new Error('Missing RESEND_API_KEY in environment')
+    if (!brevoApiKey) {
+      throw new Error('Missing BREVO_API_KEY in environment')
     }
 
     // Initialize Supabase Client with service role key to bypass RLS policies
@@ -132,29 +133,38 @@ serve(async (req) => {
 
     console.log(`Sending email to doctor: ${doctor.email} (Dr. ${doctor.name})`)
 
-    // Send the email via Resend API
-    const resendResponse = await fetch("https://api.resend.com/emails", {
+    // Send the email via Brevo API
+    const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
+        "Accept": "application/json",
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${resendApiKey}`,
+        "api-key": brevoApiKey,
       },
       body: JSON.stringify({
-        from: "Dental Clinic Booking <onboarding@resend.dev>", // Replace with verified domain if available
-        to: doctor.email,
+        sender: {
+          name: branch.name,
+          email: brevoSenderEmail,
+        },
+        to: [
+          {
+            email: doctor.email.trim().toLowerCase(),
+            name: doctor.name
+          }
+        ],
         subject: emailSubject,
-        html: emailHtml,
+        htmlContent: emailHtml,
       }),
     })
 
-    const resendResult = await resendResponse.json()
-    console.log('Resend Response:', JSON.stringify(resendResult))
+    const brevoResult = await brevoResponse.json()
+    console.log('Brevo Response:', JSON.stringify(brevoResult))
 
-    if (!resendResponse.ok) {
-      throw new Error(`Resend email dispatch failed: ${JSON.stringify(resendResult)}`)
+    if (!brevoResponse.ok) {
+      throw new Error(`Brevo email dispatch failed: ${JSON.stringify(brevoResult)}`)
     }
 
-    return new Response(JSON.stringify({ success: true, emailId: resendResult.id }), {
+    return new Response(JSON.stringify({ success: true, messageId: brevoResult.messageId }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
