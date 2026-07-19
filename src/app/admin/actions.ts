@@ -1088,12 +1088,13 @@ export async function searchMedicines(query: string) {
     const searchQuery = `%${query.trim()}%`
     
     // Find medicines matching name, generic_name, or barcode
+    // Compliant with ONLY_FULL_GROUP_BY by grouping by all selected columns
     const sql = `
-      SELECT m.*, COALESCE(SUM(b.stock), 0) as stock
+      SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
       FROM medicines m
       LEFT JOIN medicine_batches b ON m.id = b.medicine_id
       WHERE m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode = ?
-      GROUP BY m.id
+      GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
     `
     const medicines = await queryTiDB(sql, [searchQuery, searchQuery, query.trim()])
 
@@ -1133,28 +1134,41 @@ export async function getTreatments() {
 }
 
 // Action: Scan / Receive stock for medicine in TiDB Cloud
-export async function saveMedicineStock(barcode: string, quantity: number, details: {
+export async function saveMedicineStock(barcode: string, quantityPatches: number, details: {
   name: string
   genericName?: string
   batchNumber: string
   expiryDate: string // YYYY-MM-DD
-  price: number
+  patchPrice: number // Price of 1 patch
+  costPrice?: number // Cost price of 1 patch
+  tabletsPerPatch: number // Tablets in 1 patch
 }) {
   try {
     // 1. Look up if medicine exists by barcode
     let medicineId: string
     const medicines = await queryTiDB('SELECT id FROM medicines WHERE barcode = ?', [barcode])
     
+    const tabletsPerPatch = Number(details.tabletsPerPatch || 1)
+    
     if (medicines.length > 0) {
       medicineId = medicines[0].id
+      // Update medicine name, generic name, and tablets_per_patch
+      await queryTiDB(
+        'UPDATE medicines SET name = ?, generic_name = ?, tablets_per_patch = ? WHERE id = ?',
+        [details.name, details.genericName || null, tabletsPerPatch, medicineId]
+      )
     } else {
       // Create new medicine product
       medicineId = randomUUID()
       await queryTiDB(
-        'INSERT INTO medicines (id, name, generic_name, barcode) VALUES (?, ?, ?, ?)',
-        [medicineId, details.name, details.genericName || null, barcode]
+        'INSERT INTO medicines (id, name, generic_name, barcode, tablets_per_patch) VALUES (?, ?, ?, ?, ?)',
+        [medicineId, details.name, details.genericName || null, barcode, tabletsPerPatch]
       )
     }
+
+    // Convert patches to single tablet stock and price for FIFO
+    const totalTablets = Number(quantityPatches) * tabletsPerPatch
+    const singleTabletPrice = Number(details.patchPrice) / tabletsPerPatch
 
     // 2. Insert or update stock in medicine_batches
     const batches = await queryTiDB(
@@ -1164,17 +1178,17 @@ export async function saveMedicineStock(barcode: string, quantity: number, detai
 
     if (batches.length > 0) {
       // Update existing batch stock and price
-      const newStock = Number(batches[0].stock) + Number(quantity)
+      const newStock = Number(batches[0].stock) + totalTablets
       await queryTiDB(
         'UPDATE medicine_batches SET stock = ?, price = ?, expiry_date = ? WHERE id = ?',
-        [newStock, details.price, details.expiryDate, batches[0].id]
+        [newStock, singleTabletPrice, details.expiryDate, batches[0].id]
       )
     } else {
       // Insert new batch
       const batchId = randomUUID()
       await queryTiDB(
         'INSERT INTO medicine_batches (id, medicine_id, batch_number, expiry_date, price, stock) VALUES (?, ?, ?, ?, ?, ?)',
-        [batchId, medicineId, details.batchNumber, details.expiryDate, details.price, quantity]
+        [batchId, medicineId, details.batchNumber, details.expiryDate, singleTabletPrice, totalTablets]
       )
     }
 
@@ -1338,6 +1352,21 @@ export async function triggerDeliverAndCleanup(appointmentId: string, invoiceId:
   } catch (err: any) {
     console.error('Error triggering delivery & cleanup:', err)
     return { success: false, error: err.message || 'Failed to run delivery and cleanup pipeline.' }
+  }
+}
+
+// Action: Fetch medicine record from TiDB Cloud by barcode
+export async function getMedicineByBarcode(barcode: string) {
+  try {
+    const sql = 'SELECT * FROM medicines WHERE barcode = ?'
+    const rows = await queryTiDB(sql, [barcode.trim()])
+    if (rows && rows.length > 0) {
+      return { success: true, data: rows[0] }
+    }
+    return { success: true, data: null }
+  } catch (err: any) {
+    console.error('Error fetching medicine by barcode:', err)
+    return { success: false, error: err.message || 'Failed to look up medicine.' }
   }
 }
 

@@ -342,6 +342,17 @@ export default function DoctorClient({
     setBillingItems([...billingItems, newItem])
   }
 
+  const handleAddCustomMedicine = () => {
+    const newItem = {
+      key: `custom_med_${Date.now()}`,
+      type: 'medicine',
+      name: 'Custom Medicine Name',
+      quantity: 10, // Default to standard strip size
+      price: 12 // Default tablet price
+    }
+    setBillingItems([...billingItems, newItem])
+  }
+
   const updateItem = (key: string, field: 'quantity' | 'price' | 'name', value: any) => {
     const updated = billingItems.map(item => {
       if (item.key === key) {
@@ -1247,9 +1258,12 @@ export default function DoctorClient({
                             {medResults.length === 0 ? (
                               <div className="p-3 text-xs text-slate-400 text-center">No inventory match.</div>
                             ) : (
-                              medResults.map(med => {
+                             medResults.map(med => {
                                 const stock = Number(med.stock)
                                 const isOutOfStock = stock <= 0
+                                const tabsPerPatch = Number(med.tablets_per_patch || 10)
+                                const stripsStock = Math.floor(stock / tabsPerPatch)
+                                const remTabsStock = stock % tabsPerPatch
                                 return (
                                   <div
                                     key={med.id}
@@ -1259,16 +1273,18 @@ export default function DoctorClient({
                                     }`}
                                   >
                                     <div>
-                                      <p className="font-semibold text-slate-800">{med.name}</p>
-                                      <p className="text-[9px] text-slate-400">Generic: {med.generic_name || 'N/A'}</p>
+                                      <p className="font-semibold text-slate-800">{med.name} <span className="text-[10px] text-slate-400 font-normal">({tabsPerPatch} tabs/strip)</span></p>
+                                      <p className="text-[9px] text-slate-400 font-light">Generic: {med.generic_name || 'N/A'}</p>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                       {isOutOfStock ? (
                                         <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 text-[9px] rounded-md font-bold uppercase">Out of Stock</span>
                                       ) : (
-                                        <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] rounded-md font-medium">Stock: {stock}</span>
+                                        <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] rounded-md font-medium">
+                                          Stock: {stock} tabs ({stripsStock} strips {remTabsStock > 0 ? `+ ${remTabsStock} tabs` : ''})
+                                        </span>
                                       )}
-                                      <span className="font-mono font-bold text-slate-600">Rs. {med.price}</span>
+                                      <span className="font-mono font-bold text-slate-600">Rs. {Number(med.price).toFixed(2)}/tab</span>
                                     </div>
                                   </div>
                                 )
@@ -1305,14 +1321,24 @@ export default function DoctorClient({
                         </div>
 
                         <div className="flex flex-col justify-end">
-                          <button
-                            type="button"
-                            onClick={handleAddCustom}
-                            className="w-full py-2 border border-dashed border-slate-300 hover:border-teal-600 hover:bg-white/50 rounded-xl text-xs font-semibold text-slate-600 hover:text-teal-700 transition flex items-center justify-center gap-1.5"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            Add Custom Item
-                          </button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={handleAddCustom}
+                              className="w-full py-2 border border-dashed border-slate-300 hover:border-teal-650 hover:bg-white/50 rounded-xl text-[10px] font-semibold text-slate-600 hover:text-teal-700 transition flex items-center justify-center gap-1"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              + Custom Procedure
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddCustomMedicine}
+                              className="w-full py-2 border border-dashed border-slate-300 hover:border-teal-650 hover:bg-teal-50/20 rounded-xl text-[10px] font-semibold text-slate-600 hover:text-teal-700 transition flex items-center justify-center gap-1"
+                            >
+                              <Barcode className="w-3 h-3 text-teal-650" />
+                              + Custom Medicine
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -1322,7 +1348,7 @@ export default function DoctorClient({
                           {billingItems.map(item => (
                             <div key={item.key} className="p-3 flex items-center justify-between gap-3 text-xs">
                               <div className="flex-1 min-w-0">
-                                {item.type === 'custom' ? (
+                                {item.type === 'custom' || (item.type === 'medicine' && !item.id) ? (
                                   <input
                                     type="text"
                                     value={item.name}
@@ -1336,7 +1362,7 @@ export default function DoctorClient({
                               </div>
 
                               <div className="flex items-center gap-3 shrink-0">
-                                {item.type === 'custom' ? (
+                                {item.type === 'custom' || (item.type === 'medicine' && !item.id) ? (
                                   <input
                                     type="number"
                                     value={item.price}
@@ -1344,7 +1370,7 @@ export default function DoctorClient({
                                     className="w-16 px-1 py-0.5 border border-slate-200 rounded text-center font-mono font-medium"
                                   />
                                 ) : (
-                                  <span className="font-mono text-slate-500">Rs. {item.price}</span>
+                                  <span className="font-mono text-slate-500 font-medium">Rs. {item.price.toFixed(2)}/tab</span>
                                 )}
 
                                 {item.type === 'medicine' ? (
@@ -1355,7 +1381,11 @@ export default function DoctorClient({
                                       onChange={e => updateItem(item.key, 'quantity', e.target.value)}
                                       className="w-10 px-1 py-0.5 border border-slate-200 rounded text-center font-mono font-medium"
                                     />
-                                    <span className="text-[9px] text-slate-400 font-light">/ {item.maxStock}</span>
+                                    {item.maxStock !== undefined ? (
+                                      <span className="text-[9px] text-slate-400 font-light">/ {item.maxStock} tabs</span>
+                                    ) : (
+                                      <span className="text-[9px] text-slate-400 font-light">tabs</span>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="text-slate-400 text-[10px] font-mono px-2">Qty: 1</span>

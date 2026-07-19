@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { searchMedicines, createInvoice, triggerDeliverAndCleanup } from '@/app/admin/actions'
 import { 
   Receipt, User, Search, PlusCircle, Trash2, Loader2, 
-  CheckCircle, Percent, AlertCircle, ShoppingCart, Activity, ShieldAlert, Sparkles, Send
+  CheckCircle, Percent, AlertCircle, ShoppingCart, Activity, ShieldAlert, Sparkles, Send, Barcode
 } from 'lucide-react'
 
 interface Treatment {
@@ -185,6 +185,18 @@ export default function BillingClient({ initialAppointments, initialTreatments }
       name: 'Custom Dental Work',
       quantity: 1,
       price: 1000
+    }
+    setBillingItems([...billingItems, newItem])
+  }
+
+  // Add Custom Medicine (Editable Row for manual additions)
+  const handleAddCustomMedicine = () => {
+    const newItem: BillingItem = {
+      key: `custom_med_${Date.now()}`,
+      type: 'medicine',
+      name: 'Custom Medicine Name',
+      quantity: 10, // Default to standard strip size
+      price: 12 // Default tablet price
     }
     setBillingItems([...billingItems, newItem])
   }
@@ -430,6 +442,9 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                         medResults.map(med => {
                           const stock = Number(med.stock)
                           const isOutOfStock = stock <= 0
+                          const tabsPerPatch = Number(med.tablets_per_patch || 10)
+                          const stripsStock = Math.floor(stock / tabsPerPatch)
+                          const remTabsStock = stock % tabsPerPatch
                           return (
                             <div
                               key={med.id}
@@ -439,7 +454,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                               }`}
                             >
                               <div>
-                                <p className="font-semibold text-slate-800">{med.name}</p>
+                                <p className="font-semibold text-slate-800">{med.name} <span className="text-[10px] text-slate-400 font-normal">({tabsPerPatch} tabs/strip)</span></p>
                                 <p className="text-[10px] text-slate-400 font-light">Generic: {med.generic_name || 'N/A'}</p>
                               </div>
                               <div className="flex items-center gap-2">
@@ -449,10 +464,10 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                                   </span>
                                 ) : (
                                   <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] rounded-full border border-emerald-100 font-medium">
-                                    Stock: {stock}
+                                    Stock: {stock} tabs ({stripsStock} strips {remTabsStock > 0 ? `+ ${remTabsStock} tabs` : ''})
                                   </span>
                                 )}
-                                <span className="font-mono font-bold text-slate-600">Rs. {med.price}</span>
+                                <span className="font-mono font-bold text-slate-655">Rs. {Number(med.price).toFixed(2)}/tab</span>
                               </div>
                             </div>
                           )
@@ -488,16 +503,26 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                     </div>
                   </div>
 
-                  {/* Add custom treatment button */}
+                  {/* Add custom buttons */}
                   <div className="flex flex-col justify-end">
-                    <button
-                      type="button"
-                      onClick={handleAddCustom}
-                      className="w-full py-3 border border-dashed border-slate-300 hover:border-cyan-600 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-600 hover:text-cyan-700 transition flex items-center justify-center gap-1.5"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      Add Custom Treatment
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={handleAddCustom}
+                        className="w-full py-3 border border-dashed border-slate-300 hover:border-cyan-600 hover:bg-slate-50 rounded-xl text-[10px] font-semibold text-slate-600 hover:text-cyan-700 transition flex items-center justify-center gap-1"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        + Custom Procedure
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddCustomMedicine}
+                        className="w-full py-3 border border-dashed border-slate-300 hover:border-teal-650 hover:bg-teal-50/20 rounded-xl text-[10px] font-semibold text-slate-600 hover:text-teal-700 transition flex items-center justify-center gap-1"
+                      >
+                        <Barcode className="w-3.5 h-3.5 text-teal-650" />
+                        + Custom Medicine
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -527,7 +552,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                           <span className={`inline-block w-2 h-2 rounded-full ${
                             item.type === 'medicine' ? 'bg-cyan-500' : item.type === 'treatment' ? 'bg-emerald-500' : 'bg-purple-500'
                           }`}></span>
-                          {item.type === 'custom' ? (
+                          {item.type === 'custom' || (item.type === 'medicine' && !item.id) ? (
                             <input
                               type="text"
                               value={item.name}
@@ -544,7 +569,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                       <div className="flex items-center gap-4">
                         {/* Price field */}
                         <div className="w-24">
-                          {item.type === 'custom' ? (
+                          {item.type === 'custom' || (item.type === 'medicine' && !item.id) ? (
                             <div className="relative">
                               <span className="absolute left-2 top-1.5 text-slate-400 font-light text-[10px]">Rs.</span>
                               <input
@@ -555,7 +580,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                               />
                             </div>
                           ) : (
-                            <span className="font-mono font-semibold text-slate-600">Rs. {item.price}</span>
+                            <span className="font-mono font-semibold text-slate-600 font-medium">Rs. {item.price.toFixed(2)}/tab</span>
                           )}
                         </div>
 
@@ -568,7 +593,11 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                               onChange={e => updateItem(item.key, 'quantity', e.target.value)}
                               className="w-12 px-1.5 py-1 border border-slate-200 rounded focus:outline-none focus:border-cyan-500 text-center font-mono font-medium"
                             />
-                            <span className="text-[10px] text-slate-400 font-light">/ {item.maxStock || 1}</span>
+                            {item.maxStock !== undefined ? (
+                              <span className="text-[10px] text-slate-400 font-light">/ {item.maxStock} tabs</span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-light">tabs</span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-slate-400 text-[10px] font-mono px-3">Qty: 1</span>

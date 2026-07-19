@@ -69,7 +69,12 @@ async function simulateMockQueries(sql: string, params: any[]): Promise<any> {
       return mockMedicines.filter(m => m.barcode === barcode)
     }
 
-    if (lowercaseSql.includes('where name like') || lowercaseSql.includes('generic_name like')) {
+    if (
+      lowercaseSql.includes('where m.name like') || 
+      lowercaseSql.includes('m.generic_name like') || 
+      lowercaseSql.includes('where name like') || 
+      lowercaseSql.includes('generic_name like')
+    ) {
       const search = (params[0] || '').replace(/%/g, '').toLowerCase()
       return mockMedicines.filter(m => m.name.toLowerCase().includes(search) || m.generic_name.toLowerCase().includes(search))
     }

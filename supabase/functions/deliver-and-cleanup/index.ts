@@ -146,7 +146,12 @@ serve(async (req) => {
       Grand Total: Rs. ${invoice.total}
       =======================================================
     `
-    const invoiceBase64 = btoa(invoiceSummaryText)
+    const invoiceUint8 = new TextEncoder().encode(invoiceSummaryText)
+    let invoiceBinary = ''
+    for (let i = 0; i < invoiceUint8.length; i++) {
+      invoiceBinary += String.fromCharCode(invoiceUint8[i])
+    }
+    const invoiceBase64 = btoa(invoiceBinary)
     attachments.push({
       name: 'invoice_receipt.txt',
       content: invoiceBase64

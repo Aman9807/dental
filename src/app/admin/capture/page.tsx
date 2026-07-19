@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { validateCameraPasscode, uploadMobilePrescription, saveMedicineStock } from '@/app/admin/actions'
+import { validateCameraPasscode, uploadMobilePrescription, saveMedicineStock, getMedicineByBarcode } from '@/app/admin/actions'
 import { Camera, ShieldAlert, Loader2, CheckCircle2, RefreshCw, Calendar, Clock, ChevronRight, User, Barcode, Scan } from 'lucide-react'
 
 export default function MobileCapturePage() {
@@ -39,8 +39,10 @@ export default function MobileCapturePage() {
   const [parsedExpiry, setParsedExpiry] = useState('')
   const [medName, setMedName] = useState('')
   const [medGeneric, setMedGeneric] = useState('')
-  const [medPrice, setMedPrice] = useState('150')
-  const [medQty, setMedQty] = useState('10')
+  const [medPrice, setMedPrice] = useState('120') // Selling price of 1 patch
+  const [costPrice, setCostPrice] = useState('80')   // Cost price of 1 patch (new field!)
+  const [tabletsPerPatch, setTabletsPerPatch] = useState('10') // Tablets in 1 patch (new field!)
+  const [medQty, setMedQty] = useState('10') // Quantity of patches/strips to receive
   const [registeringStock, setRegisteringStock] = useState(false)
   const [stockSuccess, setStockSuccess] = useState(false)
   const [cameraScanActive, setCameraScanActive] = useState(false)
@@ -104,8 +106,45 @@ export default function MobileCapturePage() {
     return `${year}-${month}-${day}`
   }
 
+  // Helper to dynamically query database for barcode information
+  const fetchMedicineDetails = async (gtinCode: string) => {
+    try {
+      const res = await getMedicineByBarcode(gtinCode)
+      if (res.success && res.data) {
+        setMedName(res.data.name)
+        setMedGeneric(res.data.generic_name || '')
+        setTabletsPerPatch(String(res.data.tablets_per_patch || 10))
+      } else {
+        // If not found in DB, search local mock fallback list
+        if (gtinCode === '8901117210103') {
+          setMedName('Amoxicillin 500mg')
+          setMedGeneric('Amoxicillin')
+          setTabletsPerPatch('10')
+        } else if (gtinCode === '8901234567890') {
+          setMedName('Paracetamol 650mg')
+          setMedGeneric('Paracetamol')
+          setTabletsPerPatch('10')
+        } else if (gtinCode === '8901122334455') {
+          setMedName('Ibuprofen 400mg')
+          setMedGeneric('Ibuprofen')
+          setTabletsPerPatch('10')
+        } else if (gtinCode === '8901030704944') {
+          setMedName('Sensodyne Rapid Relief')
+          setMedGeneric('Potassium Nitrate')
+          setTabletsPerPatch('1')
+        } else {
+          setMedName('')
+          setMedGeneric('')
+          setTabletsPerPatch('10')
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   // Handle barcode input change
-  const handleBarcodeChange = (val: string) => {
+  const handleBarcodeChange = async (val: string) => {
     setBarcodeInput(val)
     if (!val) return
 
@@ -119,27 +158,8 @@ export default function MobileCapturePage() {
       setParsedExpiry(formatExpiryDate(''))
     }
 
-    // Auto-fill names matching our seed products
-    if (parsed.gtin === '8901117210103') {
-      setMedName('Amoxicillin 500mg')
-      setMedGeneric('Amoxicillin')
-      setMedPrice('120')
-    } else if (parsed.gtin === '8901234567890') {
-      setMedName('Paracetamol 650mg')
-      setMedGeneric('Paracetamol')
-      setMedPrice('30')
-    } else if (parsed.gtin === '8901122334455') {
-      setMedName('Ibuprofen 400mg')
-      setMedGeneric('Ibuprofen')
-      setMedPrice('45')
-    } else if (parsed.gtin === '8901030704944') {
-      setMedName('Sensodyne Rapid Relief')
-      setMedGeneric('Potassium Nitrate')
-      setMedPrice('180')
-    } else {
-      setMedName('')
-      setMedGeneric('')
-      setMedPrice('150')
+    if (parsed.gtin) {
+      await fetchMedicineDetails(parsed.gtin)
     }
   }
 
@@ -155,7 +175,9 @@ export default function MobileCapturePage() {
         genericName: medGeneric || undefined,
         batchNumber: parsedBatch || 'GEN-BATCH',
         expiryDate: parsedExpiry,
-        price: parseFloat(medPrice)
+        patchPrice: parseFloat(medPrice),
+        costPrice: parseFloat(costPrice),
+        tabletsPerPatch: parseInt(tabletsPerPatch)
       })
 
       if (res.success) {
@@ -166,7 +188,9 @@ export default function MobileCapturePage() {
         setParsedExpiry('')
         setMedName('')
         setMedGeneric('')
-        setMedPrice('150')
+        setMedPrice('120')
+        setCostPrice('80')
+        setTabletsPerPatch('10')
         setMedQty('10')
       } else {
         alert(res.error || 'Failed to register stock')
@@ -178,6 +202,51 @@ export default function MobileCapturePage() {
       setRegisteringStock(false)
     }
   }
+
+  // Real Camera Barcode scanner mount using html5-qrcode
+  useEffect(() => {
+    let html5QrcodeScanner: any;
+    if (cameraScanActive) {
+      import('html5-qrcode').then((module) => {
+        const Html5Qrcode = module.Html5Qrcode;
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        html5QrcodeScanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 15,
+            qrbox: (width: number, height: number) => {
+              const minEdge = Math.min(width, height);
+              const size = Math.floor(minEdge * 0.7);
+              return { width: size, height: Math.floor(size * 0.5) };
+            }
+          },
+          (decodedText: string) => {
+            handleBarcodeChange(decodedText);
+            setCameraScanActive(false);
+          },
+          () => {
+            // ignore scan failure noise logs
+          }
+        ).catch((err: any) => {
+          console.error("Camera scanner start failed:", err);
+        });
+      }).catch((err: any) => {
+        console.error("Error loading html5-qrcode dynamically:", err);
+      });
+    }
+
+    return () => {
+      if (html5QrcodeScanner) {
+        try {
+          if (html5QrcodeScanner.isScanning) {
+            html5QrcodeScanner.stop().catch((e: any) => console.error("Error stopping scanner:", e));
+          }
+        } catch (err: any) {
+          console.error(err);
+        }
+      }
+    };
+  }, [cameraScanActive]);
 
   // Fetch branches on mount
   useEffect(() => {
@@ -794,17 +863,12 @@ export default function MobileCapturePage() {
                       </div>
                     </div>
 
-                    {/* Camera simulation view */}
+                    {/* Camera scan stream view */}
                     {cameraScanActive && (
-                      <div className="relative rounded-2xl overflow-hidden border border-cyan-200 aspect-[4/3] bg-slate-900 flex flex-col items-center justify-center animate-scale-in">
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-slate-950/40 z-10"></div>
-                        <div className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_10px_#ef4444] animate-bounce z-20"></div>
-                        <div className="w-40 h-40 border-2 border-dashed border-cyan-400 rounded-3xl z-20 flex items-center justify-center bg-cyan-400/5">
-                          <span className="text-[10px] text-cyan-300 font-light text-center px-4 leading-normal">
-                            Position 1D / GS1 Datamatrix barcode here
-                          </span>
-                        </div>
-
+                      <div className="relative rounded-2xl overflow-hidden border border-cyan-200 aspect-[4/3] bg-slate-900 flex flex-col justify-between animate-scale-in">
+                        {/* Target container for camera video stream */}
+                        <div id="reader" className="w-full h-full object-cover"></div>
+                        
                         <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
                           <button
                             type="button"
@@ -812,7 +876,7 @@ export default function MobileCapturePage() {
                               handleBarcodeChange('01089011172101031728073110ABC123')
                               setCameraScanActive(false)
                             }}
-                            className="px-3 py-1.5 bg-cyan-600/90 text-white text-[10px] font-semibold rounded-lg hover:bg-cyan-700 transition backdrop-blur-sm"
+                            className="px-3 py-1.5 bg-cyan-600/90 text-white text-[10px] font-semibold rounded-lg hover:bg-cyan-700 transition backdrop-blur-sm shadow"
                           >
                             Simulate GS1 Scan
                           </button>
@@ -822,9 +886,16 @@ export default function MobileCapturePage() {
                               handleBarcodeChange('8901234567890')
                               setCameraScanActive(false)
                             }}
-                            className="px-3 py-1.5 bg-slate-800/90 text-white text-[10px] font-semibold rounded-lg hover:bg-slate-700 transition backdrop-blur-sm"
+                            className="px-3 py-1.5 bg-slate-800/90 text-white text-[10px] font-semibold rounded-lg hover:bg-slate-700 transition backdrop-blur-sm shadow"
                           >
                             Simulate 1D Scan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCameraScanActive(false)}
+                            className="px-3 py-1.5 bg-rose-600/90 text-white text-[10px] font-semibold rounded-lg hover:bg-rose-700 transition backdrop-blur-sm shadow"
+                          >
+                            Cancel
                           </button>
                         </div>
                       </div>
@@ -866,21 +937,21 @@ export default function MobileCapturePage() {
 
                         {/* Stock Registration Fields */}
                         <div className="space-y-3.5 border-t border-slate-100 pt-3">
-                          <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-slate-700">Medicine Name</label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="e.g. Amoxicillin 500mg"
-                              value={medName}
-                              onChange={e => setMedName(e.target.value)}
-                              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1">
-                              <label className="block text-xs font-medium text-slate-500">Generic Name</label>
+                              <label className="block text-xs font-semibold text-slate-700">Medicine Name</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. Amoxicillin 500mg"
+                                value={medName}
+                                onChange={e => setMedName(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-xs font-semibold text-slate-700">Generic Name</label>
                               <input
                                 type="text"
                                 placeholder="e.g. Amoxicillin"
@@ -889,30 +960,56 @@ export default function MobileCapturePage() {
                                 className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
                               />
                             </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <label className="block text-xs font-semibold text-slate-650">Tablets in 1 Patch</label>
+                              <input
+                                type="number"
+                                required
+                                placeholder="10"
+                                value={tabletsPerPatch}
+                                onChange={e => setTabletsPerPatch(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600 font-mono"
+                              />
+                            </div>
 
                             <div className="space-y-1">
-                              <label className="block text-xs font-medium text-slate-500">Unit Price (INR)</label>
+                              <label className="block text-xs font-semibold text-slate-650">Cost Price / Patch (INR)</label>
+                              <input
+                                type="number"
+                                required
+                                placeholder="80"
+                                value={costPrice}
+                                onChange={e => setCostPrice(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600 font-mono"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-xs font-semibold text-slate-650">Selling Price / Patch (INR)</label>
                               <input
                                 type="number"
                                 required
                                 placeholder="120"
                                 value={medPrice}
                                 onChange={e => setMedPrice(e.target.value)}
-                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600 font-mono"
                               />
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div className="space-y-1">
-                              <label className="block text-xs font-medium text-slate-500">Quantity to Receive</label>
+                              <label className="block text-xs font-medium text-slate-500">Patches to Receive</label>
                               <input
                                 type="number"
                                 required
                                 placeholder="10"
                                 value={medQty}
                                 onChange={e => setMedQty(e.target.value)}
-                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600 font-mono"
                               />
                             </div>
 
@@ -926,17 +1023,28 @@ export default function MobileCapturePage() {
                                 className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white font-mono focus:outline-none focus:border-cyan-600"
                               />
                             </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-xs font-medium text-slate-500">Expiry Date</label>
+                              <input
+                                type="date"
+                                required
+                                value={parsedExpiry}
+                                onChange={e => setParsedExpiry(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white font-mono focus:outline-none focus:border-cyan-600"
+                              />
+                            </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="block text-xs font-medium text-slate-500">Expiry Date</label>
-                            <input
-                              type="date"
-                              required
-                              value={parsedExpiry}
-                              onChange={e => setParsedExpiry(e.target.value)}
-                              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white font-mono focus:outline-none focus:border-cyan-600"
-                            />
+                          <div className="grid grid-cols-2 gap-3 text-xs bg-cyan-50/50 border border-cyan-150 p-3.5 rounded-2xl">
+                            <div>
+                              <span className="text-[10px] text-slate-400 block font-light uppercase">Quantity in Tablets</span>
+                              <span className="font-mono font-bold text-slate-700">{(parseInt(medQty) || 0) * (parseInt(tabletsPerPatch) || 1)} tablets</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 block font-light uppercase">Unit Price per Tablet</span>
+                              <span className="font-mono font-bold text-slate-700">Rs. {((parseFloat(medPrice) || 0) / (parseInt(tabletsPerPatch) || 1)).toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
 
