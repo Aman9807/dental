@@ -203,7 +203,7 @@ serve(async (req) => {
     const rowHeight = 25
 
     for (const it of (items || [])) {
-      page.drawText(`[${it.item_type.toUpperCase()}] ${it.item_name || 'Clinical Item'}`, { x: 45, y: yPosition, size: 9, font: font, color: darkColor })
+      page.drawText(`[${it.item_type.toUpperCase()}] ${it.custom_name || 'Clinical Item'}`, { x: 45, y: yPosition, size: 9, font: font, color: darkColor })
       page.drawText(`${it.quantity}`, { x: 325, y: yPosition, size: 9, font: font, color: darkColor })
       page.drawText(`Rs. ${Number(it.unit_price).toFixed(2)}`, { x: 400, y: yPosition, size: 9, font: font, color: darkColor })
       page.drawText(`Rs. ${Number(it.total_price).toFixed(2)}`, { x: 485, y: yPosition, size: 9, font: boldFont, color: darkColor })

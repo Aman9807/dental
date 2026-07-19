@@ -1329,6 +1329,7 @@ export async function createInvoice(
             invoice_id: invoiceId,
             item_type: 'medicine',
             medicine_id: medicineId,
+            custom_name: item.name,
             quantity: item.quantity,
             unit_price: item.price,
             total_price: item.quantity * item.price
@@ -1342,6 +1343,7 @@ export async function createInvoice(
             invoice_id: invoiceId,
             item_type: 'treatment',
             treatment_id: item.id,
+            custom_name: item.name,
             quantity: 1,
             unit_price: item.price,
             total_price: item.price
