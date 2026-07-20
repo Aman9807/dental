@@ -1190,7 +1190,8 @@ export async function createInvoice(
   appointmentId: string,
   items: any[], // { type: 'medicine'|'treatment'|'custom', id?: string, name?: string, quantity: number, price: number }
   subtotal: number,
-  discountPercent: number,
+  treatmentDiscountPercent: number,
+  medicineDiscountPercent: number,
   total: number
 ) {
   const adminDb = getAdminSupabase()
@@ -1208,18 +1209,50 @@ export async function createInvoice(
 
     const patientId = appt.patient_id
 
-    // 2. Insert Invoice row in Supabase
-    const { data: invoice, error: invoiceErr } = await adminDb
+    // Compute overall weighted discount percentage
+    const treatmentSubtotal = items
+      .filter(i => i.type === 'treatment' || i.type === 'custom')
+      .reduce((sum, i) => sum + (i.price * i.quantity), 0)
+    const medicineSubtotal = items
+      .filter(i => i.type === 'medicine')
+      .reduce((sum, i) => sum + (i.price * i.quantity), 0)
+
+    const treatmentDiscountVal = treatmentSubtotal * (treatmentDiscountPercent / 100)
+    const medicineDiscountVal = medicineSubtotal * (medicineDiscountPercent / 100)
+    const totalDiscountVal = treatmentDiscountVal + medicineDiscountVal
+    const overallDiscountPercent = subtotal > 0 ? (totalDiscountVal / subtotal) * 100 : 0
+
+    // 2. Insert Invoice row in Supabase with fail-safe columns support
+    const insertObj: any = {
+      appointment_id: appointmentId,
+      patient_id: patientId,
+      subtotal,
+      discount_percentage: overallDiscountPercent,
+      treatment_discount_percentage: treatmentDiscountPercent,
+      medicine_discount_percentage: medicineDiscountPercent,
+      total
+    }
+
+    let { data: invoice, error: invoiceErr } = await adminDb
       .from('invoices')
-      .insert({
-        appointment_id: appointmentId,
-        patient_id: patientId,
-        subtotal,
-        discount_percentage: discountPercent,
-        total
-      })
+      .insert(insertObj)
       .select('id')
       .single()
+
+    if (invoiceErr && invoiceErr.code === '42703') { // undefined_column
+      console.warn('Fallback: treatment_discount_percentage or medicine_discount_percentage missing. Retrying...')
+      delete insertObj.treatment_discount_percentage
+      delete insertObj.medicine_discount_percentage
+      
+      const retry = await adminDb
+        .from('invoices')
+        .insert(insertObj)
+        .select('id')
+        .single()
+        
+      invoice = retry.data
+      invoiceErr = retry.error
+    }
 
     if (invoiceErr || !invoice) {
       throw invoiceErr

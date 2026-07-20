@@ -397,6 +397,7 @@ export default function DoctorClient({
         billingItems,
         subtotal,
         discountPercent,
+        discountPercent,
         grandTotal
       )
       if (res.success && res.invoiceId) {

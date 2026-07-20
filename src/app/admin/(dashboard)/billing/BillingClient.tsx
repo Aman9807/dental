@@ -64,7 +64,8 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
   // Invoice Items state
   const [billingItems, setBillingItems] = useState<BillingItem[]>([])
-  const [discountPercent, setDiscountPercent] = useState<number>(0)
+  const [treatmentDiscountPercent, setTreatmentDiscountPercent] = useState<number>(0)
+  const [medicineDiscountPercent, setMedicineDiscountPercent] = useState<number>(0)
 
   // Medicine search autocomplete states
   const [medQuery, setMedQuery] = useState('')
@@ -262,8 +263,18 @@ export default function BillingClient({ initialAppointments, initialTreatments }
   }
 
   // Math Calculations
-  const subtotal = billingItems.reduce((acc, item) => acc + (item.price * item.quantity), 0)
-  const discountAmount = subtotal * (discountPercent / 100)
+  const treatmentSubtotal = billingItems
+    .filter(item => item.type === 'treatment' || item.type === 'custom')
+    .reduce((acc, item) => acc + (item.price * item.quantity), 0)
+    
+  const medicineSubtotal = billingItems
+    .filter(item => item.type === 'medicine')
+    .reduce((acc, item) => acc + (item.price * item.quantity), 0)
+
+  const treatmentDiscountAmount = treatmentSubtotal * (treatmentDiscountPercent / 100)
+  const medicineDiscountAmount = medicineSubtotal * (medicineDiscountPercent / 100)
+  const discountAmount = treatmentDiscountAmount + medicineDiscountAmount
+  const subtotal = treatmentSubtotal + medicineSubtotal
   const grandTotal = subtotal - discountAmount
 
   // Register new medicine stock directly from the billing screen
@@ -326,7 +337,8 @@ export default function BillingClient({ initialAppointments, initialTreatments }
         selectedApptId,
         billingItems,
         subtotal,
-        discountPercent,
+        treatmentDiscountPercent,
+        medicineDiscountPercent,
         grandTotal
       )
 
@@ -346,7 +358,8 @@ export default function BillingClient({ initialAppointments, initialTreatments }
       setRedirectCountdown(3)
       setCheckoutSuccess(true)
       setBillingItems([])
-      setDiscountPercent(0)
+      setTreatmentDiscountPercent(0)
+      setMedicineDiscountPercent(0)
       setSelectedApptId('')
     } catch (err: any) {
       console.error(err)
@@ -738,28 +751,58 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                   <span className="font-mono font-semibold text-slate-800">Rs. {subtotal.toFixed(2)}</span>
                 </div>
 
-                <div className="space-y-1.5 border-t border-slate-100 pt-3.5">
+                <div className="space-y-3.5 border-t border-slate-100 pt-3.5">
                   <div className="flex justify-between items-center">
                     <span className="font-light flex items-center gap-1">
-                      <Percent className="w-3 h-3 text-cyan-600" />
-                      Discount %:
+                      <Percent className="w-3 h-3 text-teal-600" />
+                      Treatment Discount %:
                     </span>
                     <input
                       type="number"
                       min="0"
                       max="100"
                       placeholder="0"
-                      value={discountPercent || ''}
-                      onChange={e => setDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-500 text-center font-mono font-bold"
+                      value={treatmentDiscountPercent || ''}
+                      onChange={e => setTreatmentDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 text-center font-mono font-bold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="font-light flex items-center gap-1">
+                      <Percent className="w-3 h-3 text-cyan-600" />
+                      Medicine Discount %:
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={medicineDiscountPercent || ''}
+                      onChange={e => setMedicineDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-500 text-center font-mono font-bold text-slate-800"
                     />
                   </div>
                 </div>
 
-                {discountPercent > 0 && (
-                  <div className="flex justify-between text-rose-600">
-                    <span className="font-light">Discount Value ({discountPercent}%):</span>
-                    <span className="font-mono font-bold">- Rs. {discountAmount.toFixed(2)}</span>
+                {discountAmount > 0 && (
+                  <div className="space-y-1.5 text-rose-600 border-t border-slate-50 pt-2 text-[11px]">
+                    {treatmentDiscountPercent > 0 && (
+                      <div className="flex justify-between font-light">
+                        <span>Treatment Discount ({treatmentDiscountPercent}%):</span>
+                        <span className="font-mono font-medium">- Rs. {treatmentDiscountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {medicineDiscountPercent > 0 && (
+                      <div className="flex justify-between font-light">
+                        <span>Medicine Discount ({medicineDiscountPercent}%):</span>
+                        <span className="font-mono font-medium">- Rs. {medicineDiscountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold border-t border-rose-100/50 pt-1">
+                      <span>Total Discount Amount:</span>
+                      <span className="font-mono">- Rs. {discountAmount.toFixed(2)}</span>
+                    </div>
                   </div>
                 )}
 
