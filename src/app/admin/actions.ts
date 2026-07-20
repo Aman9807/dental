@@ -1085,12 +1085,13 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
   tabletsPerPatch: number // Tablets in 1 patch
 }) {
   try {
-    // 0. Ensure cost_price column exists in medicine_batches
+    // 0. Ensure tables are in sync
+    try {
+      await queryTiDB('ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10')
+    } catch (e) {}
     try {
       await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
-    } catch (e) {
-      // Column might already exist
-    }
+    } catch (e) {}
 
     // 1. Look up if medicine exists by barcode
     let medicineId: string
@@ -1151,12 +1152,13 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
 // Action: Fetch all medicines and active batches from TiDB Cloud
 export async function getAllMedicines() {
   try {
-    // 0. Ensure cost_price column exists
+    // 0. Ensure tables are in sync
+    try {
+      await queryTiDB('ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10')
+    } catch (e) {}
     try {
       await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
-    } catch (e) {
-      // Ignore
-    }
+    } catch (e) {}
 
     const sql = `
       SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
