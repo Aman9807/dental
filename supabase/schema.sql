@@ -388,6 +388,7 @@ CREATE TABLE IF NOT EXISTS public.invoice_items (
     custom_name TEXT,
     quantity INTEGER NOT NULL DEFAULT 1,
     unit_price NUMERIC NOT NULL DEFAULT 0,
+    unit_cost NUMERIC NOT NULL DEFAULT 0,
     total_price NUMERIC NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );

@@ -1338,7 +1338,7 @@ export async function createInvoice(
         }
 
         // Save invoice item line in Supabase with unit_cost
-        const { error: itemErr } = await adminDb
+        let { error: itemErr } = await adminDb
           .from('invoice_items')
           .insert({
             invoice_id: invoiceId,
@@ -1351,6 +1351,22 @@ export async function createInvoice(
             total_price: item.quantity * item.price
           })
 
+        if (itemErr && itemErr.code === '42703') {
+          console.warn('Fallback: unit_cost missing in invoice_items schema. Retrying without unit_cost...')
+          const retry = await adminDb
+            .from('invoice_items')
+            .insert({
+              invoice_id: invoiceId,
+              item_type: 'medicine',
+              medicine_id: medicineId,
+              custom_name: item.name,
+              quantity: item.quantity,
+              unit_price: item.price,
+              total_price: item.quantity * item.price
+            })
+          itemErr = retry.error
+        }
+
         if (itemErr) throw itemErr
       } else if (item.type === 'treatment') {
         // Fetch treatment cost from Supabase
@@ -1362,7 +1378,7 @@ export async function createInvoice(
 
         const treatmentCost = treatData ? Number(treatData.cost || 0) : 0
 
-        const { error: itemErr } = await adminDb
+        let { error: itemErr } = await adminDb
           .from('invoice_items')
           .insert({
             invoice_id: invoiceId,
@@ -1375,9 +1391,25 @@ export async function createInvoice(
             total_price: item.price
           })
 
+        if (itemErr && itemErr.code === '42703') {
+          console.warn('Fallback: unit_cost missing in invoice_items schema. Retrying without unit_cost...')
+          const retry = await adminDb
+            .from('invoice_items')
+            .insert({
+              invoice_id: invoiceId,
+              item_type: 'treatment',
+              treatment_id: item.id,
+              custom_name: item.name,
+              quantity: 1,
+              unit_price: item.price,
+              total_price: item.price
+            })
+          itemErr = retry.error
+        }
+
         if (itemErr) throw itemErr
       } else if (item.type === 'custom') {
-        const { error: itemErr } = await adminDb
+        let { error: itemErr } = await adminDb
           .from('invoice_items')
           .insert({
             invoice_id: invoiceId,
@@ -1385,9 +1417,24 @@ export async function createInvoice(
             custom_name: item.name,
             quantity: 1,
             unit_price: item.price,
-            unit_cost: 0, // Custom items default to 0 cost
+            unit_cost: 0,
             total_price: item.price
           })
+
+        if (itemErr && itemErr.code === '42703') {
+          console.warn('Fallback: unit_cost missing in invoice_items schema. Retrying without unit_cost...')
+          const retry = await adminDb
+            .from('invoice_items')
+            .insert({
+              invoice_id: invoiceId,
+              item_type: 'custom',
+              custom_name: item.name,
+              quantity: 1,
+              unit_price: item.price,
+              total_price: item.price
+            })
+          itemErr = retry.error
+        }
 
         if (itemErr) throw itemErr
       }
