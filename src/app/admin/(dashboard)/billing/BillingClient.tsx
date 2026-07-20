@@ -121,10 +121,11 @@ export default function BillingClient({ initialAppointments, initialTreatments }
         setRedirectCountdown(prev => prev - 1)
       }, 1000)
     } else if (checkoutSuccess && targetApptId && redirectCountdown === 0) {
-      router.push(`/admin?openReportsApptId=${targetApptId}`)
+      const invoiceParam = successInfo?.invoiceId ? `&openInvoiceId=${successInfo.invoiceId}` : ''
+      router.push(`/admin?openReportsApptId=${targetApptId}${invoiceParam}`)
     }
     return () => clearTimeout(timer)
-  }, [checkoutSuccess, targetApptId, redirectCountdown, router])
+  }, [checkoutSuccess, targetApptId, redirectCountdown, successInfo, router])
 
   // Update selected appointment details
   useEffect(() => {
@@ -432,7 +433,10 @@ export default function BillingClient({ initialAppointments, initialTreatments }
           <div className="p-4 bg-cyan-50 border border-cyan-100 text-cyan-800 text-xs rounded-2xl flex items-center justify-between text-left">
             <span className="font-light">Redirecting to Appointments page to submit reports in <strong>{redirectCountdown}s</strong>...</span>
             <button
-              onClick={() => router.push(`/admin?openReportsApptId=${targetApptId}`)}
+              onClick={() => {
+                const invoiceParam = successInfo?.invoiceId ? `&openInvoiceId=${successInfo.invoiceId}` : ''
+                router.push(`/admin?openReportsApptId=${targetApptId}${invoiceParam}`)
+              }}
               className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-bold transition duration-200 shrink-0 ml-4 animate-pulse"
             >
               Go Now

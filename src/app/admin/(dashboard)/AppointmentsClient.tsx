@@ -88,10 +88,11 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search)
       const openReportsApptId = searchParams.get('openReportsApptId')
+      const openInvoiceId = searchParams.get('openInvoiceId')
       if (openReportsApptId && appointments.length > 0) {
         const matched = appointments.find(a => a.id === openReportsApptId)
         if (matched) {
-          handleOpenReportsModal(matched)
+          handleOpenReportsModal(matched, openInvoiceId || undefined)
           // Clean up search parameters from the URL so it doesn't reopen on page refresh
           const newUrl = window.location.pathname
           window.history.replaceState({}, '', newUrl)
@@ -126,7 +127,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
   const [loadingInvoiceCheck, setLoadingInvoiceCheck] = useState(false)
 
   // Open Reports Modal and populate fields
-  const handleOpenReportsModal = async (appt: any) => {
+  const handleOpenReportsModal = async (appt: any, passedInvoiceId?: string) => {
     setActiveAppt(appt)
     setEmailVal(appt.patients?.email || '')
     setPrescriptionText(appt.prescription_text || '')
@@ -138,18 +139,33 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     setIsWaitingForMobile(false)
     setShowReportsModal(true)
 
-    setAssociatedInvoiceId(null)
+    setAssociatedInvoiceId(passedInvoiceId || null)
     setAssociatedInvoiceTotal(null)
     setLoadingInvoiceCheck(true)
     try {
+      if (passedInvoiceId) {
+        const { data: invData } = await supabase
+          .from('invoices')
+          .select('id, total')
+          .eq('id', passedInvoiceId)
+          .maybeSingle()
+        if (invData) {
+          setAssociatedInvoiceId(invData.id)
+          setAssociatedInvoiceTotal(Number(invData.total))
+          return
+        }
+      }
+
       const { data } = await supabase
         .from('invoices')
         .select('id, total')
         .eq('appointment_id', appt.id)
-        .maybeSingle()
-      if (data) {
-        setAssociatedInvoiceId(data.id)
-        setAssociatedInvoiceTotal(Number(data.total))
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (data && data.length > 0) {
+        setAssociatedInvoiceId(data[0].id)
+        setAssociatedInvoiceTotal(Number(data[0].total))
       }
     } catch (err) {
       console.error(err)
