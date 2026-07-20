@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment, createCaptureTicket, clearCaptureTicket, triggerDeliverAndCleanup } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
@@ -296,7 +297,12 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(mobileCaptureUrl)}`
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="space-y-6"
+    >
       
       {/* 1. Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1058,7 +1064,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
         </div>
       )}
 
-    </div>
+    </motion.div>
   )
 }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { 
   CircleDollarSign, TrendingUp, CheckCircle, AlertCircle, Calendar, Plus, Trash2, 
   User2, PlusCircle, HelpCircle, Save, Info, RefreshCw, Layers, Zap, Clock, X
@@ -631,7 +632,12 @@ export default function FinancesClient({
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="space-y-6"
+    >
       
       {/* ════ SECTION 1: GLOBAL CONTROL BAR ════ */}
       <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1414,6 +1420,6 @@ export default function FinancesClient({
         </div>
       )}
 
-    </div>
+    </motion.div>
   )
 }

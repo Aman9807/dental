@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   changeAdminPassword, updateBranchHours, addTimeSlot, 
   deleteTimeSlot, updateCameraPasscode, addTreatment, 
@@ -18,6 +19,15 @@ export default function AdminSettingsPage() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Safe helper to format dates from TiDB Cloud database to prevent React crashes
+  const formatExpiry = (dateVal: any) => {
+    if (!dateVal) return 'N/A'
+    if (dateVal instanceof Date) {
+      return dateVal.toISOString().split('T')[0]
+    }
+    return String(dateVal).split('T')[0]
+  }
 
   // Branch hours management states
   const [branches, setBranches] = useState<any[]>([])
@@ -359,8 +369,16 @@ export default function AdminSettingsPage() {
       </div>
 
       {/* Tab Contents */}
-      {activeTab === 'clinic' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <AnimatePresence mode="wait">
+        {activeTab === 'clinic' && (
+          <motion.div
+            key="clinic"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-8"
+          >
           {/* Clinic Configurations Column */}
           <div className="space-y-6">
             {/* Branch Hours (Timings) */}
@@ -486,11 +504,18 @@ export default function AdminSettingsPage() {
               </form>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {activeTab === 'treatments' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <motion.div
+          key="treatments"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-8"
+        >
           {/* Add Treatment */}
           <div className="md:col-span-1">
             <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4 sticky top-6">
@@ -575,11 +600,18 @@ export default function AdminSettingsPage() {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {activeTab === 'medicines' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <motion.div
+          key="medicines"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-8"
+        >
           {/* Add Medicine Stock */}
           <div className="md:col-span-1">
             <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4 sticky top-6">
@@ -663,7 +695,7 @@ export default function AdminSettingsPage() {
                           const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
                           const price = activeBatch ? Number(activeBatch.price) : 0
                           const cost = activeBatch ? Number(activeBatch.cost_price || 0) : 0
-                          const expiry = activeBatch ? activeBatch.expiry_date : 'N/A'
+                          const expiry = activeBatch ? formatExpiry(activeBatch.expiry_date) : 'N/A'
                           const tabsPerPatch = Number(med.tablets_per_patch || 10)
                           const stripsStock = Math.floor(Number(med.stock) / tabsPerPatch)
                           const remTabsStock = Number(med.stock) % tabsPerPatch
@@ -696,8 +728,9 @@ export default function AdminSettingsPage() {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
       
       {/* Secure Notice */}
       <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm bg-rose-50/10 border-rose-100">

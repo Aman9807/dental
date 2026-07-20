@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { addDoctor, updateDoctor, deleteDoctor } from '@/app/admin/actions'
 import { 
   Plus, Edit, Trash2, X, Upload, Mail, User, ShieldCheck, 
@@ -183,7 +184,12 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="space-y-6"
+    >
       
       {/* Action Header */}
       <div className="flex justify-between items-center">
@@ -485,6 +491,6 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
         </div>
       )}
 
-    </div>
+    </motion.div>
   )
 }

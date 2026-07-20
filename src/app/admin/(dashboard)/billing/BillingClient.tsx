@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { searchMedicines, createInvoice, triggerDeliverAndCleanup, saveMedicineStock } from '@/app/admin/actions'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { 
   Receipt, User, Search, PlusCircle, Trash2, Loader2, 
   CheckCircle, Percent, AlertCircle, ShoppingCart, Activity, ShieldAlert, Sparkles, Send, Barcode
@@ -370,7 +371,12 @@ export default function BillingClient({ initialAppointments, initialTreatments }
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 font-sans max-w-5xl">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="space-y-8 font-sans max-w-5xl"
+    >
       
       {/* ═══ PAGE HEADER ═══ */}
       <div className="flex flex-col gap-1 border-b border-slate-100 pb-4">
@@ -983,6 +989,6 @@ export default function BillingClient({ initialAppointments, initialTreatments }
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
