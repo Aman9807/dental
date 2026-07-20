@@ -967,31 +967,56 @@ export async function clearCaptureTicket(branchId: string) {
   }
 }
 
-// Action: Search medicines from TiDB Cloud MySQL database
-export async function searchMedicines(query: string) {
+// Action: Search medicines from TiDB Cloud MySQL database for a specific branch
+export async function searchMedicines(query: string, branchSlug?: string) {
   try {
     const searchQuery = `%${query.trim()}%`
     
     // Find medicines matching name, generic_name, or barcode
     // Compliant with ONLY_FULL_GROUP_BY by grouping by all selected columns
-    const sql = `
+    let sql = `
       SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
       FROM medicines m
       LEFT JOIN medicine_batches b ON m.id = b.medicine_id
       WHERE m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode = ?
       GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
     `
-    const medicines = await queryTiDB(sql, [searchQuery, searchQuery, query.trim()])
+    let params: any[] = [searchQuery, searchQuery, query.trim()]
+
+    if (branchSlug) {
+      sql = `
+        SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
+        FROM medicines m
+        LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.branch_slug = ?
+        WHERE m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode = ?
+        GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
+      `
+      params = [branchSlug, searchQuery, searchQuery, query.trim()]
+    }
+
+    const medicines = await queryTiDB(sql, params)
 
     // For each medicine, get its active batches sorted by oldest expiry date (FIFO)
     for (const medicine of medicines) {
-      const batchSql = `
+      let batchSql = `
         SELECT id, batch_number, expiry_date, price, stock
         FROM medicine_batches
         WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE()
         ORDER BY expiry_date ASC
       `
-      const batches = await queryTiDB(batchSql, [medicine.id])
+      let batchParams: any[] = [medicine.id]
+
+      if (branchSlug) {
+        batchSql = `
+          SELECT id, batch_number, expiry_date, price, stock
+          FROM medicine_batches
+          WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() AND branch_slug = ?
+          ORDER BY expiry_date ASC
+        `
+        batchParams = [medicine.id, branchSlug]
+      }
+
+      const batches = await queryTiDB(batchSql, batchParams)
       medicine.batches = batches
     }
 
@@ -1083,6 +1108,7 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
   patchPrice: number // Price of 1 patch
   costPrice?: number // Cost price of 1 patch
   tabletsPerPatch: number // Tablets in 1 patch
+  branchSlug?: string // Branch slug ('hazara' or 'family')
 }) {
   try {
     // 0. Ensure tables are in sync
@@ -1092,6 +1118,11 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
     try {
       await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
     } catch (e) {}
+    try {
+      await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
+    } catch (e) {}
+
+    const branchSlug = details.branchSlug || 'hazara'
 
     // 1. Look up if medicine exists by barcode
     let medicineId: string
@@ -1120,10 +1151,10 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
     const singleTabletPrice = Number(details.patchPrice) / tabletsPerPatch
     const singleTabletCost = Number(details.costPrice || 0) / tabletsPerPatch
 
-    // 2. Insert or update stock in medicine_batches
+    // 2. Insert or update stock in medicine_batches for the specific branch
     const batches = await queryTiDB(
-      'SELECT id, stock FROM medicine_batches WHERE medicine_id = ? AND batch_number = ?',
-      [medicineId, details.batchNumber]
+      'SELECT id, stock FROM medicine_batches WHERE medicine_id = ? AND batch_number = ? AND branch_slug = ?',
+      [medicineId, details.batchNumber, branchSlug]
     )
 
     if (batches.length > 0) {
@@ -1137,8 +1168,8 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
       // Insert new batch
       const batchId = randomUUID()
       await queryTiDB(
-        'INSERT INTO medicine_batches (id, medicine_id, batch_number, expiry_date, price, cost_price, stock) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [batchId, medicineId, details.batchNumber, details.expiryDate, singleTabletPrice, singleTabletCost, totalTablets]
+        'INSERT INTO medicine_batches (id, medicine_id, batch_number, expiry_date, price, cost_price, stock, branch_slug) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [batchId, medicineId, details.batchNumber, details.expiryDate, singleTabletPrice, singleTabletCost, totalTablets, branchSlug]
       )
     }
 
@@ -1149,8 +1180,8 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
   }
 }
 
-// Action: Fetch all medicines and active batches from TiDB Cloud
-export async function getAllMedicines() {
+// Action: Fetch all medicines and active batches from TiDB Cloud for a specific branch
+export async function getAllMedicines(branchSlug: string = 'hazara') {
   try {
     // 0. Ensure tables are in sync
     try {
@@ -1159,23 +1190,26 @@ export async function getAllMedicines() {
     try {
       await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
     } catch (e) {}
+    try {
+      await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
+    } catch (e) {}
 
     const sql = `
       SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
       FROM medicines m
-      LEFT JOIN medicine_batches b ON m.id = b.medicine_id
+      LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.branch_slug = ?
       GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
       ORDER BY m.name ASC
     `
-    const medicines = await queryTiDB(sql)
+    const medicines = await queryTiDB(sql, [branchSlug])
     for (const medicine of medicines) {
       const batchSql = `
-        SELECT id, batch_number, expiry_date, price, cost_price, stock
+        SELECT id, batch_number, expiry_date, price, cost_price, stock, branch_slug
         FROM medicine_batches
-        WHERE medicine_id = ? AND stock > 0
+        WHERE medicine_id = ? AND stock > 0 AND branch_slug = ?
         ORDER BY expiry_date ASC
       `
-      const batches = await queryTiDB(batchSql, [medicine.id])
+      const batches = await queryTiDB(batchSql, [medicine.id, branchSlug])
       medicine.batches = batches
     }
     return { success: true, data: medicines }
@@ -1196,10 +1230,10 @@ export async function createInvoice(
 ) {
   const adminDb = getAdminSupabase()
   try {
-    // 1. Fetch patient ID from appointment
+    // 1. Fetch patient ID and branch details from appointment
     const { data: appt, error: apptErr } = await adminDb
       .from('appointments')
-      .select('patient_id')
+      .select('patient_id, branch_id, branches(slug)')
       .eq('id', appointmentId)
       .single()
       
@@ -1208,6 +1242,7 @@ export async function createInvoice(
     }
 
     const patientId = appt.patient_id
+    const branchSlug = (appt as any).branches?.slug || 'hazara'
 
     // Compute overall weighted discount percentage
     const treatmentSubtotal = items
@@ -1266,10 +1301,10 @@ export async function createInvoice(
         const medicineId = item.id
         let remainingQtyToDeduct = item.quantity
 
-        // Query active batches for this medicine in TiDB, sorted by expiry_date (FIFO)
+        // Query active batches for this medicine in TiDB for this specific branch, sorted by expiry_date (FIFO)
         const batches = await queryTiDB(
-          'SELECT id, stock, cost_price FROM medicine_batches WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() ORDER BY expiry_date ASC',
-          [medicineId]
+          'SELECT id, stock, cost_price FROM medicine_batches WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() AND branch_slug = ? ORDER BY expiry_date ASC',
+          [medicineId, branchSlug]
         )
 
         const batchCost = batches.length > 0 ? Number(batches[0].cost_price || 0) : 0

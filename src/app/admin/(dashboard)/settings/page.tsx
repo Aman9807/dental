@@ -66,6 +66,7 @@ export default function AdminSettingsPage() {
   const [medicines, setMedicines] = useState<any[]>([])
   const [loadingMeds, setLoadingMeds] = useState(true)
   const [medsError, setMedsError] = useState<string | null>(null)
+  const [selectedInventoryBranch, setSelectedInventoryBranch] = useState('hazara')
   const [newMedBarcode, setNewMedBarcode] = useState('')
   const [newMedName, setNewMedName] = useState('')
   const [newMedGeneric, setNewMedGeneric] = useState('')
@@ -113,11 +114,11 @@ export default function AdminSettingsPage() {
     }
   }
 
-  const fetchMedicines = async () => {
+  const fetchMedicines = async (branchSlug: string = 'hazara') => {
     setLoadingMeds(true)
     setMedsError(null)
     try {
-      const res = await getAllMedicines()
+      const res = await getAllMedicines(branchSlug)
       if (res.success && res.data) {
         setMedicines(res.data)
       } else {
@@ -150,8 +151,11 @@ export default function AdminSettingsPage() {
     fetchBranches()
     fetchTimeSlots()
     fetchTreatments()
-    fetchMedicines()
   }, [])
+
+  useEffect(() => {
+    fetchMedicines(selectedInventoryBranch)
+  }, [selectedInventoryBranch])
 
   const handleCreateTreatment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -210,7 +214,8 @@ export default function AdminSettingsPage() {
         expiryDate: newMedExpiry || new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
         patchPrice: Number(newMedPatchPrice),
         costPrice: Number(newMedCostPrice),
-        tabletsPerPatch: Number(newMedTabletsPerPatch)
+        tabletsPerPatch: Number(newMedTabletsPerPatch),
+        branchSlug: selectedInventoryBranch
       })
 
       if (res.success) {
@@ -221,7 +226,7 @@ export default function AdminSettingsPage() {
         setNewMedExpiry('')
         setNewMedPatchPrice('')
         setNewMedCostPrice('')
-        await fetchMedicines()
+        await fetchMedicines(selectedInventoryBranch)
       } else {
         alert(res.error || 'Failed to register medicine stock')
       }
@@ -610,8 +615,44 @@ export default function AdminSettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
+          className="space-y-6"
         >
+          {/* Branch Selector for Inventory */}
+          <div className="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Inbox className="w-5 h-5 text-slate-500" />
+              <div>
+                <h4 className="text-sm font-semibold text-slate-800">Branch-Specific Inventory</h4>
+                <p className="text-[10px] text-slate-400 font-light">Select branch to view/add medicines stock.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setSelectedInventoryBranch('hazara')}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition ${
+                  selectedInventoryBranch === 'hazara'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Hazara Dental Clinic
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedInventoryBranch('family')}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition ${
+                  selectedInventoryBranch === 'family'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Family Dental Clinic
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Add Medicine Stock */}
           <div className="md:col-span-1">
             <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4 sticky top-6">
@@ -727,6 +768,7 @@ export default function AdminSettingsPage() {
                 </div>
               )}
             </div>
+          </div>
           </div>
         </motion.div>
       )}

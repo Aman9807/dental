@@ -270,7 +270,7 @@ export default function DoctorClient({
 
     setSearchingMeds(true)
     try {
-      const res = await searchMedicines(val)
+      const res = await searchMedicines(val, doctor.branches?.slug)
       if (res.success && res.data) {
         setMedResults(res.data)
         setShowMedDropdown(true)

@@ -37,6 +37,7 @@ interface Appointment {
   branches: {
     id: string
     name: string
+    slug: string
   }
 }
 
@@ -146,7 +147,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
     setSearchingMeds(true)
     try {
-      const res = await searchMedicines(val)
+      const res = await searchMedicines(val, selectedAppt?.branches?.slug)
       if (res.success && res.data) {
         setMedResults(res.data)
         setShowMedDropdown(true)
@@ -294,7 +295,8 @@ export default function BillingClient({ initialAppointments, initialTreatments }
         expiryDate: newMedExpiry || new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
         patchPrice: Number(newMedPatchPrice),
         costPrice: Number(newMedCostPrice),
-        tabletsPerPatch: Number(newMedTabletsPerPatch)
+        tabletsPerPatch: Number(newMedTabletsPerPatch),
+        branchSlug: selectedAppt?.branches?.slug || 'hazara'
       })
 
       if (res.success) {
