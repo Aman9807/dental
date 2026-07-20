@@ -1019,7 +1019,7 @@ export async function getTreatments() {
 }
 
 // Action: Add new procedure/treatment
-export async function addTreatment(name: string, price: number) {
+export async function addTreatment(name: string, price: number, cost: number = 0) {
   const adminDb = getAdminSupabase()
   try {
     if (!name || name.trim() === '') {
@@ -1028,10 +1028,13 @@ export async function addTreatment(name: string, price: number) {
     if (isNaN(price) || price < 0) {
       return { success: false, error: 'Price must be a positive number.' }
     }
+    if (isNaN(cost) || cost < 0) {
+      return { success: false, error: 'Cost must be a positive number.' }
+    }
 
     const { data, error } = await adminDb
       .from('treatments')
-      .insert([{ name: name.trim(), price }])
+      .insert([{ name: name.trim(), price, cost }])
       .select()
       .single()
 
@@ -1043,8 +1046,8 @@ export async function addTreatment(name: string, price: number) {
   }
 }
 
-// Action: Update procedure/treatment price
-export async function updateTreatmentPrice(id: string, price: number) {
+// Action: Update procedure/treatment details (price and cost)
+export async function updateTreatmentPrice(id: string, price: number, cost: number = 0) {
   const adminDb = getAdminSupabase()
   try {
     if (!id) {
@@ -1053,10 +1056,13 @@ export async function updateTreatmentPrice(id: string, price: number) {
     if (isNaN(price) || price < 0) {
       return { success: false, error: 'Price must be a positive number.' }
     }
+    if (isNaN(cost) || cost < 0) {
+      return { success: false, error: 'Cost must be a positive number.' }
+    }
 
     const { data, error } = await adminDb
       .from('treatments')
-      .update({ price })
+      .update({ price, cost })
       .eq('id', id)
       .select()
 
@@ -1064,7 +1070,7 @@ export async function updateTreatmentPrice(id: string, price: number) {
     return { success: true, data }
   } catch (err: any) {
     console.error('Error updating treatment price:', err)
-    return { success: false, error: err.message || 'Failed to update procedure price.' }
+    return { success: false, error: err.message || 'Failed to update procedure details.' }
   }
 }
 
@@ -1079,6 +1085,13 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
   tabletsPerPatch: number // Tablets in 1 patch
 }) {
   try {
+    // 0. Ensure cost_price column exists in medicine_batches
+    try {
+      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
+    } catch (e) {
+      // Column might already exist
+    }
+
     // 1. Look up if medicine exists by barcode
     let medicineId: string
     const medicines = await queryTiDB('SELECT id FROM medicines WHERE barcode = ?', [barcode])
@@ -1101,9 +1114,10 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
       )
     }
 
-    // Convert patches to single tablet stock and price for FIFO
+    // Convert patches to single tablet stock, price, and cost for FIFO
     const totalTablets = Number(quantityPatches) * tabletsPerPatch
     const singleTabletPrice = Number(details.patchPrice) / tabletsPerPatch
+    const singleTabletCost = Number(details.costPrice || 0) / tabletsPerPatch
 
     // 2. Insert or update stock in medicine_batches
     const batches = await queryTiDB(
@@ -1115,15 +1129,15 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
       // Update existing batch stock and price
       const newStock = Number(batches[0].stock) + totalTablets
       await queryTiDB(
-        'UPDATE medicine_batches SET stock = ?, price = ?, expiry_date = ? WHERE id = ?',
-        [newStock, singleTabletPrice, details.expiryDate, batches[0].id]
+        'UPDATE medicine_batches SET stock = ?, price = ?, cost_price = ?, expiry_date = ? WHERE id = ?',
+        [newStock, singleTabletPrice, singleTabletCost, details.expiryDate, batches[0].id]
       )
     } else {
       // Insert new batch
       const batchId = randomUUID()
       await queryTiDB(
-        'INSERT INTO medicine_batches (id, medicine_id, batch_number, expiry_date, price, stock) VALUES (?, ?, ?, ?, ?, ?)',
-        [batchId, medicineId, details.batchNumber, details.expiryDate, singleTabletPrice, totalTablets]
+        'INSERT INTO medicine_batches (id, medicine_id, batch_number, expiry_date, price, cost_price, stock) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [batchId, medicineId, details.batchNumber, details.expiryDate, singleTabletPrice, singleTabletCost, totalTablets]
       )
     }
 
@@ -1131,6 +1145,41 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
   } catch (err: any) {
     console.error('Error saving medicine stock:', err)
     return { success: false, error: err.message || 'Failed to save medicine stock.' }
+  }
+}
+
+// Action: Fetch all medicines and active batches from TiDB Cloud
+export async function getAllMedicines() {
+  try {
+    // 0. Ensure cost_price column exists
+    try {
+      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
+    } catch (e) {
+      // Ignore
+    }
+
+    const sql = `
+      SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
+      FROM medicines m
+      LEFT JOIN medicine_batches b ON m.id = b.medicine_id
+      GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
+      ORDER BY m.name ASC
+    `
+    const medicines = await queryTiDB(sql)
+    for (const medicine of medicines) {
+      const batchSql = `
+        SELECT id, batch_number, expiry_date, price, cost_price, stock
+        FROM medicine_batches
+        WHERE medicine_id = ? AND stock > 0
+        ORDER BY expiry_date ASC
+      `
+      const batches = await queryTiDB(batchSql, [medicine.id])
+      medicine.batches = batches
+    }
+    return { success: true, data: medicines }
+  } catch (err: any) {
+    console.error('Error fetching all medicines:', err)
+    return { success: false, error: err.message || 'Failed to fetch medicines.' }
   }
 }
 
@@ -1184,9 +1233,11 @@ export async function createInvoice(
 
         // Query active batches for this medicine in TiDB, sorted by expiry_date (FIFO)
         const batches = await queryTiDB(
-          'SELECT id, stock FROM medicine_batches WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() ORDER BY expiry_date ASC',
+          'SELECT id, stock, cost_price FROM medicine_batches WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() ORDER BY expiry_date ASC',
           [medicineId]
         )
+
+        const batchCost = batches.length > 0 ? Number(batches[0].cost_price || 0) : 0
 
         let totalDeducted = 0
         for (const batch of batches) {
@@ -1205,7 +1256,7 @@ export async function createInvoice(
           totalDeducted += deduct
         }
 
-        // Save invoice item line in Supabase
+        // Save invoice item line in Supabase with unit_cost
         const { error: itemErr } = await adminDb
           .from('invoice_items')
           .insert({
@@ -1215,11 +1266,21 @@ export async function createInvoice(
             custom_name: item.name,
             quantity: item.quantity,
             unit_price: item.price,
+            unit_cost: batchCost,
             total_price: item.quantity * item.price
           })
 
         if (itemErr) throw itemErr
       } else if (item.type === 'treatment') {
+        // Fetch treatment cost from Supabase
+        const { data: treatData } = await adminDb
+          .from('treatments')
+          .select('cost')
+          .eq('id', item.id)
+          .single()
+
+        const treatmentCost = treatData ? Number(treatData.cost || 0) : 0
+
         const { error: itemErr } = await adminDb
           .from('invoice_items')
           .insert({
@@ -1229,6 +1290,7 @@ export async function createInvoice(
             custom_name: item.name,
             quantity: 1,
             unit_price: item.price,
+            unit_cost: treatmentCost,
             total_price: item.price
           })
 
@@ -1242,6 +1304,7 @@ export async function createInvoice(
             custom_name: item.name,
             quantity: 1,
             unit_price: item.price,
+            unit_cost: 0, // Custom items default to 0 cost
             total_price: item.price
           })
 

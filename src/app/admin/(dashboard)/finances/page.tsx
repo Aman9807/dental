@@ -25,67 +25,57 @@ export default async function AdminFinancesPage() {
         process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase-project')) {
       dbConfigured = false
     } else {
-      // 1. Fetch Branches
-      const { data: branchData } = await adminDb
-        .from('branches')
-        .select('id, name, slug')
-      branches = branchData || []
-
-      // 2. Fetch Doctors
-      const { data: docData } = await adminDb
-        .from('doctors')
-        .select('id, name, slug, compensation_type, fixed_salary, profit_percentage, branch_id')
-        .order('name')
-      doctors = docData || []
-
-      // 3. Fetch Helper Boys
-      const { data: helperData } = await adminDb
-        .from('helper_boys')
-        .select('id, name, shift_1_rate, shift_2_rate, shift_1_enabled, shift_2_enabled, sunday_enabled, branch_id')
-        .order('name')
-      helperBoys = helperData || []
-
-      // 4. Fetch Helper Attendance
-      const { data: helperAttData } = await adminDb
-        .from('helper_attendance')
-        .select('helper_boy_id, date, shift, status')
-      helperAttendance = helperAttData || []
-
-      // 5. Fetch Doctor Attendance
-      const { data: docAttData } = await adminDb
-        .from('doctor_attendance')
-        .select('doctor_id, date, status')
-      doctorAttendance = docAttData || []
-
-      // 6. Fetch Electricity Bills
-      const { data: elecData } = await adminDb
-        .from('monthly_expenses')
-        .select('id, month_year, electricity_bill, branch_id')
-      electricityExpenses = elecData || []
-
-      // 7. Fetch Extra Expenses
-      const { data: extraData } = await adminDb
-        .from('extra_expenses')
-        .select('id, amount, note, expense_date, branch_id')
-        .order('expense_date', { ascending: false })
-      extraExpenses = extraData || []
-
-      // 8. Fetch Appointments with financial columns
-      const { data: apptData } = await adminDb
-        .from('appointments')
-        .select(`
+      // Fetch all financial resources in parallel
+      const [
+        branchRes,
+        docRes,
+        helperRes,
+        helperAttRes,
+        doctorAttRes,
+        elecRes,
+        extraRes,
+        apptRes
+      ] = await Promise.all([
+        adminDb.from('branches').select('id, name, slug'),
+        adminDb.from('doctors').select('id, name, slug, compensation_type, fixed_salary, profit_percentage, branch_id').order('name'),
+        adminDb.from('helper_boys').select('id, name, shift_1_rate, shift_2_rate, shift_1_enabled, shift_2_enabled, sunday_enabled, branch_id').order('name'),
+        adminDb.from('helper_attendance').select('helper_boy_id, date, shift, status'),
+        adminDb.from('doctor_attendance').select('doctor_id, date, status'),
+        adminDb.from('monthly_expenses').select('id, month_year, electricity_bill, branch_id'),
+        adminDb.from('extra_expenses').select('id, amount, note, expense_date, branch_id').order('expense_date', { ascending: false }),
+        adminDb.from('appointments').select(`
           id,
           appointment_date,
           appointment_time,
           status,
-          amount_charged,
-          treatment_cost,
           patients (id, name),
           doctors (id, name, branch_id),
-          branches (id, name, slug)
-        `)
-        .order('appointment_date', { ascending: false })
-      appointments = apptData || []
+          branches (id, name, slug),
+          invoices (
+            id,
+            total,
+            subtotal,
+            discount_percentage,
+            invoice_items (
+              id,
+              item_type,
+              quantity,
+              unit_price,
+              unit_cost,
+              total_price
+            )
+          )
+        `).order('appointment_date', { ascending: false })
+      ])
+
+      branches = branchRes.data || []
+      doctors = docRes.data || []
+      helperBoys = helperRes.data || []
+      helperAttendance = helperAttRes.data || []
+      doctorAttendance = doctorAttRes.data || []
+      electricityExpenses = elecRes.data || []
+      extraExpenses = extraRes.data || []
+      appointments = apptRes.data || []
     }
   } catch (error) {
     console.error('Error loading finances data:', error)

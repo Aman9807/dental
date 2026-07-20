@@ -1,14 +1,20 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { changeAdminPassword, updateBranchHours, addTimeSlot, deleteTimeSlot, updateCameraPasscode, addTreatment, updateTreatmentPrice } from '@/app/admin/actions'
+import { 
+  changeAdminPassword, updateBranchHours, addTimeSlot, 
+  deleteTimeSlot, updateCameraPasscode, addTreatment, 
+  updateTreatmentPrice, getAllMedicines, saveMedicineStock 
+} from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
   Settings, Key, Server, Mail, ShieldAlert, 
-  CheckCircle, Loader2, RefreshCw, Clock, Edit2, Check, X, Trash2, Plus, Camera, Activity, DollarSign
+  CheckCircle, Loader2, Clock, Edit2, Check, X, 
+  Trash2, Plus, Camera, Activity, DollarSign, Barcode, Inbox
 } from 'lucide-react'
 
 export default function AdminSettingsPage() {
+  const [activeTab, setActiveTab] = useState<'clinic' | 'treatments' | 'medicines'>('clinic')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
@@ -38,12 +44,29 @@ export default function AdminSettingsPage() {
   const [loadingTreatments, setLoadingTreatments] = useState(true)
   const [newTreatmentName, setNewTreatmentName] = useState('')
   const [newTreatmentPrice, setNewTreatmentPrice] = useState('')
+  const [newTreatmentCost, setNewTreatmentCost] = useState('')
   const [addingTreatment, setAddingTreatment] = useState(false)
   const [editingTreatmentId, setEditingTreatmentId] = useState<string | null>(null)
   const [tempTreatmentPrice, setTempTreatmentPrice] = useState('')
+  const [tempTreatmentCost, setTempTreatmentCost] = useState('')
   const [updatingTreatmentId, setUpdatingTreatmentId] = useState<string | null>(null)
   const [treatmentError, setTreatmentError] = useState<string | null>(null)
-  
+
+  // Medicine management states
+  const [medicines, setMedicines] = useState<any[]>([])
+  const [loadingMeds, setLoadingMeds] = useState(true)
+  const [medsError, setMedsError] = useState<string | null>(null)
+  const [newMedBarcode, setNewMedBarcode] = useState('')
+  const [newMedName, setNewMedName] = useState('')
+  const [newMedGeneric, setNewMedGeneric] = useState('')
+  const [newMedBatch, setNewMedBatch] = useState('GEN-BATCH')
+  const [newMedExpiry, setNewMedExpiry] = useState('')
+  const [newMedTabletsPerPatch, setNewMedTabletsPerPatch] = useState('10')
+  const [newMedPatchPrice, setNewMedPatchPrice] = useState('')
+  const [newMedCostPrice, setNewMedCostPrice] = useState('')
+  const [newMedQty, setNewMedQty] = useState('10')
+  const [addingMed, setAddingMed] = useState(false)
+
   const fetchTimeSlots = async () => {
     setLoadingSlots(true)
     setSlotsError(null)
@@ -56,7 +79,7 @@ export default function AdminSettingsPage() {
       setTimeSlots(data || [])
     } catch (err: any) {
       console.error('Error fetching time slots:', err)
-      setSlotsError('Could not load time slots from database. Please ensure you executed the SQL migration.')
+      setSlotsError('Could not load time slots from database.')
     } finally {
       setLoadingSlots(false)
     }
@@ -80,36 +103,58 @@ export default function AdminSettingsPage() {
     }
   }
 
-  useEffect(() => {
-    async function fetchBranches() {
-      try {
-        const { data, error } = await supabase
-          .from('branches')
-          .select('id, name, slug, working_hours, camera_passcode')
-          .order('name')
-        if (error) throw error
-        setBranches(data || [])
-      } catch (err) {
-        console.error('Error fetching branches:', err)
-      } finally {
-        setLoadingBranches(false)
+  const fetchMedicines = async () => {
+    setLoadingMeds(true)
+    setMedsError(null)
+    try {
+      const res = await getAllMedicines()
+      if (res.success && res.data) {
+        setMedicines(res.data)
+      } else {
+        setMedsError(res.error || 'Failed to load medicines.')
       }
+    } catch (err: any) {
+      console.error(err)
+      setMedsError('Failed to fetch medicines inventory.')
+    } finally {
+      setLoadingMeds(false)
     }
+  }
+
+  const fetchBranches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('id, name, slug, working_hours, camera_passcode')
+        .order('name')
+      if (error) throw error
+      setBranches(data || [])
+    } catch (err) {
+      console.error('Error fetching branches:', err)
+    } finally {
+      setLoadingBranches(false)
+    }
+  }
+
+  useEffect(() => {
     fetchBranches()
     fetchTimeSlots()
     fetchTreatments()
+    fetchMedicines()
   }, [])
 
   const handleCreateTreatment = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTreatmentName || !newTreatmentPrice) return
+    if (!newTreatmentName || !newTreatmentPrice || !newTreatmentCost) return
     setAddingTreatment(true)
     try {
       const price = parseFloat(newTreatmentPrice)
-      const res = await addTreatment(newTreatmentName, price)
+      const cost = parseFloat(newTreatmentCost)
+      const res = await addTreatment(newTreatmentName, price, cost)
       if (res.success) {
         setNewTreatmentName('')
         setNewTreatmentPrice('')
+        setNewTreatmentCost('')
         await fetchTreatments()
       } else {
         alert(res.error || 'Failed to add treatment')
@@ -122,23 +167,59 @@ export default function AdminSettingsPage() {
     }
   }
 
-  const handleSaveTreatmentPrice = async (id: string) => {
-    if (!tempTreatmentPrice) return
+  const handleSaveTreatmentDetails = async (id: string) => {
+    if (!tempTreatmentPrice || !tempTreatmentCost) return
     setUpdatingTreatmentId(id)
     try {
       const price = parseFloat(tempTreatmentPrice)
-      const res = await updateTreatmentPrice(id, price)
+      const cost = parseFloat(tempTreatmentCost)
+      const res = await updateTreatmentPrice(id, price, cost)
       if (res.success) {
         setEditingTreatmentId(null)
         await fetchTreatments()
       } else {
-        alert(res.error || 'Failed to update treatment price')
+        alert(res.error || 'Failed to update treatment details')
       }
     } catch (err: any) {
       console.error(err)
       alert(err.message || 'An error occurred')
     } finally {
       setUpdatingTreatmentId(null)
+    }
+  }
+
+  const handleCreateMedicine = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newMedBarcode || !newMedName || !newMedPatchPrice || !newMedCostPrice) return
+    setAddingMed(true)
+    try {
+      const res = await saveMedicineStock(newMedBarcode, Number(newMedQty), {
+        name: newMedName,
+        genericName: newMedGeneric || undefined,
+        batchNumber: newMedBatch,
+        expiryDate: newMedExpiry || new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
+        patchPrice: Number(newMedPatchPrice),
+        costPrice: Number(newMedCostPrice),
+        tabletsPerPatch: Number(newMedTabletsPerPatch)
+      })
+
+      if (res.success) {
+        setNewMedBarcode('')
+        setNewMedName('')
+        setNewMedGeneric('')
+        setNewMedBatch('GEN-BATCH')
+        setNewMedExpiry('')
+        setNewMedPatchPrice('')
+        setNewMedCostPrice('')
+        await fetchMedicines()
+      } else {
+        alert(res.error || 'Failed to register medicine stock')
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'An error occurred')
+    } finally {
+      setAddingMed(false)
     }
   }
 
@@ -218,7 +299,6 @@ export default function AdminSettingsPage() {
     e.preventDefault()
     setSubmitting(true)
     setSuccessMsg(null)
-    
     try {
       const res = await changeAdminPassword(password)
       setSuccessMsg(res.message)
@@ -231,7 +311,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 font-sans max-w-4xl">
+    <div className="space-y-8 animate-in fade-in duration-300 font-sans max-w-5xl">
       
       {/* Page Header */}
       <div className="flex flex-col gap-1">
@@ -240,471 +320,394 @@ export default function AdminSettingsPage() {
           System Settings
         </h1>
         <p className="text-xs text-slate-400 font-light uppercase tracking-wider">
-          Configure security, integrations, and branches
+          Configure security, inventory, and branches
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        
-        {/* Left Side: Environment variables / connection statuses */}
-        <div className="space-y-6">
-          
-          {/* SMTP / Brevo Integration Status Card */}
-          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Mail className="w-4 h-4 text-slate-500" />
-              Email Integration (Brevo)
-            </h3>
-            
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-light">Status:</span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                  Active (API Key Loaded)
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-light">Sender Domain:</span>
-                <code className="text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-150">
-                  dental@flynx.site
-                </code>
-              </div>
-              <div className="text-[11px] text-slate-400 font-light leading-relaxed pt-2">
-                New appointment bookings and diagnosis reports automatically send notification emails to doctors and patients via Brevo API.
-              </div>
-            </div>
-          </div>
+      {/* Tabs Menu */}
+      <div className="flex border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('clinic')}
+          className={`px-6 py-3 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all ${
+            activeTab === 'clinic'
+              ? 'border-cyan-600 text-cyan-600'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Clinic Configurations
+        </button>
+        <button
+          onClick={() => setActiveTab('treatments')}
+          className={`px-6 py-3 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all ${
+            activeTab === 'treatments'
+              ? 'border-cyan-600 text-cyan-600'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Treatments & Procedures
+        </button>
+        <button
+          onClick={() => setActiveTab('medicines')}
+          className={`px-6 py-3 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all ${
+            activeTab === 'medicines'
+              ? 'border-cyan-600 text-cyan-600'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Medicines Inventory
+        </button>
+      </div>
 
-          {/* Database Info Card */}
-          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Server className="w-4 h-4 text-slate-500" />
-              Database Engine (Supabase)
-            </h3>
-            
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-light">Engine Type:</span>
-                <span className="text-slate-700 font-medium">PostgreSQL (Relational DB)</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-light">Security Mode:</span>
-                <span className="text-slate-700 font-medium">Row Level Security (RLS) Active</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-light">Tables Monitored:</span>
-                <span className="text-slate-600 font-light">branches, doctors, patients, appointments</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Clinic Branch Hours Card */}
-          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Clock className="w-4 h-4 text-slate-500" />
-              Clinic Branch Hours (Store Timings)
-            </h3>
-
-            {loadingBranches ? (
-              <div className="flex justify-center items-center py-6">
-                <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {branches.map(branch => (
-                  <div key={branch.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-semibold text-slate-700">{branch.name}</span>
-                      {editingBranchId === branch.id ? (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => handleSaveHours(branch.id)}
-                            disabled={updatingBranchId === branch.id}
-                            className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-md transition"
-                            title="Save changes"
-                          >
-                            {updatingBranchId === branch.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => setEditingBranchId(null)}
-                            className="p-1 text-rose-500 hover:bg-rose-50 rounded-md transition"
-                            title="Cancel"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setEditingBranchId(branch.id)
-                            setTempHours(branch.working_hours || '')
-                          }}
-                          className="px-2.5 py-1 text-[10px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200/50 rounded-lg transition duration-200"
-                        >
-                          Edit Timings
-                        </button>
-                      )}
-                    </div>
-                    
-                    {editingBranchId === branch.id ? (
-                      <textarea
-                        rows={2}
-                        value={tempHours}
-                        onChange={e => setTempHours(e.target.value)}
-                        placeholder="e.g. Monday – Saturday: 9:00 AM – 6:00 PM"
-                        className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-slate-800 bg-white text-slate-800"
-                      />
-                    ) : (
-                      <p className="text-xs text-slate-500 font-light leading-relaxed">
-                        {branch.working_hours || 'No timings set yet.'}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Branch Passcodes Card */}
-          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Camera className="w-4 h-4 text-slate-500" />
-              Branch Passcodes (Mobile camera upload)
-            </h3>
-
-            {loadingBranches ? (
-              <div className="flex justify-center items-center py-6">
-                <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {branches.map(branch => (
-                  <div key={branch.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-semibold text-slate-700">{branch.name}</span>
-                      {editingPasscodeId === branch.id ? (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => handleSavePasscode(branch.id)}
-                            disabled={updatingPasscodeId === branch.id}
-                            className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-md transition"
-                            title="Save changes"
-                          >
-                            {updatingPasscodeId === branch.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => setEditingPasscodeId(null)}
-                            className="p-1 text-rose-500 hover:bg-rose-50 rounded-md transition"
-                            title="Cancel"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setEditingPasscodeId(branch.id)
-                            setTempPasscode(branch.camera_passcode || '')
-                          }}
-                          className="px-2.5 py-1 text-[10px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-100/50 rounded-lg transition duration-200"
-                        >
-                          Change Passcode
-                        </button>
-                      )}
-                    </div>
-                    
-                    {editingPasscodeId === branch.id ? (
-                      <input
-                        type="text"
-                        maxLength={10}
-                        value={tempPasscode}
-                        onChange={e => setTempPasscode(e.target.value)}
-                        placeholder="e.g. 1234"
-                        className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-slate-800 bg-white text-slate-800 font-mono"
-                      />
-                    ) : (
+      {/* Tab Contents */}
+      {activeTab === 'clinic' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Clinic Configurations Column */}
+          <div className="space-y-6">
+            {/* Branch Hours (Timings) */}
+            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+                <Clock className="w-4 h-4 text-slate-500" />
+                Clinic Branch Hours (Clinic Timings)
+              </h3>
+              {loadingBranches ? (
+                <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+              ) : (
+                <div className="space-y-4">
+                  {branches.map(branch => (
+                    <div key={branch.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-slate-400 font-light">Current Passcode:</span>
-                        <p className="text-xs text-slate-500 font-mono leading-relaxed bg-slate-100/50 inline-block px-2.5 py-0.5 rounded border border-slate-150 font-bold">
-                          {branch.camera_passcode || '1234'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Manage Time Slots Card */}
-          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Clock className="w-4 h-4 text-slate-500" />
-              Manage Patient Time Slots
-            </h3>
-
-            {/* Add Slot Form */}
-            <form onSubmit={handleAddTimeSlot} className="flex gap-2">
-              <input
-                type="time"
-                required
-                value={newTime}
-                onChange={e => setNewTime(e.target.value)}
-                className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-              />
-              <button
-                type="submit"
-                disabled={addingSlot || !newTime}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed rounded-xl transition flex items-center gap-1 shrink-0"
-              >
-                {addingSlot ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Plus className="w-3.5 h-3.5" />
-                )}
-                Add Slot
-              </button>
-            </form>
-
-            {slotsError && (
-              <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-100 p-2.5 rounded-xl leading-normal">
-                {slotsError}
-              </p>
-            )}
-
-            {/* List Slots */}
-            {loadingSlots ? (
-              <div className="flex justify-center items-center py-6">
-                <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                {timeSlots.length === 0 ? (
-                  <p className="text-xs text-slate-400 font-light text-center py-4">
-                    No time slots configured. Add a new one above.
-                  </p>
-                ) : (
-                  timeSlots.map(slot => (
-                    <div key={slot.id} className="flex justify-between items-center px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                      <span className="text-xs font-semibold text-slate-700">{slot.time_label}</span>
-                      <span className="text-[10px] text-slate-400 font-light font-mono mr-auto ml-2 bg-slate-100 px-1.5 py-0.5 rounded">
-                        {slot.time_value}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTimeSlot(slot.id)}
-                        disabled={deletingSlotId === slot.id}
-                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
-                        title="Delete slot"
-                      >
-                        {deletingSlotId === slot.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-        </div>
-
-        {/* Right Side: Security Settings */}
-        <div className="space-y-6">
-          
-          {/* Admin Credentials Changer Card */}
-          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Key className="w-4 h-4 text-slate-500" />
-              Change Admin Password
-            </h3>
-
-            {successMsg && (
-              <div className="p-3.5 bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs rounded-xl flex items-start gap-2.5">
-                <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{successMsg}</span>
-              </div>
-            )}
-
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div className="space-y-1">
-                <label className="block text-xs font-medium text-slate-500">
-                  New Passcode
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Enter new admin passcode"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition flex items-center gap-1.5"
-              >
-                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Change Passcode
-              </button>
-            </form>
-          </div>
-
-          {/* Manage Clinical Procedures / Treatments */}
-          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Activity className="w-4 h-4 text-cyan-600" />
-              Manage Clinical Treatments & Prices
-            </h3>
-
-            {/* Add Treatment Form */}
-            <form onSubmit={handleCreateTreatment} className="space-y-3.5 bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Procedure Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Tooth Extraction"
-                    value={newTreatmentName}
-                    onChange={e => setNewTreatmentName(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-cyan-600 bg-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Base Price (INR)</label>
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-2 text-slate-400 text-xs">Rs.</span>
-                    <input
-                      type="number"
-                      required
-                      placeholder="1200"
-                      value={newTreatmentPrice}
-                      onChange={e => setNewTreatmentPrice(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-cyan-600 bg-white font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={addingTreatment || !newTreatmentName || !newTreatmentPrice}
-                className="w-full py-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-xl font-semibold text-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                {addingTreatment ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Plus className="w-3.5 h-3.5" />
-                )}
-                Add New Treatment
-              </button>
-            </form>
-
-            {treatmentError && (
-              <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-100 p-2.5 rounded-xl">
-                {treatmentError}
-              </p>
-            )}
-
-            {/* List Treatments */}
-            {loadingTreatments ? (
-              <div className="flex justify-center items-center py-6">
-                <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
-                {treatments.length === 0 ? (
-                  <p className="text-xs text-slate-400 font-light text-center py-4">
-                    No clinical treatments configured. Add one above.
-                  </p>
-                ) : (
-                  treatments.map(t => (
-                    <div key={t.id} className="flex justify-between items-center px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200 animate-fade-in">
-                      <span className="text-xs font-semibold text-slate-700">{t.name}</span>
-                      
-                      <div className="flex items-center gap-2">
-                        {editingTreatmentId === t.id ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="relative w-24">
-                              <span className="absolute left-2 top-1.5 text-slate-400 text-[10px]">Rs.</span>
-                              <input
-                                type="number"
-                                value={tempTreatmentPrice}
-                                onChange={e => setTempTreatmentPrice(e.target.value)}
-                                className="w-full pl-6 pr-1.5 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:border-cyan-500 font-mono"
-                              />
-                            </div>
-                            <button
-                              onClick={() => handleSaveTreatmentPrice(t.id)}
-                              disabled={updatingTreatmentId === t.id}
-                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition"
-                              title="Save Price"
-                            >
-                              {updatingTreatmentId === t.id ? (
-                                <Loader2 className="w-3 animate-spin" />
-                              ) : (
-                                <Check className="w-3.5 h-3.5" />
-                              )}
+                        <span className="text-xs font-semibold text-slate-700">{branch.name}</span>
+                        {editingBranchId === branch.id ? (
+                          <div className="flex gap-1">
+                            <button onClick={() => handleSaveHours(branch.id)} disabled={updatingBranchId === branch.id} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded">
+                              <Check className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={() => setEditingTreatmentId(null)}
-                              className="p-1 text-rose-500 hover:bg-rose-50 rounded transition"
-                              title="Cancel"
-                            >
+                            <button onClick={() => setEditingBranchId(null)} className="p-1 text-rose-500 hover:bg-rose-50 rounded">
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-slate-600">
-                              Rs. {Number(t.price).toFixed(2)}
-                            </span>
-                            <button
-                              onClick={() => {
-                                setEditingTreatmentId(t.id)
-                                setTempTreatmentPrice(String(t.price))
-                              }}
-                              className="p-1 text-slate-400 hover:text-cyan-600 hover:bg-slate-100 rounded-md transition"
-                              title="Edit Price"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                          </div>
+                          <button onClick={() => { setEditingBranchId(branch.id); setTempHours(branch.working_hours || '') }} className="px-2.5 py-1 text-[10px] text-slate-600 bg-slate-100 hover:bg-slate-200 border rounded-lg transition">
+                            Edit Timings
+                          </button>
                         )}
                       </div>
+                      {editingBranchId === branch.id ? (
+                        <textarea rows={2} value={tempHours} onChange={e => setTempHours(e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-800" />
+                      ) : (
+                        <p className="text-xs text-slate-500 leading-normal font-light">{branch.working_hours}</p>
+                      )}
                     </div>
-                  ))
-                )}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Passcodes */}
+            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+                <Camera className="w-4 h-4 text-slate-500" />
+                Branch Passcodes (Mobile camera upload)
+              </h3>
+              <div className="space-y-4">
+                {branches.map(branch => (
+                  <div key={branch.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-slate-700">{branch.name}</span>
+                      {editingPasscodeId === branch.id ? (
+                        <div className="flex gap-1">
+                          <button onClick={() => handleSavePasscode(branch.id)} disabled={updatingPasscodeId === branch.id} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded">
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setEditingPasscodeId(null)} className="p-1 text-rose-500 hover:bg-rose-50 rounded">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setEditingPasscodeId(branch.id); setTempPasscode(branch.camera_passcode || '') }} className="px-2.5 py-1 text-[10px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-150 rounded-lg transition">
+                          Change Passcode
+                        </button>
+                      )}
+                    </div>
+                    {editingPasscodeId === branch.id ? (
+                      <input type="text" maxLength={10} value={tempPasscode} onChange={e => setTempPasscode(e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-800 font-mono" />
+                    ) : (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-light">Passcode:</span>
+                        <span className="font-mono bg-slate-100 px-2 py-0.5 rounded border font-semibold">{branch.camera_passcode || '1234'}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Secure Warnings Card */}
-          <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4 bg-rose-50/20 border-rose-100">
-            <h3 className="text-sm font-semibold text-rose-800 flex items-center gap-2 pb-2 border-b border-rose-100/50">
-              <ShieldAlert className="w-4 h-4 text-rose-600" />
-              Access Notice
-            </h3>
-            <p className="text-xs text-rose-700/80 font-light leading-relaxed">
-              This panel provides absolute controls over doctors, clinics, and appointment listings. Do not share admin panel authorization cookies or passwords. Store all Supabase credentials securely.
-            </p>
-          </div>
+          <div className="space-y-6">
+            {/* Time slots */}
+            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+                <Clock className="w-4 h-4 text-slate-500" />
+                Manage Patient Time Slots
+              </h3>
+              <form onSubmit={handleAddTimeSlot} className="flex gap-2">
+                <input type="time" required value={newTime} onChange={e => setNewTime(e.target.value)} className="flex-1 px-4 py-2 border rounded-xl text-xs bg-white text-slate-800" />
+                <button type="submit" disabled={addingSlot || !newTime} className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition flex items-center gap-1 shrink-0">
+                  {addingSlot ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Add Slot
+                </button>
+              </form>
+              {loadingSlots ? (
+                <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+              ) : (
+                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                  {timeSlots.map(slot => (
+                    <div key={slot.id} className="flex justify-between items-center px-3.5 py-2 bg-slate-50 border rounded-xl">
+                      <span className="text-xs font-semibold text-slate-700">{slot.time_label}</span>
+                      <button onClick={() => handleDeleteTimeSlot(slot.id)} disabled={deletingSlotId === slot.id} className="p-1 text-slate-400 hover:text-rose-600 rounded">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
+            {/* Password change */}
+            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+                <Key className="w-4 h-4 text-slate-500" />
+                Change Admin Password
+              </h3>
+              {successMsg && <div className="p-3 bg-emerald-50 border text-emerald-800 text-xs rounded-xl">{successMsg}</div>}
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <input type="password" required placeholder="Enter new passcode" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-xl text-xs bg-white text-slate-850" />
+                <button type="submit" disabled={submitting} className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition">Change Passcode</button>
+              </form>
+            </div>
+          </div>
         </div>
+      )}
 
+      {activeTab === 'treatments' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Add Treatment */}
+          <div className="md:col-span-1">
+            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4 sticky top-6">
+              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b">Add Procedure</h3>
+              <form onSubmit={handleCreateTreatment} className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase">Procedure Name</label>
+                  <input type="text" required placeholder="e.g. Tooth Extraction" value={newTreatmentName} onChange={e => setNewTreatmentName(e.target.value)} className="w-full px-3.5 py-2 border rounded-xl text-xs bg-white text-slate-850" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase">Selling Price (INR)</label>
+                  <input type="number" required placeholder="1200" value={newTreatmentPrice} onChange={e => setNewTreatmentPrice(e.target.value)} className="w-full px-3.5 py-2 border rounded-xl text-xs bg-white text-slate-855 font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase">Cost Price (INR)</label>
+                  <input type="number" required placeholder="400" value={newTreatmentCost} onChange={e => setNewTreatmentCost(e.target.value)} className="w-full px-3.5 py-2 border rounded-xl text-xs bg-white text-slate-855 font-mono" />
+                </div>
+                <button type="submit" disabled={addingTreatment} className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1">
+                  {addingTreatment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Add Procedure
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* List Treatments */}
+          <div className="md:col-span-2">
+            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b">Configured Clinic Procedures</h3>
+              {loadingTreatments ? (
+                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-slate-400 animate-spin" /></div>
+              ) : (
+                <div className="border border-slate-100 rounded-2xl overflow-hidden text-xs">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500 font-semibold border-b">
+                        <th className="p-3">Procedure Name</th>
+                        <th className="p-3 font-mono">Selling Price</th>
+                        <th className="p-3 font-mono">Cost Price</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {treatments.map(t => (
+                        <tr key={t.id} className="border-b hover:bg-slate-50 transition text-slate-700">
+                          <td className="p-3 font-medium">{t.name}</td>
+                          <td className="p-3 font-mono">
+                            {editingTreatmentId === t.id ? (
+                              <input type="number" value={tempTreatmentPrice} onChange={e => setTempTreatmentPrice(e.target.value)} className="w-20 px-2 py-1 border rounded" />
+                            ) : (
+                              `Rs. ${Number(t.price).toFixed(2)}`
+                            )}
+                          </td>
+                          <td className="p-3 font-mono">
+                            {editingTreatmentId === t.id ? (
+                              <input type="number" value={tempTreatmentCost} onChange={e => setTempTreatmentCost(e.target.value)} className="w-20 px-2 py-1 border rounded" />
+                            ) : (
+                              `Rs. ${Number(t.cost || 0).toFixed(2)}`
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            {editingTreatmentId === t.id ? (
+                              <div className="flex gap-1 justify-end">
+                                <button onClick={() => handleSaveTreatmentDetails(t.id)} disabled={updatingTreatmentId === t.id} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded">
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => setEditingTreatmentId(null)} className="p-1 text-rose-500 hover:bg-rose-50 rounded">
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button onClick={() => { setEditingTreatmentId(t.id); setTempTreatmentPrice(String(t.price)); setTempTreatmentCost(String(t.cost || 0)) }} className="p-1.5 text-slate-400 hover:text-cyan-600 rounded hover:bg-slate-100">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'medicines' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Add Medicine Stock */}
+          <div className="md:col-span-1">
+            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4 sticky top-6">
+              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b">Register Medicine Stock</h3>
+              <form onSubmit={handleCreateMedicine} className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-505 uppercase">Barcode (GTIN)</label>
+                  <input type="text" required placeholder="e.g. 8901117210103" value={newMedBarcode} onChange={e => setNewMedBarcode(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-505 uppercase">Medicine Name</label>
+                  <input type="text" required placeholder="e.g. Amoxicillin 500mg" value={newMedName} onChange={e => setNewMedName(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white text-slate-850" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-505 uppercase">Generic Name</label>
+                  <input type="text" placeholder="e.g. Amoxicillin" value={newMedGeneric} onChange={e => setNewMedGeneric(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white text-slate-850" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Batch No.</label>
+                    <input type="text" required value={newMedBatch} onChange={e => setNewMedBatch(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Expiry Date</label>
+                    <input type="date" required value={newMedExpiry} onChange={e => setNewMedExpiry(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white text-slate-850" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Tabs/Strip</label>
+                    <input type="number" required value={newMedTabletsPerPatch} onChange={e => setNewMedTabletsPerPatch(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Strips Quantity</label>
+                    <input type="number" required value={newMedQty} onChange={e => setNewMedQty(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Price / Strip</label>
+                    <input type="number" required placeholder="120" value={newMedPatchPrice} onChange={e => setNewMedPatchPrice(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Cost / Strip</label>
+                    <input type="number" required placeholder="80" value={newMedCostPrice} onChange={e => setNewMedCostPrice(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
+                  </div>
+                </div>
+                <button type="submit" disabled={addingMed} className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1">
+                  {addingMed ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Register Stock
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* List Medicines */}
+          <div className="md:col-span-2">
+            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b">In-Stock Medicines (TiDB Cloud Inventory)</h3>
+              {loadingMeds ? (
+                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-slate-400 animate-spin" /></div>
+              ) : medsError ? (
+                <div className="p-4 bg-rose-50 text-rose-700 text-xs rounded-xl">{medsError}</div>
+              ) : (
+                <div className="border border-slate-100 rounded-2xl overflow-hidden text-xs">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500 font-semibold border-b">
+                        <th className="p-3">Medicine Info</th>
+                        <th className="p-3 font-mono">Stock (Tabs)</th>
+                        <th className="p-3 font-mono">Price / Tab</th>
+                        <th className="p-3 font-mono">Cost / Tab</th>
+                        <th className="p-3">Expiry (Oldest)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {medicines.length === 0 ? (
+                        <tr><td colSpan={5} className="p-4 text-slate-400 text-center font-light">No medicines in inventory database.</td></tr>
+                      ) : (
+                        medicines.map(med => {
+                          const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
+                          const price = activeBatch ? Number(activeBatch.price) : 0
+                          const cost = activeBatch ? Number(activeBatch.cost_price || 0) : 0
+                          const expiry = activeBatch ? activeBatch.expiry_date : 'N/A'
+                          const tabsPerPatch = Number(med.tablets_per_patch || 10)
+                          const stripsStock = Math.floor(Number(med.stock) / tabsPerPatch)
+                          const remTabsStock = Number(med.stock) % tabsPerPatch
+
+                          return (
+                            <tr key={med.id} className="border-b hover:bg-slate-50 transition text-slate-700">
+                              <td className="p-3">
+                                <p className="font-semibold text-slate-800">{med.name}</p>
+                                <p className="text-[10px] text-slate-400 font-light">Generic: {med.generic_name || 'N/A'} | Barcode: {med.barcode}</p>
+                              </td>
+                              <td className="p-3 font-mono">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                  Number(med.stock) <= 0 
+                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                }`}>
+                                  {med.stock} tabs ({stripsStock} strips {remTabsStock > 0 ? `+ ${remTabsStock} tabs` : ''})
+                                </span>
+                              </td>
+                              <td className="p-3 font-mono">Rs. {price.toFixed(2)}</td>
+                              <td className="p-3 font-mono">Rs. {cost.toFixed(2)}</td>
+                              <td className="p-3 text-slate-500 font-light">{expiry}</td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Secure Notice */}
+      <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm bg-rose-50/10 border-rose-100">
+        <h3 className="text-sm font-semibold text-rose-800 flex items-center gap-2 pb-2 border-b border-rose-100/50">
+          <ShieldAlert className="w-4 h-4 text-rose-600" />
+          Access Notice
+        </h3>
+        <p className="text-xs text-slate-500 leading-normal font-light pt-2">
+          This settings dashboard provides absolute controls over doctors, clinics, inventory databases, and appointment listings. Do not share admin panel authorization cookies or passwords. Store all credentials securely.
+        </p>
       </div>
 
     </div>

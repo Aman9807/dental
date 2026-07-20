@@ -4,8 +4,8 @@ import { Suspense } from 'react'
 import BookingSuccess from '@/components/BookingSuccess'
 
 export const metadata = {
-  title: 'Booking Confirmed | Hazara Dental Store',
-  description: 'Your dental appointment is successfully scheduled at Hazara Dental Store.',
+  title: 'Booking Confirmed | Hazara Dental Clinic',
+  description: 'Your dental appointment is successfully scheduled at Hazara Dental Clinic.',
 }
 
 export default function HazaraSuccessPage() {
@@ -27,7 +27,7 @@ export default function HazaraSuccessPage() {
           <span className="text-lg font-serif text-slate-900 font-normal">
             Hazara{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500 font-light">
-              Dental Store
+              Dental Clinic
             </span>
           </span>
           <div className="w-20" />
@@ -53,7 +53,7 @@ export default function HazaraSuccessPage() {
 
       {/* Footer */}
       <footer className="glass border-t border-slate-200/40 py-8 text-center text-xs text-slate-400 font-light relative z-10">
-        <p>© 2026 Hazara Dental Store. All rights reserved.</p>
+        <p>© 2026 Hazara Dental Clinic. All rights reserved.</p>
       </footer>
     </div>
   )

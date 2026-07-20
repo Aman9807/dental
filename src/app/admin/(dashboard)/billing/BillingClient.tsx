@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { searchMedicines, createInvoice, triggerDeliverAndCleanup } from '@/app/admin/actions'
+import { searchMedicines, createInvoice, triggerDeliverAndCleanup, saveMedicineStock } from '@/app/admin/actions'
+import { useRouter } from 'next/navigation'
 import { 
   Receipt, User, Search, PlusCircle, Trash2, Loader2, 
   CheckCircle, Percent, AlertCircle, ShoppingCart, Activity, ShieldAlert, Sparkles, Send, Barcode
@@ -80,6 +81,24 @@ export default function BillingClient({ initialAppointments, initialTreatments }
   const [checkoutSuccess, setCheckoutSuccess] = useState(false)
   const [successInfo, setSuccessInfo] = useState<any>(null)
 
+  // Add new medicine modal & form states
+  const [showAddMedModal, setShowAddMedModal] = useState(false)
+  const [newMedBarcode, setNewMedBarcode] = useState('')
+  const [newMedName, setNewMedName] = useState('')
+  const [newMedGeneric, setNewMedGeneric] = useState('')
+  const [newMedBatch, setNewMedBatch] = useState('GEN-BATCH')
+  const [newMedExpiry, setNewMedExpiry] = useState('')
+  const [newMedTabletsPerPatch, setNewMedTabletsPerPatch] = useState('10')
+  const [newMedPatchPrice, setNewMedPatchPrice] = useState('')
+  const [newMedCostPrice, setNewMedCostPrice] = useState('')
+  const [newMedQty, setNewMedQty] = useState('10')
+  const [savingNewMed, setSavingNewMed] = useState(false)
+
+  // Redirect states
+  const [redirectCountdown, setRedirectCountdown] = useState(3)
+  const [targetApptId, setTargetApptId] = useState<string | null>(null)
+  const router = useRouter()
+
   // Detect clicks outside search dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -90,6 +109,19 @@ export default function BillingClient({ initialAppointments, initialTreatments }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Auto-redirect to Appointments dashboard on checkout success
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    if (checkoutSuccess && targetApptId && redirectCountdown > 0) {
+      timer = setTimeout(() => {
+        setRedirectCountdown(prev => prev - 1)
+      }, 1000)
+    } else if (checkoutSuccess && targetApptId && redirectCountdown === 0) {
+      router.push(`/admin?openReportsApptId=${targetApptId}`)
+    }
+    return () => clearTimeout(timer)
+  }, [checkoutSuccess, targetApptId, redirectCountdown, router])
 
   // Update selected appointment details
   useEffect(() => {
@@ -234,6 +266,48 @@ export default function BillingClient({ initialAppointments, initialTreatments }
   const discountAmount = subtotal * (discountPercent / 100)
   const grandTotal = subtotal - discountAmount
 
+  // Register new medicine stock directly from the billing screen
+  const handleRegisterNewMed = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newMedBarcode || !newMedName || !newMedPatchPrice || !newMedCostPrice) {
+      alert('Please fill out all required fields.')
+      return
+    }
+    setSavingNewMed(true)
+    try {
+      const res = await saveMedicineStock(newMedBarcode, Number(newMedQty), {
+        name: newMedName,
+        genericName: newMedGeneric || undefined,
+        batchNumber: newMedBatch,
+        expiryDate: newMedExpiry || new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
+        patchPrice: Number(newMedPatchPrice),
+        costPrice: Number(newMedCostPrice),
+        tabletsPerPatch: Number(newMedTabletsPerPatch)
+      })
+
+      if (res.success) {
+        alert('Medicine stock registered successfully!')
+        setShowAddMedModal(false)
+        setNewMedBarcode('')
+        setNewMedName('')
+        setNewMedGeneric('')
+        setNewMedBatch('GEN-BATCH')
+        setNewMedExpiry('')
+        setNewMedPatchPrice('')
+        setNewMedCostPrice('')
+        // Automatically search for the added medicine
+        handleMedSearch(newMedName)
+      } else {
+        alert(res.error || 'Failed to register medicine stock.')
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'An error occurred.')
+    } finally {
+      setSavingNewMed(false)
+    }
+  }
+
   // Finalize checkout and trigger auto delivery/cleanup pipeline
   const handleCheckout = async () => {
     if (!selectedApptId) {
@@ -268,6 +342,8 @@ export default function BillingClient({ initialAppointments, initialTreatments }
         total: grandTotal,
         logs: 'Invoice saved locally. Email delivery deferred until report submission.'
       })
+      setTargetApptId(selectedApptId)
+      setRedirectCountdown(3)
       setCheckoutSuccess(true)
       setBillingItems([])
       setDiscountPercent(0)
@@ -332,9 +408,19 @@ export default function BillingClient({ initialAppointments, initialTreatments }
             </div>
           </div>
 
+          <div className="p-4 bg-cyan-50 border border-cyan-100 text-cyan-800 text-xs rounded-2xl flex items-center justify-between text-left">
+            <span className="font-light">Redirecting to Appointments page to submit reports in <strong>{redirectCountdown}s</strong>...</span>
+            <button
+              onClick={() => router.push(`/admin?openReportsApptId=${targetApptId}`)}
+              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-bold transition duration-200 shrink-0 ml-4 animate-pulse"
+            >
+              Go Now
+            </button>
+          </div>
+
           <button
             onClick={() => setCheckoutSuccess(false)}
-            className="w-full py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition"
+            className="w-full py-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition"
           >
             Create Another Invoice
           </button>
@@ -437,6 +523,11 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                           const tabsPerPatch = Number(med.tablets_per_patch || 10)
                           const stripsStock = Math.floor(stock / tabsPerPatch)
                           const remTabsStock = stock % tabsPerPatch
+                          
+                          // Retrieve price from active batch
+                          const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
+                          const displayPrice = activeBatch ? Number(activeBatch.price) : 0
+
                           return (
                             <div
                               key={med.id}
@@ -459,7 +550,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                                     Stock: {stock} tabs ({stripsStock} strips {remTabsStock > 0 ? `+ ${remTabsStock} tabs` : ''})
                                   </span>
                                 )}
-                                <span className="font-mono font-bold text-slate-655">Rs. {Number(med.price).toFixed(2)}/tab</span>
+                                <span className="font-mono font-bold text-slate-655">Rs. {displayPrice.toFixed(2)}/tab</span>
                               </div>
                             </div>
                           )
@@ -467,6 +558,21 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                       )}
                     </div>
                   )}
+
+                  <div className="flex justify-between items-center pt-1.5 px-1">
+                    <span className="text-[10px] text-slate-450 font-light">Medicine missing from list?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewMedBarcode('')
+                        setNewMedName(medQuery)
+                        setShowAddMedModal(true)
+                      }}
+                      className="text-[10px] font-bold text-cyan-600 hover:text-cyan-700 transition"
+                    >
+                      + Register New Medicine Stock
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-4">
@@ -693,6 +799,144 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ADD NEW MEDICINE TO INVENTORY MODAL ═══ */}
+      {showAddMedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-scale-in text-slate-800">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                <Barcode className="w-4 h-4 text-cyan-600" />
+                Register Medicine to Inventory
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setShowAddMedModal(false)}
+                className="text-slate-400 hover:text-slate-650 text-xs p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleRegisterNewMed} className="space-y-3.5 text-xs">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Barcode (GTIN) *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 8901117210103"
+                  value={newMedBarcode}
+                  onChange={e => setNewMedBarcode(e.target.value)}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-600 font-mono text-slate-800"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Medicine Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Amoxicillin 500mg"
+                  value={newMedName}
+                  onChange={e => setNewMedName(e.target.value)}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-600 text-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Generic Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Amoxicillin"
+                    value={newMedGeneric}
+                    onChange={e => setNewMedGeneric(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-600 text-slate-800"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Batch Number *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="AMX2026"
+                    value={newMedBatch}
+                    onChange={e => setNewMedBatch(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-600 font-mono text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Expiry Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={newMedExpiry}
+                    onChange={e => setNewMedExpiry(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-600 text-slate-800"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Tablets per Strip *</label>
+                  <input
+                    type="number"
+                    required
+                    value={newMedTabletsPerPatch}
+                    onChange={e => setNewMedTabletsPerPatch(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-600 font-mono text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Price / Strip *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="120"
+                    value={newMedPatchPrice}
+                    onChange={e => setNewMedPatchPrice(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-600 font-mono text-slate-800"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Cost / Strip *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="80"
+                    value={newMedCostPrice}
+                    onChange={e => setNewMedCostPrice(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-600 font-mono text-slate-800"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Qty (Strips) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={newMedQty}
+                    onChange={e => setNewMedQty(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-600 font-mono text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingNewMed}
+                className="w-full py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white font-semibold text-xs rounded-xl shadow-md transition flex justify-center items-center gap-1.5"
+              >
+                {savingNewMed && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Add Medicine to Inventory
+              </button>
+            </form>
           </div>
         </div>
       )}

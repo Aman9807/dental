@@ -17,10 +17,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Dental Store Clinics",
-    default: "Dental Store Clinics | Hazara & Family branches",
+    template: "%s | Dental Clinics",
+    default: "Dental Clinics | Hazara & Family branches",
   },
-  description: "Book free dental appointments at Hazara Dental Store or Family Dental Store.",
+  description: "Book free dental appointments at Hazara Dental Clinic or Family Dental Clinic.",
 };
 
 export default function RootLayout({

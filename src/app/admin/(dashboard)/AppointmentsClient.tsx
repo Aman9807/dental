@@ -82,6 +82,23 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     loadDbData()
   }, [])
 
+  // Auto-open Reports Modal if openReportsApptId param is present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search)
+      const openReportsApptId = searchParams.get('openReportsApptId')
+      if (openReportsApptId && appointments.length > 0) {
+        const matched = appointments.find(a => a.id === openReportsApptId)
+        if (matched) {
+          handleOpenReportsModal(matched)
+          // Clean up search parameters from the URL so it doesn't reopen on page refresh
+          const newUrl = window.location.pathname
+          window.history.replaceState({}, '', newUrl)
+        }
+      }
+    }
+  }, [appointments])
+
   // Poll for mobile prescription photo upload
   useEffect(() => {
     let interval: any

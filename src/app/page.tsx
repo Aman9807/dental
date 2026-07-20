@@ -10,18 +10,11 @@ export default function Home() {
       <header className="glass sticky top-0 z-50 animate-fade-in-down">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <span className="text-xl font-serif tracking-tight font-medium text-slate-900">
-            Dental Store{' '}
+            Dental Clinic{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500 font-sans text-sm uppercase ml-1 tracking-wider font-semibold">
-              Clinics
+              Network
             </span>
           </span>
-          <Link 
-            href="/admin/login" 
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 font-medium transition-colors duration-200 link-underline"
-          >
-            <Shield className="w-3.5 h-3.5" />
-            Admin Panel
-          </Link>
         </div>
       </header>
 
@@ -93,7 +86,7 @@ export default function Home() {
           {/* ═══ BRANCH CARDS ═══ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl mx-auto">
             
-            {/* Branch 1: Hazara Dental Store */}
+            {/* Branch 1: Hazara Dental Clinic */}
             <AnimateOnScroll animation="fade-left" delay={600} className="h-full">
               <div className="group relative h-full bg-white/70 backdrop-blur-md border border-slate-200/50 rounded-3xl p-8 hover-lift hover-glow-teal flex flex-col justify-between overflow-hidden cursor-pointer shadow-lg shadow-slate-100/50 hover:shadow-2xl hover:shadow-cyan-500/5 transition-all duration-300">
                 {/* Animated gradient border on hover */}
@@ -107,7 +100,7 @@ export default function Home() {
                     <MapPin className="w-6 h-6 animate-pulse" />
                   </div>
                   <h2 className="text-2xl font-serif text-slate-900 mb-3 group-hover:text-cyan-700 transition-colors duration-300">
-                    Hazara Dental Store
+                    Hazara Dental Clinic
                   </h2>
                   <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
                     Specialized in clinical dental precision and advanced oral care. Modern, tranquil clinical environment.
@@ -133,13 +126,13 @@ export default function Home() {
                   href="/hazara"
                   className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-2xl font-medium text-sm transition-all duration-300 shadow-lg shadow-cyan-600/15 hover:shadow-xl hover:shadow-cyan-600/25 btn-shimmer"
                 >
-                  Visit Store Website
+                  Visit Clinic Website
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
                 </Link>
               </div>
             </AnimateOnScroll>
 
-            {/* Branch 2: Family Dental Store */}
+            {/* Branch 2: Family Dental Clinic */}
             <AnimateOnScroll animation="fade-right" delay={750} className="h-full">
               <div className="group relative h-full bg-white/70 backdrop-blur-md border border-slate-200/50 rounded-3xl p-8 hover-lift hover-glow-amber flex flex-col justify-between overflow-hidden cursor-pointer shadow-lg shadow-slate-100/50 hover:shadow-2xl hover:shadow-amber-500/5 transition-all duration-300">
                 {/* Animated gradient border on hover */}
@@ -153,7 +146,7 @@ export default function Home() {
                     <MapPin className="w-6 h-6 animate-pulse" />
                   </div>
                   <h2 className="text-2xl font-serif text-slate-900 mb-3 group-hover:text-amber-800 transition-colors duration-300">
-                    Family Dental Store
+                    Family Dental Clinic
                   </h2>
                   <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
                     Tailored for patients of all ages. Comfortable, warm, and stress-free dental care for the whole family.
@@ -179,7 +172,7 @@ export default function Home() {
                   href="/family"
                   className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-2xl font-medium text-sm transition-all duration-300 shadow-lg shadow-amber-600/15 hover:shadow-xl hover:shadow-amber-600/25 btn-shimmer"
                 >
-                  Visit Store Website
+                  Visit Clinic Website
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
                 </Link>
               </div>
@@ -191,7 +184,7 @@ export default function Home() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="glass border-t border-slate-200/40 py-10 text-center animate-fade-in delay-700">
-        <p className="text-xs text-slate-400 font-light">© 2026 Dental Store Clinics. All rights reserved.</p>
+        <p className="text-xs text-slate-400 font-light">© 2026 Dental Clinics. All rights reserved.</p>
         <p className="mt-1.5 text-[11px] text-slate-300 font-light">Modern Minimalist Care across Hazara & Family Branches.</p>
       </footer>
     </div>

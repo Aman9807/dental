@@ -26,7 +26,7 @@ export default async function FamilyHome() {
           <span className="text-lg font-serif text-slate-900 font-normal">
             Family{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-orange-500 font-light">
-              Dental Store
+              Dental Clinic
             </span>
           </span>
           <Link
@@ -67,7 +67,7 @@ export default async function FamilyHome() {
             </h1>
 
             <p className="mt-8 text-lg md:text-xl text-slate-500 font-light max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-300">
-              Family Dental Store is committed to making dentistry stress-free, comfortable, and affordable. From your toddler&apos;s first checkup to senior restorations, we treat every patient like family.
+              Family Dental Clinic is committed to making dentistry stress-free, comfortable, and affordable. From your toddler&apos;s first checkup to senior restorations, we treat every patient like family.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up delay-500">
@@ -109,7 +109,7 @@ export default async function FamilyHome() {
                 </div>
                 <div>
                   <h4 className="font-semibold text-slate-800 text-sm">Where to Find Us</h4>
-                  <p className="text-slate-500 text-xs mt-1 font-light">Family Dental Store, Suite 4, Plaza Block</p>
+                  <p className="text-slate-500 text-xs mt-1 font-light">Family Dental Clinic, Suite 4, Plaza Block</p>
                   <p className="text-slate-400 text-xs mt-0.5 font-light">Community Commercial Center, West side</p>
                 </div>
               </div>
@@ -123,7 +123,7 @@ export default async function FamilyHome() {
                 <div>
                   <h4 className="font-semibold text-slate-800 text-sm">Contact Clinic</h4>
                   <p className="text-slate-500 text-xs mt-1 font-light">Direct Phone: +1 (555) 345-6789</p>
-                  <p className="text-slate-400 text-xs mt-0.5 font-light">Email: family@dentalstore.com</p>
+                  <p className="text-slate-400 text-xs mt-0.5 font-light">Email: family@dentalclinic.com</p>
                 </div>
               </div>
             </AnimateOnScroll>
@@ -229,7 +229,7 @@ export default async function FamilyHome() {
                   ))}
                 </div>
                 <p className="text-slate-600 font-serif text-lg leading-relaxed italic">
-                  &ldquo;Finding a clinic that is patient with young kids and also affordable was a nightmare until we found Family Dental Store. My children actually enjoy going to their cleanings!&rdquo;
+                  &ldquo;Finding a clinic that is patient with young kids and also affordable was a nightmare until we found Family Dental Clinic. My children actually enjoy going to their cleanings!&rdquo;
                 </p>
                 <div className="mt-6 flex items-center gap-3">
                   <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center text-amber-900 font-bold text-sm shadow-sm">
@@ -248,7 +248,7 @@ export default async function FamilyHome() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="glass border-t border-slate-200/40 py-10 text-center">
-        <p className="text-xs text-slate-400 font-light">© 2026 Family Dental Store. All rights reserved. Gentle Care for Everyone.</p>
+        <p className="text-xs text-slate-400 font-light">© 2026 Family Dental Clinic. All rights reserved. Gentle Care for Everyone.</p>
       </footer>
     </div>
   )

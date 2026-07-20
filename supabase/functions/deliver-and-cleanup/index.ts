@@ -150,7 +150,7 @@ serve(async (req) => {
       color: tealColor
     })
 
-    page.drawText('FAMILY DENTAL STORE & CLINIC', {
+    page.drawText((branch?.name || 'Dental Clinic').toUpperCase(), {
       x: 40,
       y: 805,
       size: 18,

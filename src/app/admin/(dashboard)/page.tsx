@@ -20,16 +20,10 @@ export default async function AdminDashboardPage() {
         process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase-project')) {
       dbConfigured = false
     } else {
-      // Fetch Branches
-      const { data: branchData } = await adminDb
-        .from('branches')
-        .select('id, name, slug')
-      branches = branchData || []
-
-      // Fetch Appointments with joined relations
-      const { data: apptData, error: apptError } = await adminDb
-        .from('appointments')
-        .select(`
+      // 1. Fetch Branches and Appointments in parallel
+      const [branchRes, apptRes] = await Promise.all([
+        adminDb.from('branches').select('id, name, slug'),
+        adminDb.from('appointments').select(`
           id,
           appointment_date,
           appointment_time,
@@ -39,13 +33,31 @@ export default async function AdminDashboardPage() {
           patients (id, name, email, mobile, age),
           doctors (id, name, email, specialty),
           branches (id, name, slug)
-        `)
-        .order('appointment_date', { ascending: false })
+        `).order('appointment_date', { ascending: false })
+      ])
 
-      if (apptError) {
-        throw apptError
+      if (apptRes.error) {
+        throw apptRes.error
       }
-      appointments = apptData || []
+
+      const fetchedBranches = branchRes.data || []
+      
+      // Auto-heal database: Rename Store to Clinic if found in database records
+      const hazaraBranch = fetchedBranches.find(b => b.slug === 'hazara')
+      const familyBranch = fetchedBranches.find(b => b.slug === 'family')
+      
+      if (hazaraBranch?.name.includes('Store') || familyBranch?.name.includes('Store')) {
+        await Promise.all([
+          adminDb.from('branches').update({ name: 'Hazara Dental Clinic' }).eq('slug', 'hazara'),
+          adminDb.from('branches').update({ name: 'Family Dental Clinic' }).eq('slug', 'family')
+        ])
+        const refetch = await adminDb.from('branches').select('id, name, slug')
+        branches = refetch.data || []
+      } else {
+        branches = fetchedBranches
+      }
+
+      appointments = apptRes.data || []
     }
   } catch (error) {
     console.error('Error loading dashboard appointments:', error)

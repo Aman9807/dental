@@ -70,16 +70,32 @@ interface ExtraExpense {
   branch_id: string
 }
 
+interface InvoiceItem {
+  id: string
+  item_type: 'medicine' | 'treatment' | 'custom'
+  quantity: number
+  unit_price: number
+  unit_cost: number
+  total_price: number
+}
+
+interface Invoice {
+  id: string
+  total: number
+  subtotal: number
+  discount_percentage: number
+  invoice_items: InvoiceItem[]
+}
+
 interface Appointment {
   id: string
   appointment_date: string
   appointment_time: string
   status: string
-  amount_charged: number
-  treatment_cost: number
   patients: { id: string; name: string } | null
   doctors: { id: string; name: string; branch_id: string } | null
   branches: { id: string; name: string; slug: string } | null
+  invoices: Invoice[] | null
 }
 
 interface FinancesClientProps {
@@ -105,6 +121,50 @@ function getWorkingDaysInMonth(year: number, month: number, includeSundays: bool
     date.setDate(date.getDate() + 1)
   }
   return count
+}
+
+// Compute profits and revenue breakdown from appointment invoices
+function getAppointmentFinances(appt: Appointment) {
+  const invoice = appt.invoices?.[0]
+  if (!invoice) return null
+
+  const discountMultiplier = 1 - (invoice.discount_percentage || 0) / 100
+
+  let treatmentRevenue = 0
+  let treatmentCost = 0
+  let medicineRevenue = 0
+  let medicineCost = 0
+
+  if (invoice.invoice_items) {
+    invoice.invoice_items.forEach(item => {
+      const price = Number(item.unit_price || 0) * Number(item.quantity || 1)
+      const cost = Number(item.unit_cost || 0) * Number(item.quantity || 1)
+      if (item.item_type === 'medicine') {
+        medicineRevenue += price
+        medicineCost += cost
+      } else {
+        treatmentRevenue += price
+        treatmentCost += cost
+      }
+    })
+  }
+
+  const netTreatmentRevenue = treatmentRevenue * discountMultiplier
+  const netMedicineRevenue = medicineRevenue * discountMultiplier
+
+  const treatmentProfit = netTreatmentRevenue - treatmentCost
+  const medicineProfit = netMedicineRevenue - medicineCost
+
+  return {
+    netTreatmentRevenue,
+    treatmentCost,
+    treatmentProfit,
+    netMedicineRevenue,
+    medicineCost,
+    medicineProfit,
+    totalProfit: treatmentProfit + medicineProfit,
+    totalPaid: invoice.total
+  }
 }
 
 export default function FinancesClient({
@@ -252,10 +312,24 @@ export default function FinancesClient({
   const calculateTotals = () => {
     const filteredAppts = getFilteredAppointments()
     
-    // 1. Treatment Revenue & Costs
-    const totalCharged = filteredAppts.reduce((sum, appt) => sum + (appt.amount_charged || 0), 0)
-    const totalTreatmentCost = filteredAppts.reduce((sum, appt) => sum + (appt.treatment_cost || 0), 0)
-    const treatmentProfit = totalCharged - totalTreatmentCost
+    let totalCharged = 0
+    let totalTreatmentCost = 0
+    let totalTreatmentProfit = 0
+    let totalMedicineProfit = 0
+    let totalMedicineCost = 0
+
+    filteredAppts.forEach(appt => {
+      const finances = getAppointmentFinances(appt)
+      if (finances) {
+        totalCharged += finances.totalPaid
+        totalTreatmentCost += finances.treatmentCost
+        totalMedicineCost += finances.medicineCost
+        totalTreatmentProfit += finances.treatmentProfit
+        totalMedicineProfit += finances.medicineProfit
+      }
+    })
+
+    const treatmentProfit = totalTreatmentProfit + totalMedicineProfit
 
     // 2. Fixed Expenses (Helper Salaries + Electricity)
     // Helper salaries
@@ -320,9 +394,17 @@ export default function FinancesClient({
             return apptMonthStr === selectedMonth && appt.branches?.id === d.branch_id
           })
           
-          const docBranchRev = docBranchAppts.reduce((sum, appt) => sum + (appt.amount_charged || 0), 0)
-          const docBranchTreatCost = docBranchAppts.reduce((sum, appt) => sum + (appt.treatment_cost || 0), 0)
-          bProfit = (docBranchRev - docBranchTreatCost) - docBranchHelpersPay - docBranchBill - docBranchExtras
+          let docBranchRev = 0
+          let docBranchCost = 0
+          docBranchAppts.forEach(appt => {
+            const finances = getAppointmentFinances(appt)
+            if (finances) {
+              docBranchRev += finances.totalPaid
+              docBranchCost += finances.treatmentCost + finances.medicineCost
+            }
+          })
+
+          bProfit = (docBranchRev - docBranchCost) - docBranchHelpersPay - docBranchBill - docBranchExtras
         }
         
         if (bProfit > 0) {
@@ -337,7 +419,7 @@ export default function FinancesClient({
 
     return {
       totalCharged,
-      totalTreatmentCost,
+      totalTreatmentCost: totalTreatmentCost + totalMedicineCost,
       treatmentProfit,
       helperSalariesTotal,
       electricityTotal,
@@ -658,9 +740,9 @@ export default function FinancesClient({
           <div className="flex items-center justify-between border-b pb-3">
             <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-slate-500" />
-              Patient Payments Closing
+              Patient Operations & Medicines Profits Ledger
             </h3>
-            <span className="text-[10px] text-slate-400">Input charges and materials cost at day closing.</span>
+            <span className="text-[10px] text-slate-400">Automated ledger reading finalized invoices (no manual entry required).</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -671,60 +753,62 @@ export default function FinancesClient({
                   <th className="px-4 py-3">Doctor</th>
                   <th className="px-4 py-3">Branch</th>
                   <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3 w-40">Amount Charged</th>
-                  <th className="px-4 py-3 w-40">Treatment Cost</th>
-                  <th className="px-4 py-3 text-right">Action</th>
+                  <th className="px-4 py-3">Total Paid</th>
+                  <th className="px-4 py-3">Treatment Profit</th>
+                  <th className="px-4 py-3">Medicine Profit</th>
+                  <th className="px-4 py-3 font-bold text-slate-700">Total Profit</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
                 {getFilteredAppointments().length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-slate-400 font-light">
+                    <td colSpan={8} className="text-center py-8 text-slate-400 font-light">
                       No appointments found for the selected month/branch filters.
                     </td>
                   </tr>
                 ) : (
                   getFilteredAppointments().map(appt => {
-                    const rowCharge = tempCharges[appt.id]?.charged ?? String(appt.amount_charged || '0')
-                    const rowCost = tempCharges[appt.id]?.cost ?? String(appt.treatment_cost || '0')
+                    const finances = getAppointmentFinances(appt)
                     
+                    if (!finances) {
+                      return (
+                        <tr key={appt.id} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-3.5 font-semibold text-slate-800">{appt.patients?.name || 'Walk-in'}</td>
+                          <td className="px-4 py-3.5">Dr. {appt.doctors?.name || 'Unassigned'}</td>
+                          <td className="px-4 py-3.5">{appt.branches?.name}</td>
+                          <td className="px-4 py-3.5">{appt.appointment_date}</td>
+                          <td colSpan={4} className="px-4 py-3.5 text-slate-400 italic">
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full text-[10px] font-semibold border border-slate-200">
+                              Awaiting Invoice Checkout
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    }
+
                     return (
                       <tr key={appt.id} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-3 font-semibold text-slate-800">{appt.patients?.name || 'Walk-in'}</td>
-                        <td className="px-4 py-3">Dr. {appt.doctors?.name || 'Unassigned'}</td>
-                        <td className="px-4 py-3">{appt.branches?.name}</td>
-                        <td className="px-4 py-3">{appt.appointment_date}</td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            value={rowCharge}
-                            onChange={e => setTempCharges(prev => ({
-                              ...prev,
-                              [appt.id]: { charged: e.target.value, cost: prev[appt.id]?.cost ?? String(appt.treatment_cost) }
-                            }))}
-                            className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs"
-                          />
+                        <td className="px-4 py-3.5 font-semibold text-slate-800">{appt.patients?.name || 'Walk-in'}</td>
+                        <td className="px-4 py-3.5">Dr. {appt.doctors?.name || 'Unassigned'}</td>
+                        <td className="px-4 py-3.5">{appt.branches?.name}</td>
+                        <td className="px-4 py-3.5">{appt.appointment_date}</td>
+                        <td className="px-4 py-3.5 font-mono font-medium text-slate-800">
+                          Rs. {finances.totalPaid.toFixed(2)}
                         </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            value={rowCost}
-                            onChange={e => setTempCharges(prev => ({
-                              ...prev,
-                              [appt.id]: { cost: e.target.value, charged: prev[appt.id]?.charged ?? String(appt.amount_charged) }
-                            }))}
-                            className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs"
-                          />
+                        <td className="px-4 py-3.5">
+                          <div className="space-y-0.5">
+                            <p className="font-semibold text-teal-600 font-mono">Rs. {finances.treatmentProfit.toFixed(2)}</p>
+                            <p className="text-[10px] text-slate-400 font-light">Rev: {finances.netTreatmentRevenue.toFixed(1)} | Cost: {finances.treatmentCost.toFixed(1)}</p>
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => handleSaveFinances(appt.id)}
-                            disabled={savingApptId === appt.id}
-                            className="px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 flex items-center gap-1 ml-auto font-medium"
-                          >
-                            {savingApptId === appt.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                            Save
-                          </button>
+                        <td className="px-4 py-3.5">
+                          <div className="space-y-0.5">
+                            <p className="font-semibold text-cyan-600 font-mono">Rs. {finances.medicineProfit.toFixed(2)}</p>
+                            <p className="text-[10px] text-slate-400 font-light">Rev: {finances.netMedicineRevenue.toFixed(1)} | Cost: {finances.medicineCost.toFixed(1)}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 font-mono font-bold text-slate-900 bg-slate-50/45">
+                          Rs. {finances.totalProfit.toFixed(2)}
                         </td>
                       </tr>
                     )
@@ -1039,10 +1123,17 @@ export default function FinancesClient({
                           return apptMonthStr === selectedMonth && appt.branches?.id === doc.branch_id
                         })
                         
-                        const docBranchRev = docBranchAppts.reduce((sum, appt) => sum + (appt.amount_charged || 0), 0)
-                        const docBranchTreatCost = docBranchAppts.reduce((sum, appt) => sum + (appt.treatment_cost || 0), 0)
+                        let docBranchRev = 0
+                        let docBranchCost = 0
+                        docBranchAppts.forEach(appt => {
+                          const finances = getAppointmentFinances(appt)
+                          if (finances) {
+                            docBranchRev += finances.totalPaid
+                            docBranchCost += finances.treatmentCost + finances.medicineCost
+                          }
+                        })
                         
-                        bProfit = (docBranchRev - docBranchTreatCost) - docBranchHelpersPay - docBranchBill - docBranchExtras
+                        bProfit = (docBranchRev - docBranchCost) - docBranchHelpersPay - docBranchBill - docBranchExtras
                       }
                       
                       if (bProfit > 0) {

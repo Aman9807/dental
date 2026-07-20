@@ -1068,7 +1068,7 @@ export default function MobileCapturePage() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="py-6 text-center border-t border-slate-200/40 text-[10px] text-slate-400 font-light mt-6">
-        <p>© 2026 Dental Store Clinics. Private Clinical Portal.</p>
+        <p>© 2026 Dental Clinics. Private Clinical Portal.</p>
       </footer>
     </div>
   )

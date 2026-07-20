@@ -20,33 +20,31 @@ export default async function AdminDoctorsPage() {
         process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase-project')) {
       dbConfigured = false
     } else {
-      // Fetch Branches
-      const { data: branchData } = await adminDb
-        .from('branches')
-        .select('id, name, slug')
-      branches = branchData || []
+      // Fetch Branches and Doctors in parallel
+      const [branchRes, docRes] = await Promise.all([
+        adminDb.from('branches').select('id, name, slug'),
+        adminDb
+          .from('doctors')
+          .select(`
+            id,
+            name,
+            email,
+            specialty,
+            picture_url,
+            branch_id,
+            compensation_type,
+            fixed_salary,
+            profit_percentage,
+            slug,
+            password,
+            branches (id, name, slug)
+          `)
+          .order('created_at', { ascending: false })
+      ])
 
-      // Fetch Doctors with branch relations
-      const { data: doctorsData, error: docError } = await adminDb
-        .from('doctors')
-        .select(`
-          id,
-          name,
-          email,
-          specialty,
-          picture_url,
-          branch_id,
-          compensation_type,
-          fixed_salary,
-          profit_percentage,
-          slug,
-          password,
-          branches (id, name, slug)
-        `)
-        .order('created_at', { ascending: false })
-
-      if (docError) throw docError
-      doctors = doctorsData || []
+      if (docRes.error) throw docRes.error
+      branches = branchRes.data || []
+      doctors = docRes.data || []
     }
   } catch (error) {
     console.error('Error loading doctors dashboard:', error)

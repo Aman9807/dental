@@ -79,7 +79,7 @@ export default async function AdminDashboardLayout({
           </h2>
           <div className="flex items-center gap-4">
             <Link 
-              href="/"
+              href="/adminstration"
               className="text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors duration-200 link-underline"
             >
               Visit Gateway Page →

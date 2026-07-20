@@ -188,8 +188,8 @@ CREATE POLICY "Allow admin full access to extra_expenses" ON public.extra_expens
 -- Helper Seed Data for branches (no static IDs to prevent foreign key issues)
 INSERT INTO public.branches (name, slug, working_hours) 
 VALUES 
-('Hazara Dental Store', 'hazara', 'Monday – Saturday: 9:00 AM – 6:00 PM (Closed on Sunday)'),
-('Family Dental Store', 'family', 'Monday – Friday: 9:00 AM – 6:00 PM, Saturday: 9:00 AM – 2:00 PM (Sunday Closed)')
+('Hazara Dental Clinic', 'hazara', 'Monday – Saturday: 9:00 AM – 6:00 PM (Closed on Sunday)'),
+('Family Dental Clinic', 'family', 'Monday – Friday: 9:00 AM – 6:00 PM, Saturday: 9:00 AM – 2:00 PM (Sunday Closed)')
 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, working_hours = EXCLUDED.working_hours;
 
 -- Seed Default Dentists to prevent empty drop-downs and redirect errors on resets

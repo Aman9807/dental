@@ -19,41 +19,41 @@ export default async function AdminBillingPage() {
         process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase-project')) {
       dbConfigured = false
     } else {
-      // 1. Fetch appointments (recent 7 days) that need billing
+      // 1. Fetch appointments (recent 7 days) and treatments in parallel
       const today = new Date()
       const pastWeek = new Date()
       pastWeek.setDate(today.getDate() - 7)
       const pastWeekStr = pastWeek.toISOString().split('T')[0]
 
-      const { data: apptData, error: apptErr } = await adminDb
-        .from('appointments')
-        .select(`
-          id,
-          appointment_date,
-          appointment_time,
-          status,
-          prescription_text,
-          prescription_url,
-          xray_url,
-          temp_mobile_photo,
-          patients (id, name, email, mobile),
-          doctors (id, name),
-          branches (id, name)
-        `)
-        .gte('appointment_date', pastWeekStr)
-        .order('appointment_date', { ascending: false })
+      const [apptRes, treatRes] = await Promise.all([
+        adminDb
+          .from('appointments')
+          .select(`
+            id,
+            appointment_date,
+            appointment_time,
+            status,
+            prescription_text,
+            prescription_url,
+            xray_url,
+            temp_mobile_photo,
+            patients (id, name, email, mobile),
+            doctors (id, name),
+            branches (id, name)
+          `)
+          .gte('appointment_date', pastWeekStr)
+          .order('appointment_date', { ascending: false }),
+        adminDb
+          .from('treatments')
+          .select('*')
+          .order('name', { ascending: true })
+      ])
 
-      if (apptErr) throw apptErr
-      appointments = apptData || []
+      if (apptRes.error) throw apptRes.error
+      if (treatRes.error) throw treatRes.error
 
-      // 2. Fetch fixed treatments
-      const { data: treatData, error: treatErr } = await adminDb
-        .from('treatments')
-        .select('*')
-        .order('name', { ascending: true })
-
-      if (treatErr) throw treatErr
-      treatments = treatData || []
+      appointments = apptRes.data || []
+      treatments = treatRes.data || []
     }
   } catch (err) {
     console.error('Error loading billing initial data:', err)

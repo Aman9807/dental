@@ -26,7 +26,7 @@ export default async function HazaraHome() {
           <span className="text-lg font-serif text-slate-900 font-normal">
             Hazara{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500 font-light">
-              Dental Store
+              Dental Clinic
             </span>
           </span>
           <Link
@@ -67,7 +67,7 @@ export default async function HazaraHome() {
             </h1>
 
             <p className="mt-8 text-lg md:text-xl text-slate-500 font-light max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-300">
-              Hazara Dental Store offers advanced restorative and orthodontic dentistry in a premium, quiet clinical space. Our specialists combine dental science with modern aesthetics.
+              Hazara Dental Clinic offers advanced restorative and orthodontic dentistry in a premium, quiet clinical space. Our specialists combine dental science with modern aesthetics.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up delay-500">
@@ -109,7 +109,7 @@ export default async function HazaraHome() {
                 </div>
                 <div>
                   <h4 className="font-semibold text-slate-800 text-sm">Our Location</h4>
-                  <p className="text-slate-500 text-xs mt-1 font-light">Hazara Dental Store, Main Clinical Avenue</p>
+                  <p className="text-slate-500 text-xs mt-1 font-light">Hazara Dental Clinic, Main Clinical Avenue</p>
                   <p className="text-slate-400 text-xs mt-0.5 font-light">Medical District, Sector B</p>
                 </div>
               </div>
@@ -123,7 +123,7 @@ export default async function HazaraHome() {
                 <div>
                   <h4 className="font-semibold text-slate-800 text-sm">Get in Touch</h4>
                   <p className="text-slate-500 text-xs mt-1 font-light">Direct Phone: +1 (555) 789-0123</p>
-                  <p className="text-slate-400 text-xs mt-0.5 font-light">Email: hazara@dentalstore.com</p>
+                  <p className="text-slate-400 text-xs mt-0.5 font-light">Email: hazara@dentalclinic.com</p>
                 </div>
               </div>
             </AnimateOnScroll>
@@ -198,7 +198,7 @@ export default async function HazaraHome() {
                 </span>
                 <h2 className="text-3xl md:text-4xl font-serif text-slate-900 mt-3 font-normal leading-tight">
                   Why book your treatment at{' '}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500">Hazara Dental Store?</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500">Hazara Dental Clinic?</span>
                 </h2>
                 <p className="text-slate-500 text-sm font-light mt-6 leading-relaxed">
                   Our clinic is optimized for complex treatments and quiet patient recoveries. We maintain a staff of credentialed orthodontic surgeons.
@@ -229,7 +229,7 @@ export default async function HazaraHome() {
                   ))}
                 </div>
                 <p className="text-slate-600 font-serif text-lg leading-relaxed italic">
-                  &ldquo;The orthodontic surgery at Hazara Dental Store was absolutely world class. The surgeons explained every step of my implant treatment. Booking was fast and free.&rdquo;
+                  &ldquo;The orthodontic surgery at Hazara Dental Clinic was absolutely world class. The surgeons explained every step of my implant treatment. Booking was fast and free.&rdquo;
                 </p>
                 <div className="mt-6 flex items-center gap-3">
                   <div className="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-200 to-teal-300 flex items-center justify-center text-cyan-800 font-bold text-sm shadow-sm">
@@ -248,7 +248,7 @@ export default async function HazaraHome() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="glass border-t border-slate-200/40 py-10 text-center">
-        <p className="text-xs text-slate-400 font-light">© 2026 Hazara Dental Store. All rights reserved. Clinical and Orthodontic Excellence.</p>
+        <p className="text-xs text-slate-400 font-light">© 2026 Hazara Dental Clinic. All rights reserved. Clinical and Orthodontic Excellence.</p>
       </footer>
     </div>
   )
