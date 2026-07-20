@@ -325,6 +325,202 @@ export default function AdminSettingsPage() {
     }
   }
 
+  // Export Medicines Inventory to Excel-compatible CSV format
+  const exportMedicinesInventory = () => {
+    const headers = [
+      'Barcode',
+      'Name',
+      'Generic Name',
+      'Tablets Per Strip',
+      'Total Stock (Tablets)',
+      'Price Per Strip (INR)',
+      'Cost Per Strip (INR)',
+      'Oldest Expiry'
+    ]
+
+    const rows = medicines.map(med => {
+      const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
+      const tabsPerPatch = Number(med.tablets_per_patch || 10)
+      const pricePerStrip = activeBatch ? Number(activeBatch.price) * tabsPerPatch : 0
+      const costPerStrip = activeBatch ? Number(activeBatch.cost_price || 0) : 0
+      const expiry = activeBatch ? formatExpiry(activeBatch.expiry_date) : 'N/A'
+      
+      return [
+        med.barcode || '',
+        med.name || '',
+        med.generic_name || '',
+        String(tabsPerPatch),
+        String(med.stock || 0),
+        pricePerStrip.toFixed(2),
+        costPerStrip.toFixed(2),
+        expiry
+      ]
+    })
+
+    exportToCSV(`inventory_${selectedInventoryBranch}.csv`, headers, rows)
+  }
+
+  // Download Medicines Import Template CSV
+  const downloadMedTemplate = () => {
+    const headers = [
+      'Barcode',
+      'Name',
+      'Generic Name',
+      'Batch Number',
+      'Expiry Date',
+      'Tablets Per Strip',
+      'Strips Quantity',
+      'Price Per Strip',
+      'Cost Per Strip'
+    ]
+    const sampleRows = [
+      ['8901117210103', 'Amoxicillin 500mg', 'Amoxicillin', 'AMX2026', '2026-12-31', '10', '50', '120', '80'],
+      ['8901234567890', 'Paracetamol 650mg', 'Paracetamol', 'PCT2026', '2026-10-15', '10', '100', '30', '20']
+    ]
+
+    exportToCSV('medicines_import_template.csv', headers, sampleRows)
+  }
+
+  // Handle CSV parser and bulk importer logic
+  const handleBulkImportMeds = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = async (evt) => {
+      const text = evt.target?.result as string
+      if (!text) return
+
+      try {
+        const rows = parseCSV(text)
+        if (rows.length === 0) {
+          alert('Empty CSV or invalid format.')
+          return
+        }
+
+        const confirmMsg = `Found ${rows.length} medicine records in file. Do you want to import them into the selected branch: "${selectedInventoryBranch.toUpperCase()}"?`
+        if (!window.confirm(confirmMsg)) return
+
+        setLoadingMeds(true)
+        let successCount = 0
+        let failCount = 0
+
+        for (const row of rows) {
+          const barcode = row.barcode || row.gtin
+          const name = row.name || row.medicine_name || row.title
+          const priceStr = row.price_per_strip || row.price || row.selling_price
+          const costStr = row.cost_price_per_strip || row.cost || row.cost_price
+          const qtyStr = row.strips_quantity || row.quantity || row.qty || row.strips
+
+          if (!barcode || !name || !priceStr || !qtyStr) {
+            failCount++
+            continue
+          }
+
+          const genericName = row.generic_name || row.generic
+          const batchNumber = row.batch_number || row.batch || 'GEN-BATCH'
+          const expiryDate = row.expiry_date || row.expiry || new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0]
+          const tabletsPerPatch = parseInt(row.tablets_per_strip || row.tablets_per_patch || row.tablets || row.tabs || '10') || 10
+          
+          try {
+            const res = await saveMedicineStock(barcode, Number(qtyStr), {
+              name,
+              genericName: genericName || undefined,
+              batchNumber,
+              expiryDate,
+              patchPrice: Number(priceStr),
+              costPrice: costStr ? Number(costStr) : 0,
+              tabletsPerPatch,
+              branchSlug: selectedInventoryBranch
+            })
+            if (res.success) {
+              successCount++
+            } else {
+              failCount++
+            }
+          } catch (err) {
+            failCount++
+          }
+        }
+
+        alert(`Bulk Import Complete!\nSuccessfully imported: ${successCount} items.\nFailed: ${failCount} items.`)
+        await fetchMedicines(selectedInventoryBranch)
+      } catch (err: any) {
+        console.error(err)
+        alert('Failed to parse CSV file: ' + err.message)
+      } finally {
+        setLoadingMeds(false)
+        // Reset file input
+        e.target.value = ''
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  // Parse CSV helper supporting quotes and commas
+  const parseCSV = (text: string): any[] => {
+    const lines = text.split(/\r?\n/)
+    if (lines.length < 2) return []
+
+    // Extract headers and map to lower_case slugs
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase().replace(/\s+/g, '_'))
+    const results: any[] = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim()
+      if (!line) continue
+
+      const values: string[] = []
+      let currentVal = ''
+      let inQuotes = false
+
+      for (let j = 0; j < line.length; j++) {
+        const char = line[j]
+        if (char === '"') {
+          inQuotes = !inQuotes
+        } else if (char === ',' && !inQuotes) {
+          values.push(currentVal.trim().replace(/^["']|["']$/g, ''))
+          currentVal = ''
+        } else {
+          currentVal += char
+        }
+      }
+      values.push(currentVal.trim().replace(/^["']|["']$/g, ''))
+
+      const rowObj: any = {}
+      headers.forEach((header, idx) => {
+        rowObj[header] = values[idx] || ''
+      })
+      results.push(rowObj)
+    }
+    return results
+  }
+
+  // Excel-compatible CSV exporter helper
+  const exportToCSV = (filename: string, headers: string[], rows: string[][]) => {
+    const content = [
+      headers.join(','),
+      ...rows.map(row => row.map(val => {
+        const stringVal = String(val ?? '')
+        const escaped = stringVal.replace(/"/g, '""')
+        if (escaped.includes(',') || escaped.includes('\n') || escaped.includes('"')) {
+          return `"${escaped}"`
+        }
+        return escaped
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300 font-sans max-w-5xl">
       
@@ -711,7 +907,45 @@ export default function AdminSettingsPage() {
           {/* List Medicines */}
           <div className="md:col-span-2">
             <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b">In-Stock Medicines (TiDB Cloud Inventory)</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b gap-3">
+                <h3 className="text-sm font-semibold text-slate-800">In-Stock Medicines (TiDB Cloud Inventory)</h3>
+                
+                <div className="flex items-center flex-wrap gap-2">
+                  {/* Download Template Button */}
+                  <button
+                    type="button"
+                    onClick={downloadMedTemplate}
+                    title="Download Excel/CSV Import Template"
+                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-slate-600 bg-slate-100 hover:bg-slate-200 border rounded-lg transition"
+                  >
+                    Template
+                  </button>
+
+                  {/* Export Inventory Button */}
+                  <button
+                    type="button"
+                    onClick={exportMedicinesInventory}
+                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-150 rounded-lg transition"
+                  >
+                    Export (CSV)
+                  </button>
+
+                  {/* Import Button & File input */}
+                  <label
+                    htmlFor="bulk-import-meds-input"
+                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-150 rounded-lg cursor-pointer transition font-semibold"
+                  >
+                    Import (CSV)
+                  </label>
+                  <input
+                    type="file"
+                    id="bulk-import-meds-input"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={handleBulkImportMeds}
+                  />
+                </div>
+              </div>
               {loadingMeds ? (
                 <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-slate-400 animate-spin" /></div>
               ) : medsError ? (

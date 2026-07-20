@@ -631,6 +631,83 @@ export default function FinancesClient({
     }
   }
 
+  // Export sales ledger to Excel-compatible CSV format
+  const exportSalesLedger = () => {
+    const filtered = getFilteredAppointments()
+    const headers = [
+      'Patient Name',
+      'Doctor Name',
+      'Branch',
+      'Appointment Date',
+      'Total Paid (INR)',
+      'Treatment Profit (INR)',
+      'Medicine Profit (INR)',
+      'Total Net Profit (INR)'
+    ]
+
+    const rows = filtered.map(appt => {
+      const finances = getAppointmentFinances(appt)
+      return [
+        appt.patients?.name || 'Walk-in',
+        `Dr. ${appt.doctors?.name || 'Unassigned'}`,
+        appt.branches?.name || '',
+        appt.appointment_date,
+        finances ? finances.totalPaid.toFixed(2) : '0.00',
+        finances ? finances.treatmentProfit.toFixed(2) : '0.00',
+        finances ? finances.medicineProfit.toFixed(2) : '0.00',
+        finances ? (finances.treatmentProfit + finances.medicineProfit).toFixed(2) : '0.00'
+      ]
+    })
+
+    exportToCSV(`sales_ledger_${selectedMonth}_${selectedBranch}.csv`, headers, rows)
+  }
+
+  // Export patient directory to Excel-compatible CSV format
+  const exportPatientDirectory = () => {
+    const filtered = getFilteredAppointments()
+    const patientMap = new Map<string, any>()
+    filtered.forEach(appt => {
+      if (appt.patients && appt.patients.id) {
+        patientMap.set(appt.patients.id, appt.patients)
+      }
+    })
+
+    const headers = ['Patient Name', 'Email', 'Mobile', 'Age']
+    const rows = Array.from(patientMap.values()).map(p => [
+      p.name || '',
+      p.email || '',
+      p.mobile || '',
+      String(p.age || '')
+    ])
+
+    exportToCSV(`patient_directory_${selectedMonth}_${selectedBranch}.csv`, headers, rows)
+  }
+
+  // Common CSV exporter utility supporting BOM for Excel compatibility
+  const exportToCSV = (filename: string, headers: string[], rows: string[][]) => {
+    const content = [
+      headers.join(','),
+      ...rows.map(row => row.map(val => {
+        const stringVal = String(val ?? '')
+        const escaped = stringVal.replace(/"/g, '""')
+        if (escaped.includes(',') || escaped.includes('\n') || escaped.includes('"')) {
+          return `"${escaped}"`
+        }
+        return escaped
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -665,8 +742,8 @@ export default function FinancesClient({
           ))}
         </div>
 
-        {/* Month Selector & Extra Expense Button */}
-        <div className="flex items-center gap-3">
+        {/* Month Selector & Extra Expense Button & Export Buttons */}
+        <div className="flex items-center flex-wrap gap-2">
           <div className="relative">
             <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
@@ -676,6 +753,24 @@ export default function FinancesClient({
               className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
             />
           </div>
+
+          <button
+            onClick={exportSalesLedger}
+            title="Download CSV for Excel"
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-xl text-xs font-semibold shadow-sm transition"
+          >
+            <CircleDollarSign className="w-3.5 h-3.5 text-emerald-600" />
+            Export Sales (CSV)
+          </button>
+
+          <button
+            onClick={exportPatientDirectory}
+            title="Download CSV for Excel"
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-xl text-xs font-semibold shadow-sm transition"
+          >
+            <User2 className="w-3.5 h-3.5 text-cyan-600" />
+            Export Patients (CSV)
+          </button>
 
           <button
             onClick={() => setShowAddExpense(true)}

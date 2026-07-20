@@ -970,6 +970,17 @@ export async function clearCaptureTicket(branchId: string) {
 // Action: Search medicines from TiDB Cloud MySQL database for a specific branch
 export async function searchMedicines(query: string, branchSlug?: string) {
   try {
+    // Ensure tables are in sync
+    try {
+      await queryTiDB('ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10')
+    } catch (e) {}
+    try {
+      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
+    } catch (e) {}
+    try {
+      await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
+    } catch (e) {}
+
     const searchQuery = `%${query.trim()}%`
     
     // Find medicines matching name, generic_name, or barcode
