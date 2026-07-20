@@ -331,29 +331,33 @@ export default function AdminSettingsPage() {
       'Barcode',
       'Name',
       'Generic Name',
+      'Batch Number',
+      'Expiry Date',
       'Tablets Per Strip',
-      'Total Stock (Tablets)',
-      'Price Per Strip (INR)',
-      'Cost Per Strip (INR)',
-      'Oldest Expiry'
+      'Strips Quantity',
+      'Price Per Strip',
+      'Cost Per Strip'
     ]
 
     const rows = medicines.map(med => {
       const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
       const tabsPerPatch = Number(med.tablets_per_patch || 10)
+      const stripsStock = Math.ceil(Number(med.stock || 0) / tabsPerPatch)
       const pricePerStrip = activeBatch ? Number(activeBatch.price) * tabsPerPatch : 0
-      const costPerStrip = activeBatch ? Number(activeBatch.cost_price || 0) : 0
-      const expiry = activeBatch ? formatExpiry(activeBatch.expiry_date) : 'N/A'
+      const costPerStrip = activeBatch ? Number(activeBatch.cost_price || 0) * tabsPerPatch : 0
+      const batchNumber = activeBatch?.batch_number || 'GEN-BATCH'
+      const expiry = activeBatch && activeBatch.expiry_date ? formatExpiry(activeBatch.expiry_date) : new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0]
       
       return [
         med.barcode || '',
         med.name || '',
         med.generic_name || '',
+        batchNumber,
+        expiry,
         String(tabsPerPatch),
-        String(med.stock || 0),
+        String(stripsStock > 0 ? stripsStock : 0),
         pricePerStrip.toFixed(2),
-        costPerStrip.toFixed(2),
-        expiry
+        costPerStrip.toFixed(2)
       ]
     })
 
@@ -406,21 +410,36 @@ export default function AdminSettingsPage() {
         let failCount = 0
 
         for (const row of rows) {
-          const barcode = row.barcode || row.gtin
-          const name = row.name || row.medicine_name || row.title
-          const priceStr = row.price_per_strip || row.price || row.selling_price
-          const costStr = row.cost_price_per_strip || row.cost || row.cost_price
-          const qtyStr = row.strips_quantity || row.quantity || row.qty || row.strips
+          const barcode = String(row.barcode || row.gtin || row.code || '').trim()
+          const name = String(row.name || row.medicine_name || row.title || row.item_name || '').trim()
+
+          const priceVal = row.price_per_strip || row.price_per_strip_inr || row.price || row.selling_price
+          const priceStr = priceVal !== undefined && priceVal !== null && String(priceVal).trim() !== '' ? String(priceVal).trim() : null
+
+          const costVal = row.cost_per_strip || row.cost_per_strip_inr || row.cost_price_per_strip || row.cost || row.cost_price
+          const costStr = costVal !== undefined && costVal !== null && String(costVal).trim() !== '' ? String(costVal).trim() : '0'
+
+          const tabletsPerPatch = parseInt(row.tablets_per_strip || row.tablets_per_patch || row.tablets || row.tabs || '10') || 10
+
+          let qtyStr = row.strips_quantity || row.quantity || row.qty || row.strips || row.strips_qty
+          if ((!qtyStr || String(qtyStr).trim() === '') && (row.total_stock_tablets || row.stock)) {
+            const totalTabs = parseInt(row.total_stock_tablets || row.stock) || 0
+            qtyStr = String(Math.ceil(totalTabs / tabletsPerPatch))
+          }
 
           if (!barcode || !name || !priceStr || !qtyStr) {
+            console.warn('Skipping invalid CSV row:', row)
             failCount++
             continue
           }
 
           const genericName = row.generic_name || row.generic
           const batchNumber = row.batch_number || row.batch || 'GEN-BATCH'
-          const expiryDate = row.expiry_date || row.expiry || new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0]
-          const tabletsPerPatch = parseInt(row.tablets_per_strip || row.tablets_per_patch || row.tablets || row.tabs || '10') || 10
+
+          let expiryDate = row.expiry_date || row.expiry || row.oldest_expiry
+          if (!expiryDate || expiryDate === 'N/A' || String(expiryDate).includes('N/A')) {
+            expiryDate = new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0]
+          }
           
           try {
             const res = await saveMedicineStock(barcode, Number(qtyStr), {
@@ -429,7 +448,7 @@ export default function AdminSettingsPage() {
               batchNumber,
               expiryDate,
               patchPrice: Number(priceStr),
-              costPrice: costStr ? Number(costStr) : 0,
+              costPrice: Number(costStr),
               tabletsPerPatch,
               branchSlug: selectedInventoryBranch
             })
@@ -439,6 +458,7 @@ export default function AdminSettingsPage() {
               failCount++
             }
           } catch (err) {
+            console.error('Error saving row:', err)
             failCount++
           }
         }
@@ -462,8 +482,15 @@ export default function AdminSettingsPage() {
     const lines = text.split(/\r?\n/)
     if (lines.length < 2) return []
 
-    // Extract headers and map to lower_case slugs
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase().replace(/\s+/g, '_'))
+    // Extract headers and map to clean lower_case slugs
+    const headers = lines[0].split(',').map(h => 
+      h.trim()
+       .replace(/^["']|["']$/g, '')
+       .toLowerCase()
+       .replace(/[^a-z0-9]/g, '_')
+       .replace(/_+/g, '_')
+       .replace(/^_+|_+$/g, '')
+    )
     const results: any[] = []
 
     for (let i = 1; i < lines.length; i++) {
