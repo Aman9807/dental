@@ -1224,8 +1224,8 @@ export async function createInvoice(
   appointmentId: string,
   items: any[], // { type: 'medicine'|'treatment'|'custom', id?: string, name?: string, quantity: number, price: number }
   subtotal: number,
-  treatmentDiscountPercent: number,
-  medicineDiscountPercent: number,
+  treatmentDiscountPercent: number = 0,
+  medicineDiscountPercent: number = 0,
   total: number
 ) {
   const adminDb = getAdminSupabase()
