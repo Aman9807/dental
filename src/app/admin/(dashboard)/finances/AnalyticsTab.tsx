@@ -21,16 +21,6 @@ interface AnalyticsTabProps {
   selectedBranch: string
 }
 
-function getWorkingDaysInMonth(year: number, month: number, includeSundays: boolean) {
-  let count = 0
-  const date = new Date(year, month - 1, 1)
-  while (date.getMonth() === month - 1) {
-    if (date.getDay() !== 0 || includeSundays) count++
-    date.setDate(date.getDate() + 1)
-  }
-  return count
-}
-
 function getAppointmentFinances(appt: any) {
   const invoice = appt.invoices?.[0]
   if (!invoice) return null
@@ -122,12 +112,10 @@ export default function AnalyticsTab({
 
   // Aggregate Data by Week for Recent Trend
   const weeklyData = useMemo(() => {
-    // simplified weekly grouping
     const weeks: Record<string, any> = {}
     appointments.forEach(appt => {
       if (selectedBranch !== 'all' && appt.branches?.slug !== selectedBranch) return
       const d = new Date(appt.appointment_date)
-      // Get week string e.g., 2026-W28
       const firstDayOfYear = new Date(d.getFullYear(), 0, 1)
       const pastDaysOfYear = (d.getTime() - firstDayOfYear.getTime()) / 86400000
       const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
@@ -137,7 +125,7 @@ export default function AnalyticsTab({
       const fin = getAppointmentFinances(appt)
       if (fin) weeks[key].profit += fin.totalProfit
     })
-    return Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week)).slice(-10) // last 10 weeks
+    return Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week)).slice(-10)
   }, [appointments, selectedBranch])
 
   // Revenue Breakdown (Medicine vs Treatment)
@@ -172,10 +160,10 @@ export default function AnalyticsTab({
               <LineChart data={monthlyData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => \`₹\${val}\`} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-                  formatter={(value: number) => [\`₹\${value.toLocaleString()}\`, 'Net Profit']}
+                  formatter={(value: any) => [`₹${Number(value || 0).toLocaleString()}`, 'Net Profit']}
                 />
                 <Line type="monotone" dataKey="netProfit" stroke="#0891b2" strokeWidth={3} dot={{ r: 4, fill: '#0891b2', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
               </LineChart>
@@ -202,10 +190,10 @@ export default function AnalyticsTab({
                   dataKey="value"
                 >
                   {revenueBreakdown.map((entry, index) => (
-                    <Cell key={\`cell-\${index}\`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => \`₹\${value.toLocaleString()}\`} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
+                <Tooltip formatter={(value: any) => `₹${Number(value || 0).toLocaleString()}`} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
                 <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#64748b' }} />
               </PieChart>
             </ResponsiveContainer>
@@ -225,11 +213,11 @@ export default function AnalyticsTab({
               <BarChart data={weeklyData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => \`₹\${val}\`} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
                 <Tooltip 
                   cursor={{ fill: '#f8fafc' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-                  formatter={(value: number) => [\`₹\${value.toLocaleString()}\`, 'Profit']}
+                  formatter={(value: any) => [`₹${Number(value || 0).toLocaleString()}`, 'Profit']}
                 />
                 <Bar dataKey="profit" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={32} />
               </BarChart>
@@ -248,11 +236,11 @@ export default function AnalyticsTab({
               <BarChart data={monthlyData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => \`₹\${val}\`} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
                 <Tooltip 
                   cursor={{ fill: '#f8fafc' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-                  formatter={(value: number) => \`₹\${value.toLocaleString()}\`}
+                  formatter={(value: any) => `₹${Number(value || 0).toLocaleString()}`}
                 />
                 <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#64748b' }} />
                 <Bar dataKey="revenue" name="Total Revenue" fill="#059669" radius={[4, 4, 0, 0]} />
