@@ -15,6 +15,7 @@ import {
   updateDoctorAttendance, 
   addExtraExpense 
 } from '@/app/admin/actions'
+import AnalyticsTab from './AnalyticsTab'
 
 interface Branch {
   id: string
@@ -180,7 +181,7 @@ export default function FinancesClient({
 }: FinancesClientProps) {
   
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<'closing' | 'attendance' | 'helpers' | 'doctors' | 'extra'>('closing')
+  const [activeTab, setActiveTab] = useState<'analytics' | 'closing' | 'attendance' | 'helpers' | 'doctors' | 'extra'>('analytics')
   
   // Selection filters
   const [selectedBranch, setSelectedBranch] = useState<string>('all')
@@ -815,6 +816,7 @@ export default function FinancesClient({
       {/* ════ SECTION 3: TABS NAVIGATION ════ */}
       <div className="border-b border-slate-200 flex gap-4 text-xs font-semibold">
         {[
+          { key: 'analytics', label: 'Graphs & Analytics' },
           { key: 'closing', label: 'Closing Time Payouts' },
           { key: 'attendance', label: 'Attendance Logger' },
           { key: 'helpers', label: 'Helper Boys Details' },
@@ -835,8 +837,21 @@ export default function FinancesClient({
 
       {/* ════ SECTION 4: TAB VIEWS ════ */}
       
-      {/* 4A. CLOSING TIME ENTRY */}
-      {activeTab === 'closing' && (
+      <div className="pt-2">
+        {activeTab === 'analytics' && (
+          <AnalyticsTab 
+            appointments={appointments}
+            electricityExpenses={electricityExpenses}
+            helperBoys={helperBoysList}
+            helperAttendance={helperAttendance}
+            extraExpenses={extraExpenses}
+            doctors={doctors}
+            doctorAttendance={doctorAttendance}
+            selectedBranch={selectedBranch}
+          />
+        )}
+        
+        {activeTab === 'closing' && (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden p-6 space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
@@ -1515,6 +1530,7 @@ export default function FinancesClient({
         </div>
       )}
 
+      </div>
     </motion.div>
   )
 }

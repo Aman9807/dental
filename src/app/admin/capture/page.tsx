@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { validateCameraPasscode, uploadMobilePrescription, saveMedicineStock, getMedicineByBarcode } from '@/app/admin/actions'
-import { Camera, ShieldAlert, Loader2, CheckCircle2, RefreshCw, Calendar, Clock, ChevronRight, User, Barcode, Scan } from 'lucide-react'
+import { Camera, ShieldAlert, Loader2, CheckCircle2, RefreshCw, Calendar, Clock, ChevronRight, User, Barcode, Scan, X } from 'lucide-react'
 
 export default function MobileCapturePage() {
   const [branches, setBranches] = useState<any[]>([])
@@ -910,9 +910,30 @@ export default function MobileCapturePage() {
                       </div>
                     )}
 
-                    {/* Parsed & Auto-filled details form unlocked upon scanning */}
+                    {/* Parsed & Auto-filled details form unlocked upon scanning (Popup Modal) */}
                     {parsedGtin && (
-                      <div className="space-y-5 animate-fade-in-up">
+                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-slate-200 p-6 space-y-5 relative">
+                          
+                          {/* Close Modal Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setParsedGtin('')
+                              setBarcodeInput('')
+                              setCameraScanActive(false)
+                            }}
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 rounded-full transition"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+
+                          <div className="pr-10 border-b border-slate-100 pb-3">
+                            <h3 className="font-bold text-slate-800 text-lg">Register Scanned Medicine</h3>
+                            <p className="text-xs text-slate-500 font-light mt-1">Please fill out any missing details for stock entry.</p>
+                          </div>
+
+                          <div className="space-y-5">
                         {/* Parsed Details Card (Glassmorphism layout) */}
                         {(parsedBatch || parsedExpiry) && (
                           <div className="p-4 bg-slate-50/50 border border-slate-200/60 rounded-2xl space-y-3 text-xs">
@@ -1056,6 +1077,8 @@ export default function MobileCapturePage() {
                           {registeringStock && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                           Register Medicine Stock (TiDB)
                         </button>
+                      </div>
+                        </div>
                       </div>
                     )}
                   </form>

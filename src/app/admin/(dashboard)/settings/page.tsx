@@ -957,6 +957,19 @@ export default function AdminSettingsPage() {
                     Export (CSV)
                   </button>
 
+                  {/* Add by Mobile */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/admin/capture?branch=${selectedInventoryBranch}&mode=barcode`
+                      window.open(url, '_blank')
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 rounded-lg transition font-semibold"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    Add by Mobile
+                  </button>
+
                   {/* Import Button & File input */}
                   <label
                     htmlFor="bulk-import-meds-input"
