@@ -250,22 +250,6 @@ serve(async (req) => {
 
     // 5. Prescription Copy Box if prescription exists
     let advisoryBoxY = summaryBoxY - 95
-    if (appt.prescription_text) {
-      page.drawRectangle({
-        x: 40,
-        y: advisoryBoxY - 90,
-        width: 515,
-        height: 80,
-        color: rgb(0.98, 0.98, 0.99),
-        borderColor: tealColor,
-        borderWidth: 1
-      })
-
-      page.drawText("DOCTOR'S PRESCRIPTION & ADVICE:", { x: 50, y: advisoryBoxY - 25, size: 9, font: boldFont, color: tealColor })
-      page.drawText(appt.prescription_text.substring(0, 180), { x: 50, y: advisoryBoxY - 45, size: 9, font: italicFont, color: darkColor })
-      advisoryBoxY -= 110
-    }
-
     // 6. Footer Section
     page.drawText(`Thank you for choosing ${branch.name}.`, { x: 40, y: 50, size: 10, font: boldFont, color: tealColor })
     page.drawText('This invoice is a dynamically generated patient receipt. For any billing query, contact support.', { x: 40, y: 35, size: 8, font: font, color: grayColor })
@@ -307,10 +291,11 @@ serve(async (req) => {
         subject: `Your Dental Invoice & Diagnostic Reports | ${branch.name}`,
         htmlContent: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #374151;">
-            <h2 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 8px;">Invoice & Diagnostic Reports</h2>
+            <h2 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 8px;">${branch.name} - Diagnostic Reports & Invoice</h2>
             <p>Dear <strong>${patient.name}</strong>,</p>
-            <p>Thank you for choosing ${branch.name}. We have compiled your invoice receipt, prescription, and X-ray report documents below.</p>
+            <p>Thank you for visiting <strong>${branch.name}</strong>. We have compiled your invoice receipt, prescription, and report documents below.</p>
             
+            ${invoice ? `
             <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 20px 0;">
               <h4 style="margin-top: 0; color: #0f766e;">Billing Summary:</h4>
               <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
@@ -328,10 +313,18 @@ serve(async (req) => {
                 </tr>
               </table>
             </div>
+            ` : ''}
 
-            <p style="font-size: 13px; color: #6b7280;">Please find the invoice receipt text, prescription image, and X-ray PDF files attached to this email.</p>
+            ${appt.prescription_text ? `
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 15px; margin: 20px 0; color: #166534;">
+              <h4 style="margin-top: 0; color: #15803d; font-size: 14px;">Doctor's Prescription & Medical Advice:</h4>
+              <p style="white-space: pre-line; margin: 0; font-size: 13px; line-height: 1.6; color: #166534;">${appt.prescription_text}</p>
+            </div>
+            ` : ''}
+
+            <p style="font-size: 13px; color: #6b7280;">Please find your invoice receipt, prescription, and X-ray report documents attached to this email.</p>
             <p style="font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 30px; text-align: center;">
-              This is a secure one-way clinical dispatch notification. For privacy compliance, these attachments are purged from our servers once delivered.
+              This is an official clinical dispatch notification from ${branch.name}.
             </p>
           </div>
         `,

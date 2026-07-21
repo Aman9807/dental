@@ -31,7 +31,8 @@ function getAppointmentFinances(appt: any) {
     invoice.invoice_items.forEach((item: any) => {
       const p = Number(item.unit_price || 0) * Number(item.quantity || 1)
       const c = Number(item.unit_cost || 0) * Number(item.quantity || 1)
-      if (item.item_type === 'medicine') {
+      const isMedicine = item.item_type === 'medicine' || (item.custom_name && /medicine|tab|capsule|syrup|strip/i.test(item.custom_name))
+      if (isMedicine) {
         mRev += p; mCost += c;
       } else {
         tRev += p; tCost += c;

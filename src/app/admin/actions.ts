@@ -981,28 +981,28 @@ export async function searchMedicines(query: string, branchSlug?: string) {
       await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
     } catch (e) {}
 
-    const searchQuery = `%${query.trim()}%`
+    const searchQuery = `%${query.trim().toLowerCase()}%`
+    const rawQuery = query.trim().toLowerCase()
     
-    // Find medicines matching name, generic_name, or barcode
-    // Compliant with ONLY_FULL_GROUP_BY by grouping by all selected columns
+    // Find medicines matching name, generic_name, or barcode (case-insensitive)
     let sql = `
       SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
       FROM medicines m
       LEFT JOIN medicine_batches b ON m.id = b.medicine_id
-      WHERE m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode = ?
+      WHERE LOWER(m.name) LIKE ? OR LOWER(m.generic_name) LIKE ? OR LOWER(m.barcode) = ?
       GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
     `
-    let params: any[] = [searchQuery, searchQuery, query.trim()]
+    let params: any[] = [searchQuery, searchQuery, rawQuery]
 
     if (branchSlug) {
       sql = `
         SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
         FROM medicines m
         LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.branch_slug = ?
-        WHERE m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode = ?
+        WHERE LOWER(m.name) LIKE ? OR LOWER(m.generic_name) LIKE ? OR LOWER(m.barcode) = ?
         GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
       `
-      params = [branchSlug, searchQuery, searchQuery, query.trim()]
+      params = [branchSlug, searchQuery, searchQuery, rawQuery]
     }
 
     const medicines = await queryTiDB(sql, params)

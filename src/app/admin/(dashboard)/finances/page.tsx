@@ -59,6 +59,7 @@ export default async function AdminFinancesPage() {
             invoice_items (
               id,
               item_type,
+              custom_name,
               quantity,
               unit_price,
               unit_cost,

@@ -523,12 +523,22 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                           value={appt.status}
                           disabled={updatingId === appt.id}
                           onChange={e => handleStatusChange(appt.id, e.target.value as any)}
-                          className="appearance-none pl-3 pr-8 py-1.5 border rounded-full text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer transition bg-slate-50"
+                          className={`appearance-none pl-3 pr-8 py-1.5 border rounded-full text-xs font-semibold focus:outline-none focus:ring-1 cursor-pointer transition ${
+                            appt.status === 'cancelled'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200 focus:ring-rose-400'
+                              : appt.status === 'confirmed'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200 focus:ring-blue-400'
+                              : appt.status === 'pending'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200 focus:ring-amber-400'
+                              : appt.status === 'completed'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 focus:ring-emerald-400'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
                         >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
+                          <option value="pending" className="bg-white text-slate-800">Pending</option>
+                          <option value="confirmed" className="bg-white text-slate-800">Confirmed</option>
+                          <option value="completed" className="bg-white text-slate-800">Completed</option>
+                          <option value="cancelled" className="bg-white text-slate-800">Cancelled</option>
                         </select>
                         <ChevronDown className="absolute right-2.5 top-2.5 w-3 h-3 text-slate-400 pointer-events-none" />
                       </div>

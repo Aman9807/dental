@@ -49,6 +49,8 @@ interface BillingItem {
   quantity: number
   price: number
   maxStock?: number // For medicine stock bounds
+  unitType?: 'strips' | 'tablets'
+  tabletsPerPatch?: number
 }
 
 interface BillingClientProps {
@@ -179,14 +181,17 @@ export default function BillingClient({ initialAppointments, initialTreatments }
     } else {
       // Find oldest active batch price
       const price = med.batches && med.batches.length > 0 ? Number(med.batches[0].price) : Number(med.price)
+      const tabsPerPatch = Number(med.tablets_per_patch || 10)
       const newItem: BillingItem = {
         key: `med_${med.id}_${Date.now()}`,
         type: 'medicine',
         id: med.id,
         name: med.name,
-        quantity: 1,
+        quantity: 1, // Default 1 strip
         price: price,
-        maxStock: stock
+        maxStock: stock,
+        unitType: 'strips',
+        tabletsPerPatch: tabsPerPatch
       }
       setBillingItems([...billingItems, newItem])
     }
@@ -237,16 +242,16 @@ export default function BillingClient({ initialAppointments, initialTreatments }
     setBillingItems([...billingItems, newItem])
   }
 
-  // Update item quantity or custom text
-  const updateItem = (key: string, field: 'quantity' | 'price' | 'name', value: any) => {
+  // Update item quantity, price, unitType or custom text
+  const updateItem = (key: string, field: 'quantity' | 'price' | 'name' | 'unitType', value: any) => {
     const updated = billingItems.map(item => {
       if (item.key === key) {
+        if (field === 'unitType') {
+          return { ...item, unitType: value }
+        }
         if (field === 'quantity') {
-          let val = parseInt(value) || 1
-          if (item.type === 'medicine' && item.maxStock) {
-            val = Math.min(val, item.maxStock)
-          }
-          return { ...item, quantity: Math.max(1, val) }
+          let val = parseFloat(value) || 1
+          return { ...item, quantity: Math.max(0.1, val) }
         }
         if (field === 'price') {
           return { ...item, price: Math.max(0, parseFloat(value) || 0) }
@@ -265,14 +270,21 @@ export default function BillingClient({ initialAppointments, initialTreatments }
     setBillingItems(billingItems.filter(item => item.key !== key))
   }
 
-  // Math Calculations
+  // Math Calculations (supporting Strips vs Tablets conversion)
+  const getItemEffectiveQty = (item: BillingItem) => {
+    if (item.type === 'medicine' && item.unitType === 'strips') {
+      return item.quantity * (item.tabletsPerPatch || 10)
+    }
+    return item.quantity
+  }
+
   const treatmentSubtotal = billingItems
     .filter(item => item.type === 'treatment' || item.type === 'custom')
     .reduce((acc, item) => acc + (item.price * item.quantity), 0)
     
   const medicineSubtotal = billingItems
     .filter(item => item.type === 'medicine')
-    .reduce((acc, item) => acc + (item.price * item.quantity), 0)
+    .reduce((acc, item) => acc + (item.price * getItemEffectiveQty(item)), 0)
 
   const treatmentDiscountAmount = treatmentSubtotal * (treatmentDiscountPercent / 100)
   const medicineDiscountAmount = medicineSubtotal * (medicineDiscountPercent / 100)
@@ -336,10 +348,16 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
     setCheckingOut(true)
     try {
+      // Convert Strips/Tablets to final payload items
+      const payloadItems = billingItems.map(item => ({
+        ...item,
+        quantity: getItemEffectiveQty(item)
+      }))
+
       // 1. Create Invoice on Supabase and deduct stock from TiDB
       const invoiceRes = await createInvoice(
         selectedApptId,
-        billingItems,
+        payloadItems,
         subtotal,
         treatmentDiscountPercent,
         medicineDiscountPercent,
@@ -365,6 +383,9 @@ export default function BillingClient({ initialAppointments, initialTreatments }
       setTreatmentDiscountPercent(0)
       setMedicineDiscountPercent(0)
       setSelectedApptId('')
+
+      // Refresh server components to update Finances dashboard immediately
+      router.refresh()
     } catch (err: any) {
       console.error(err)
       alert(err.message || 'An error occurred during checkout.')
@@ -707,28 +728,32 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                           )}
                         </div>
 
-                        {/* Qty multiplier */}
+                        {/* Qty multiplier & Strips/Tablets unit selector */}
                         {item.type === 'medicine' ? (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             <input
                               type="number"
+                              step="any"
                               value={item.quantity}
                               onChange={e => updateItem(item.key, 'quantity', e.target.value)}
-                              className="w-12 px-1.5 py-1 border border-slate-200 rounded focus:outline-none focus:border-cyan-500 text-center font-mono font-medium"
+                              className="w-14 px-2 py-1 border border-slate-200 rounded focus:outline-none focus:border-cyan-500 text-center font-mono font-bold text-slate-800"
                             />
-                            {item.maxStock !== undefined ? (
-                              <span className="text-[10px] text-slate-400 font-light">/ {item.maxStock} tabs</span>
-                            ) : (
-                              <span className="text-[10px] text-slate-400 font-light">tabs</span>
-                            )}
+                            <select
+                              value={item.unitType || 'strips'}
+                              onChange={e => updateItem(item.key, 'unitType', e.target.value)}
+                              className="px-2 py-1 border border-slate-200 rounded text-[10px] bg-slate-50 font-medium text-slate-700 focus:outline-none"
+                            >
+                              <option value="strips">Strips ({item.tabletsPerPatch || 10} tabs/strip)</option>
+                              <option value="tablets">Tablets</option>
+                            </select>
                           </div>
                         ) : (
                           <span className="text-slate-400 text-[10px] font-mono px-3">Qty: 1</span>
                         )}
 
                         {/* Line Total */}
-                        <div className="w-20 text-right font-mono font-bold text-slate-800">
-                          Rs. {(item.price * item.quantity).toFixed(2)}
+                        <div className="w-24 text-right font-mono font-bold text-slate-800">
+                          Rs. {(item.price * getItemEffectiveQty(item)).toFixed(2)}
                         </div>
 
                         {/* Remove line */}
@@ -773,10 +798,11 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                       type="number"
                       min="0"
                       max="100"
+                      step="any"
                       placeholder="0"
                       value={treatmentDiscountPercent || ''}
-                      onChange={e => setTreatmentDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 text-center font-mono font-bold text-slate-800"
+                      onChange={e => setTreatmentDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                      className="w-20 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 text-center font-mono font-bold text-slate-800"
                     />
                   </div>
 
@@ -789,10 +815,11 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                       type="number"
                       min="0"
                       max="100"
+                      step="any"
                       placeholder="0"
                       value={medicineDiscountPercent || ''}
-                      onChange={e => setMedicineDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-500 text-center font-mono font-bold text-slate-800"
+                      onChange={e => setMedicineDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                      className="w-20 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-500 text-center font-mono font-bold text-slate-800"
                     />
                   </div>
                 </div>

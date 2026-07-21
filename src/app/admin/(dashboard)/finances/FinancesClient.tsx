@@ -54,7 +54,7 @@ interface HelperAttendance {
 interface DoctorAttendance {
   doctor_id: string
   date: string
-  status: 'present' | 'absent'
+  status: 'present' | 'absent' | 'half_day'
 }
 
 interface ElectricityExpense {
@@ -75,6 +75,7 @@ interface ExtraExpense {
 interface InvoiceItem {
   id: string
   item_type: 'medicine' | 'treatment' | 'custom'
+  custom_name?: string
   quantity: number
   unit_price: number
   unit_cost: number
@@ -141,7 +142,8 @@ function getAppointmentFinances(appt: Appointment) {
     invoice.invoice_items.forEach(item => {
       const price = Number(item.unit_price || 0) * Number(item.quantity || 1)
       const cost = Number(item.unit_cost || 0) * Number(item.quantity || 1)
-      if (item.item_type === 'medicine') {
+      const isMedicine = item.item_type === 'medicine' || (item.custom_name && /medicine|tab|capsule|syrup|strip/i.test(item.custom_name))
+      if (isMedicine) {
         medicineRevenue += price
         medicineCost += cost
       } else {
@@ -230,6 +232,81 @@ export default function FinancesClient({
   const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split('T')[0])
   const [expenseBranch, setExpenseBranch] = useState(branches[0]?.id || '')
   const [addingExpense, setAddingExpense] = useState(false)
+
+  // Percentage Doctor Profit Share Rule state (synced with Admin Settings)
+  const [doctorRule, setDoctorRule] = useState<'present_days_only' | 'full_month'>('present_days_only')
+
+  // Salary Reductions & Fines state
+  const [salaryReductions, setSalaryReductions] = useState<Array<{
+    id: string
+    person_id: string
+    person_name: string
+    person_type: 'doctor' | 'helper'
+    month_year: string
+    amount: number
+    reason: string
+  }>>([])
+
+  // Modal for logging salary reduction / fine
+  const [showAddReductionModal, setShowAddReductionModal] = useState(false)
+  const [reductionPersonId, setReductionPersonId] = useState('')
+  const [reductionPersonType, setReductionPersonType] = useState<'doctor' | 'helper'>('doctor')
+  const [reductionAmount, setReductionAmount] = useState('')
+  const [reductionReason, setReductionReason] = useState('')
+
+  useEffect(() => {
+    const savedRule = localStorage.getItem('dental_doctor_payout_rule')
+    if (savedRule === 'full_month' || savedRule === 'present_days_only') {
+      setDoctorRule(savedRule as any)
+    }
+
+    const savedReductions = localStorage.getItem('dental_salary_reductions')
+    if (savedReductions) {
+      try {
+        setSalaryReductions(JSON.parse(savedReductions))
+      } catch (e) {
+        console.error('Failed to parse salary reductions', e)
+      }
+    }
+  }, [])
+
+  const handleAddSalaryReduction = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!reductionPersonId || !reductionAmount || !reductionReason) {
+      alert('Please fill out all required fields.')
+      return
+    }
+
+    let personName = ''
+    if (reductionPersonType === 'doctor') {
+      personName = doctors.find(d => d.id === reductionPersonId)?.name || 'Doctor'
+    } else {
+      personName = helperBoysList.find(h => h.id === reductionPersonId)?.name || 'Helper'
+    }
+
+    const newReduction = {
+      id: `red_${Date.now()}`,
+      person_id: reductionPersonId,
+      person_name: personName,
+      person_type: reductionPersonType,
+      month_year: selectedMonth,
+      amount: parseFloat(reductionAmount),
+      reason: reductionReason
+    }
+
+    const updated = [newReduction, ...salaryReductions]
+    setSalaryReductions(updated)
+    localStorage.setItem('dental_salary_reductions', JSON.stringify(updated))
+    setShowAddReductionModal(false)
+    setReductionAmount('')
+    setReductionReason('')
+  }
+
+  const handleDeleteSalaryReduction = (id: string) => {
+    const updated = salaryReductions.filter(r => r.id !== id)
+    setSalaryReductions(updated)
+    localStorage.setItem('dental_salary_reductions', JSON.stringify(updated))
+  }
 
   // Populate dynamic inputs on branch/month changes
   useEffect(() => {
@@ -410,7 +487,21 @@ export default function FinancesClient({
         }
         
         if (bProfit > 0) {
-          doctorPercentagePayoutsTotal += bProfit * (d.profit_percentage / 100)
+          const docWorkingDays = getWorkingDaysInMonth(year, month, false)
+          const absencesCount = doctorAttendance.filter(a => {
+            if (a.doctor_id !== d.id || a.status !== 'absent') return false
+            const absDate = new Date(a.date)
+            const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
+            return absMonthStr === selectedMonth
+          }).length
+          const docWorked = Math.max(0, docWorkingDays - absencesCount)
+          const fullPayout = bProfit * (d.profit_percentage / 100)
+          
+          const docPayout = doctorRule === 'present_days_only' && docWorkingDays > 0
+            ? fullPayout * (docWorked / docWorkingDays)
+            : fullPayout
+
+          doctorPercentagePayoutsTotal += docPayout
         }
       }
     })
@@ -611,16 +702,18 @@ export default function FinancesClient({
     }
   }
 
-  // Toggle Doctor Attendance
-  const handleToggleDoctorAttendance = async (doctorId: string, currentStatus: 'present' | 'absent') => {
-    const nextStatus = currentStatus === 'present' ? 'absent' : 'present'
+  // Toggle Doctor Attendance (cycles: present -> absent -> half_day -> present)
+  const handleToggleDoctorAttendance = async (doctorId: string, dateStr: string, currentStatus: 'present' | 'absent' | 'half_day') => {
+    const nextStatus: 'present' | 'absent' | 'half_day' = 
+      currentStatus === 'present' ? 'absent' : currentStatus === 'absent' ? 'half_day' : 'present'
+
     try {
-      const res = await updateDoctorAttendance(doctorId, attendanceDate, nextStatus)
+      const res = await updateDoctorAttendance(doctorId, dateStr, nextStatus as any)
       if (res.success) {
         setDoctorAttendance(prev => {
-          const withoutMatch = prev.filter(a => !(a.doctor_id === doctorId && a.date === attendanceDate))
-          if (nextStatus === 'absent') {
-            return [...withoutMatch, { doctor_id: doctorId, date: attendanceDate, status: 'absent' }]
+          const withoutMatch = prev.filter(a => !(a.doctor_id === doctorId && a.date === dateStr))
+          if (nextStatus !== 'present') {
+            return [...withoutMatch, { doctor_id: doctorId, date: dateStr, status: nextStatus }]
           }
           return withoutMatch
         })
@@ -943,9 +1036,11 @@ export default function FinancesClient({
             <div>
               <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-slate-500" />
-                Staff Daily Attendance Log
+                Staff Monthly Attendance Matrix & Daily Logger
               </h3>
-              <p className="text-[10px] text-slate-400 mt-1">Select date to mark helpers and doctors absent.</p>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Full month calendar: <span className="font-bold text-slate-500">Grey</span> = Future, <span className="font-bold text-emerald-600">Green</span> = Present, <span className="font-bold text-rose-600">Red</span> = Absent, <span className="font-bold text-amber-600">Orange</span> = Half Day. Click day square to toggle status!
+              </p>
             </div>
             
             <input
@@ -1017,40 +1112,56 @@ export default function FinancesClient({
               </div>
             </div>
 
-            {/* Doctors Attendance Column */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Dentists Attendance</h4>
-              <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100">
-                {getBranchFilteredDoctors().length === 0 ? (
-                  <p className="p-4 text-xs text-slate-400 text-center font-light">No doctors assigned to this branch.</p>
-                ) : (
-                  getBranchFilteredDoctors().map(doc => {
-                    const record = doctorAttendance.find(
-                      a => a.doctor_id === doc.id && a.date === attendanceDate
-                    )
-                    const isAbsent = record?.status === 'absent'
+          {/* FULL MONTHLY ATTENDANCE GRID MATRIX */}
+          <div className="space-y-4 border-t pt-4">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Monthly Attendance Matrix ({selectedMonth})</h4>
+            <div className="space-y-4 overflow-x-auto">
+              {getBranchFilteredDoctors().map(doc => {
+                const totalDays = new Date(year, month, 0).getDate()
+                const todayStr = new Date().toISOString().split('T')[0]
 
-                    return (
-                      <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50">
-                        <p className="text-xs font-semibold text-slate-800">Dr. {doc.name}</p>
-                        <button
-                          onClick={() => handleToggleDoctorAttendance(doc.id, isAbsent ? 'absent' : 'present')}
-                          className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition ${
-                            isAbsent 
-                              ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }`}
-                        >
-                          {isAbsent ? 'ABSENT' : 'PRESENT'}
-                        </button>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
+                return (
+                  <div key={doc.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-semibold text-slate-800">Dr. {doc.name}</span>
+                      <span className="text-[10px] text-slate-400">Click past/current day square to change status</span>
+                    </div>
+
+                    <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-16 lg:grid-cols-31 gap-1.5 pt-1">
+                      {Array.from({ length: totalDays }, (_, i) => {
+                        const dayNum = i + 1
+                        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+                        const isFuture = dateStr > todayStr
+                        
+                        const attRecord = doctorAttendance.find(a => a.doctor_id === doc.id && a.date === dateStr)
+                        const status = attRecord?.status || 'present'
+
+                        let bgClass = 'bg-emerald-500 text-white font-bold'
+                        if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                        else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold'
+                        else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold'
+
+                        return (
+                          <div
+                            key={dayNum}
+                            onClick={() => !isFuture && handleToggleDoctorAttendance(doc.id, dateStr, status)}
+                            title={`${dateStr} - ${isFuture ? 'Future' : status.toUpperCase()}`}
+                            className={`h-9 flex flex-col items-center justify-center rounded-lg text-[10px] transition cursor-pointer shadow-sm ${bgClass}`}
+                          >
+                            <span>{dayNum}</span>
+                            <span className="text-[7px] uppercase leading-none opacity-80">
+                              {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : 'PRES'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-
           </div>
+        </div>
         </div>
       )}
 
@@ -1253,9 +1364,21 @@ export default function FinancesClient({
                       }
                       
                       if (bProfit > 0) {
-                        pay = bProfit * (doc.profit_percentage / 100)
+                        const docWorkingDays = getWorkingDaysInMonth(year, month, false)
+                        const absencesCount = doctorAttendance.filter(a => {
+                          if (a.doctor_id !== doc.id || a.status !== 'absent') return false
+                          const absDate = new Date(a.date)
+                          const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
+                          return absMonthStr === selectedMonth
+                        }).length
+                        const docWorked = Math.max(0, docWorkingDays - absencesCount)
+                        const fullPayout = bProfit * (doc.profit_percentage / 100)
+
+                        pay = doctorRule === 'present_days_only' && docWorkingDays > 0
+                          ? fullPayout * (docWorked / docWorkingDays)
+                          : fullPayout
                       }
-                      rateString = `${doc.profit_percentage}% of branch net profits`
+                      rateString = `${doc.profit_percentage}% share (${doctorRule === 'present_days_only' ? 'Present Days' : 'Full Month'})`
                     }
 
                     return (

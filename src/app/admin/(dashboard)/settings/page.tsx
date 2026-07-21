@@ -20,6 +20,22 @@ export default function AdminSettingsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
+  // Percentage Doctor Profit Share Rule State
+  const [doctorRule, setDoctorRule] = useState<'present_days_only' | 'full_month'>('present_days_only')
+  const [showDoctorRuleInfo, setShowDoctorRuleInfo] = useState(false)
+
+  useEffect(() => {
+    const savedRule = localStorage.getItem('dental_doctor_payout_rule')
+    if (savedRule === 'full_month' || savedRule === 'present_days_only') {
+      setDoctorRule(savedRule)
+    }
+  }, [])
+
+  const handleSaveDoctorRule = (rule: 'present_days_only' | 'full_month') => {
+    setDoctorRule(rule)
+    localStorage.setItem('dental_doctor_payout_rule', rule)
+  }
+
   // Safe helper to format dates from TiDB Cloud database to prevent React crashes
   const formatExpiry = (dateVal: any) => {
     if (!dateVal) return 'N/A'
@@ -685,6 +701,82 @@ export default function AdminSettingsPage() {
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Doctor Profit Share Calculation Rule Setting */}
+            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                  Percentage Doctor Payout Rule
+                </h3>
+                
+                {/* (i) Interactive Tooltip Icon */}
+                <div className="relative group">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowDoctorRuleInfo(!showDoctorRuleInfo)}
+                    className="w-6 h-6 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-700 flex items-center justify-center font-serif text-xs font-bold hover:bg-cyan-100 transition shadow-sm"
+                    title="Click for rule explanation"
+                  >
+                    i
+                  </button>
+
+                  {/* Hover & Click Popup Explanation Box */}
+                  <div className={`absolute right-0 top-8 w-72 p-4 bg-slate-900 text-white text-xs rounded-2xl shadow-xl z-50 space-y-2.5 transition-all duration-200 ${
+                    showDoctorRuleInfo ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-hover:scale-100'
+                  }`}>
+                    <div className="flex justify-between items-center border-b border-slate-700 pb-1.5">
+                      <strong className="text-cyan-400 font-semibold text-[11px] uppercase tracking-wider">Payout Rule Explanation</strong>
+                      <button onClick={() => setShowDoctorRuleInfo(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+                    </div>
+                    <div className="space-y-2 text-[11px] leading-relaxed text-slate-300">
+                      <p><strong className="text-white">Option 1 (Present Days Only):</strong> The percentage doctor earns profit share <em>only on clinic profits generated on days they were present</em>. If marked absent on a day, 0% profit share is awarded for that day.</p>
+                      <p><strong className="text-white">Option 2 (Full Month Branch Profit):</strong> The doctor earns their percentage share on the <em>total net branch profit for the entire month</em>, regardless of individual absent days.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-1 text-xs">
+                <label className={`flex items-start gap-3 p-3 rounded-xl border transition cursor-pointer ${
+                  doctorRule === 'present_days_only' ? 'bg-cyan-50/60 border-cyan-300 text-cyan-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}>
+                  <input 
+                    type="radio" 
+                    name="doctorRule" 
+                    value="present_days_only"
+                    checked={doctorRule === 'present_days_only'}
+                    onChange={() => handleSaveDoctorRule('present_days_only')}
+                    className="mt-0.5 text-cyan-600"
+                  />
+                  <div>
+                    <strong className="font-semibold block">Option 1: Present Days Only (Recommended)</strong>
+                    <span className="text-[11px] text-slate-500 font-light leading-snug block mt-0.5">
+                      Doctor receives profit share only for dates they were present in attendance.
+                    </span>
+                  </div>
+                </label>
+
+                <label className={`flex items-start gap-3 p-3 rounded-xl border transition cursor-pointer ${
+                  doctorRule === 'full_month' ? 'bg-cyan-50/60 border-cyan-300 text-cyan-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}>
+                  <input 
+                    type="radio" 
+                    name="doctorRule" 
+                    value="full_month"
+                    checked={doctorRule === 'full_month'}
+                    onChange={() => handleSaveDoctorRule('full_month')}
+                    className="mt-0.5 text-cyan-600"
+                  />
+                  <div>
+                    <strong className="font-semibold block">Option 2: Full Month Branch Profit</strong>
+                    <span className="text-[11px] text-slate-500 font-light leading-snug block mt-0.5">
+                      Doctor receives profit share on total monthly branch net earnings.
+                    </span>
+                  </div>
+                </label>
               </div>
             </div>
           </div>
