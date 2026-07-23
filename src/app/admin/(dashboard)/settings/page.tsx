@@ -11,11 +11,12 @@ import { supabase } from '@/lib/supabase'
 import { 
   Settings, Key, Server, Mail, ShieldAlert, 
   CheckCircle, Loader2, Clock, Edit2, Check, X, 
-  Trash2, Plus, Camera, Activity, DollarSign, Barcode, Inbox
+  Trash2, Plus, Camera, Activity, DollarSign, Barcode, Inbox,
+  Shield, Building2, Stethoscope, Pill, Download, Upload, Video
 } from 'lucide-react'
 
 export default function AdminSettingsPage() {
-  const [activeTab, setActiveTab] = useState<'clinic' | 'treatments' | 'medicines'>('clinic')
+  const [activeTab, setActiveTab] = useState<'security' | 'branches' | 'treatments' | 'medicines'>('security')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
@@ -398,30 +399,28 @@ export default function AdminSettingsPage() {
       ['8901234567890', 'Paracetamol 650mg', 'Paracetamol', 'PCT2026', '2026-10-15', '10', '100', '30', '20']
     ]
 
-    exportToCSV('medicines_import_template.csv', headers, sampleRows)
+    exportToCSV(`template_medicines_import.csv`, headers, sampleRows)
   }
 
-  // Handle CSV parser and bulk importer logic
+  // Bulk Import Medicines from CSV
   const handleBulkImportMeds = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = async (evt) => {
-      const text = evt.target?.result as string
-      if (!text) return
+    setLoadingMeds(true)
+    setMedsError(null)
 
+    const reader = new FileReader()
+    reader.onload = async (event) => {
       try {
+        const text = event.target?.result as string
+        if (!text) throw new Error('File content is empty.')
+
         const rows = parseCSV(text)
-        if (rows.length === 0) {
-          alert('Empty CSV or invalid format.')
-          return
+        if (!rows || rows.length === 0) {
+          throw new Error('No valid records found in CSV file.')
         }
 
-        const confirmMsg = `Found ${rows.length} medicine records in file. Do you want to import them into the selected branch: "${selectedInventoryBranch.toUpperCase()}"?`
-        if (!window.confirm(confirmMsg)) return
-
-        setLoadingMeds(true)
         let successCount = 0
         let failCount = 0
 
@@ -486,7 +485,6 @@ export default function AdminSettingsPage() {
         alert('Failed to parse CSV file: ' + err.message)
       } finally {
         setLoadingMeds(false)
-        // Reset file input
         e.target.value = ''
       }
     }
@@ -498,7 +496,6 @@ export default function AdminSettingsPage() {
     const lines = text.split(/\r?\n/)
     if (lines.length < 2) return []
 
-    // Extract headers and map to clean lower_case slugs
     const headers = lines[0].split(',').map(h => 
       h.trim()
        .replace(/^["']|["']$/g, '')
@@ -565,166 +562,125 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 font-sans max-w-5xl">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className="perspective-stage space-y-7 font-sans max-w-6xl"
+    >
       
-      {/* Page Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-serif text-slate-900 font-normal flex items-center gap-2">
-          <Settings className="w-6 h-6 text-slate-700" />
-          System Settings
-        </h1>
-        <p className="text-xs text-slate-400 font-light uppercase tracking-wider">
-          Configure security, inventory, and branches
-        </p>
+      {/* ════ SECTION 1: HEADER & TITLE ════ */}
+      <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl text-cyan-400 shadow-md">
+            <Settings className="w-6 h-6 animate-spin-slow" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">
+              System Settings & Control Terminal
+            </h1>
+            <p className="text-xs text-slate-500 font-medium">
+              Configure clinic security, doctor profit share policies, branch hours, time slots, treatments, and stock inventory.
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Tabs Menu */}
-      <div className="flex border-b border-slate-200">
-        <button
-          onClick={() => setActiveTab('clinic')}
-          className={`px-6 py-3 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all ${
-            activeTab === 'clinic'
-              ? 'border-cyan-600 text-cyan-600'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          Clinic Configurations
-        </button>
-        <button
-          onClick={() => setActiveTab('treatments')}
-          className={`px-6 py-3 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all ${
-            activeTab === 'treatments'
-              ? 'border-cyan-600 text-cyan-600'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          Treatments & Procedures
-        </button>
-        <button
-          onClick={() => setActiveTab('medicines')}
-          className={`px-6 py-3 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all ${
-            activeTab === 'medicines'
-              ? 'border-cyan-600 text-cyan-600'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          Medicines Inventory
-        </button>
+      {/* ════ SECTION 2: 3D TABS CONTROL DECK ════ */}
+      <div className="card-3d glass-3d p-2 rounded-2xl shadow-lg border border-white/80 flex items-center gap-2 overflow-x-auto">
+        {[
+          { key: 'security', label: '🔐 Security & Policies', icon: Shield },
+          { key: 'branches', label: '🏥 Branch Hours & Slots', icon: Building2 },
+          { key: 'treatments', label: '🩺 Procedures & Pricing', icon: Stethoscope },
+          { key: 'medicines', label: '💊 Medicine Inventory Stock', icon: Pill },
+        ].map(tab => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.key
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 ${
+                isActive 
+                  ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-cyan-400 shadow-md border border-white/10' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+              }`}
+            >
+              <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
 
-      {/* Tab Contents */}
+      {/* ════ SECTION 3: TAB CONTENTS (WITH SMOOTH FRAMER MOTION ANIMATION) ════ */}
       <AnimatePresence mode="wait">
-        {activeTab === 'clinic' && (
+        
+        {/* ══ T1: SECURITY & POLICIES ══ */}
+        {activeTab === 'security' && (
           <motion.div
-            key="clinic"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-8"
+            key="security"
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.98 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
-          {/* Clinic Configurations Column */}
-          <div className="space-y-6">
-            {/* Branch Hours (Timings) */}
-            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Clock className="w-4 h-4 text-slate-500" />
-                Clinic Branch Hours (Clinic Timings)
+            {/* Password Change */}
+            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
+                <Key className="w-4 h-4 text-cyan-600" />
+                Change Admin System Passcode
               </h3>
-              {loadingBranches ? (
-                <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
-              ) : (
-                <div className="space-y-4">
-                  {branches.map(branch => (
-                    <div key={branch.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-semibold text-slate-700">{branch.name}</span>
-                        {editingBranchId === branch.id ? (
-                          <div className="flex gap-1">
-                            <button onClick={() => handleSaveHours(branch.id)} disabled={updatingBranchId === branch.id} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded">
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => setEditingBranchId(null)} className="p-1 text-rose-500 hover:bg-rose-50 rounded">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button onClick={() => { setEditingBranchId(branch.id); setTempHours(branch.working_hours || '') }} className="px-2.5 py-1 text-[10px] text-slate-600 bg-slate-100 hover:bg-slate-200 border rounded-lg transition">
-                            Edit Timings
-                          </button>
-                        )}
-                      </div>
-                      {editingBranchId === branch.id ? (
-                        <textarea rows={2} value={tempHours} onChange={e => setTempHours(e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-800" />
-                      ) : (
-                        <p className="text-xs text-slate-500 leading-normal font-light">{branch.working_hours}</p>
-                      )}
-                    </div>
-                  ))}
+              {successMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  {successMsg}
                 </div>
               )}
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">New Admin Passcode</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Enter new admin passcode"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-cyan-500 shadow-sm"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-cyan-400 rounded-2xl text-xs font-bold shadow-md shadow-slate-900/15 transition transform hover:scale-[1.01] flex items-center justify-center gap-2"
+                >
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : <Key className="w-4 h-4" />}
+                  Update Access Passcode
+                </button>
+              </form>
             </div>
 
-            {/* Passcodes */}
-            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Camera className="w-4 h-4 text-slate-500" />
-                Branch Passcodes (Mobile camera upload)
-              </h3>
-              <div className="space-y-4">
-                {branches.map(branch => (
-                  <div key={branch.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-semibold text-slate-700">{branch.name}</span>
-                      {editingPasscodeId === branch.id ? (
-                        <div className="flex gap-1">
-                          <button onClick={() => handleSavePasscode(branch.id)} disabled={updatingPasscodeId === branch.id} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded">
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => setEditingPasscodeId(null)} className="p-1 text-rose-500 hover:bg-rose-50 rounded">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button onClick={() => { setEditingPasscodeId(branch.id); setTempPasscode(branch.camera_passcode || '') }} className="px-2.5 py-1 text-[10px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-150 rounded-lg transition">
-                          Change Passcode
-                        </button>
-                      )}
-                    </div>
-                    {editingPasscodeId === branch.id ? (
-                      <input type="text" maxLength={10} value={tempPasscode} onChange={e => setTempPasscode(e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-800 font-mono" />
-                    ) : (
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-400 font-light">Passcode:</span>
-                        <span className="font-mono bg-slate-100 px-2 py-0.5 rounded border font-semibold">{branch.camera_passcode || '1234'}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Doctor Profit Share Calculation Rule Setting */}
-            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            {/* Doctor Profit Share Calculation Policy */}
+            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-emerald-600" />
-                  Percentage Doctor Payout Rule
+                  Doctor Profit Payout Policy Rule
                 </h3>
                 
-                {/* (i) Interactive Tooltip Icon */}
+                {/* Interactive Tooltip Icon */}
                 <div className="relative group">
                   <button 
                     type="button" 
                     onClick={() => setShowDoctorRuleInfo(!showDoctorRuleInfo)}
-                    className="w-6 h-6 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-700 flex items-center justify-center font-serif text-xs font-bold hover:bg-cyan-100 transition shadow-sm"
+                    className="w-6 h-6 rounded-full bg-cyan-100 text-cyan-800 flex items-center justify-center font-serif text-xs font-bold hover:bg-cyan-200 transition shadow-sm"
                     title="Click for rule explanation"
                   >
                     i
                   </button>
 
-                  {/* Hover & Click Popup Explanation Box */}
-                  <div className={`absolute right-0 top-8 w-72 p-4 bg-slate-900 text-white text-xs rounded-2xl shadow-xl z-50 space-y-2.5 transition-all duration-200 ${
+                  <div className={`absolute right-0 top-8 w-72 p-4 bg-slate-900 text-white text-xs rounded-2xl shadow-2xl z-50 space-y-2.5 transition-all duration-200 border border-white/10 ${
                     showDoctorRuleInfo ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-hover:scale-100'
                   }`}>
                     <div className="flex justify-between items-center border-b border-slate-700 pb-1.5">
@@ -732,16 +688,16 @@ export default function AdminSettingsPage() {
                       <button onClick={() => setShowDoctorRuleInfo(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
                     </div>
                     <div className="space-y-2 text-[11px] leading-relaxed text-slate-300">
-                      <p><strong className="text-white">Option 1 (Present Days Only):</strong> The percentage doctor earns profit share <em>only on clinic profits generated on days they were present</em>. If marked absent on a day, 0% profit share is awarded for that day.</p>
-                      <p><strong className="text-white">Option 2 (Full Month Branch Profit):</strong> The doctor earns their percentage share on the <em>total net branch profit for the entire month</em>, regardless of individual absent days.</p>
+                      <p><strong className="text-white">Option 1 (Present Days Only):</strong> Profit share is calculated strictly on days the doctor was present in clinic.</p>
+                      <p><strong className="text-white">Option 2 (Full Month Branch Profit):</strong> Profit share is calculated on the total net monthly branch profit regardless of individual absent days.</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-3 pt-1 text-xs">
-                <label className={`flex items-start gap-3 p-3 rounded-xl border transition cursor-pointer ${
-                  doctorRule === 'present_days_only' ? 'bg-cyan-50/60 border-cyan-300 text-cyan-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              <div className="space-y-3 text-xs">
+                <label className={`flex items-start gap-3 p-3.5 rounded-2xl border transition cursor-pointer ${
+                  doctorRule === 'present_days_only' ? 'bg-teal-50/70 border-teal-300 text-teal-900 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                 }`}>
                   <input 
                     type="radio" 
@@ -749,18 +705,18 @@ export default function AdminSettingsPage() {
                     value="present_days_only"
                     checked={doctorRule === 'present_days_only'}
                     onChange={() => handleSaveDoctorRule('present_days_only')}
-                    className="mt-0.5 text-cyan-600"
+                    className="mt-0.5 text-teal-600"
                   />
                   <div>
-                    <strong className="font-semibold block">Option 1: Present Days Only (Recommended)</strong>
-                    <span className="text-[11px] text-slate-500 font-light leading-snug block mt-0.5">
-                      Doctor receives profit share only for dates they were present in attendance.
+                    <strong className="font-bold block">Option 1: Present Days Only (Recommended)</strong>
+                    <span className="text-[11px] text-slate-500 font-medium leading-snug block mt-0.5">
+                      Percentage doctor earns profit share only for dates they were logged present.
                     </span>
                   </div>
                 </label>
 
-                <label className={`flex items-start gap-3 p-3 rounded-xl border transition cursor-pointer ${
-                  doctorRule === 'full_month' ? 'bg-cyan-50/60 border-cyan-300 text-cyan-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                <label className={`flex items-start gap-3 p-3.5 rounded-2xl border transition cursor-pointer ${
+                  doctorRule === 'full_month' ? 'bg-teal-50/70 border-teal-300 text-teal-900 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                 }`}>
                   <input 
                     type="radio" 
@@ -768,389 +724,473 @@ export default function AdminSettingsPage() {
                     value="full_month"
                     checked={doctorRule === 'full_month'}
                     onChange={() => handleSaveDoctorRule('full_month')}
-                    className="mt-0.5 text-cyan-600"
+                    className="mt-0.5 text-teal-600"
                   />
                   <div>
-                    <strong className="font-semibold block">Option 2: Full Month Branch Profit</strong>
-                    <span className="text-[11px] text-slate-500 font-light leading-snug block mt-0.5">
-                      Doctor receives profit share on total monthly branch net earnings.
+                    <strong className="font-bold block">Option 2: Full Month Branch Net Profit</strong>
+                    <span className="text-[11px] text-slate-500 font-medium leading-snug block mt-0.5">
+                      Percentage doctor earns profit share on total monthly branch net profits.
                     </span>
                   </div>
                 </label>
               </div>
             </div>
-          </div>
+          </motion.div>
+        )}
 
-          <div className="space-y-6">
-            {/* Time slots */}
-            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Clock className="w-4 h-4 text-slate-500" />
-                Manage Patient Time Slots
+        {/* ══ T2: BRANCH HOURS & BOOKING SLOTS ══ */}
+        {activeTab === 'branches' && (
+          <motion.div
+            key="branches"
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.98 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-7"
+          >
+            {/* Branch Operating Hours */}
+            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
+                <Clock className="w-4 h-4 text-cyan-600" />
+                Clinic Branch Operating Hours
               </h3>
-              <form onSubmit={handleAddTimeSlot} className="flex gap-2">
-                <input type="time" required value={newTime} onChange={e => setNewTime(e.target.value)} className="flex-1 px-4 py-2 border rounded-xl text-xs bg-white text-slate-800" />
-                <button type="submit" disabled={addingSlot || !newTime} className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition flex items-center gap-1 shrink-0">
-                  {addingSlot ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                  Add Slot
-                </button>
-              </form>
-              {loadingSlots ? (
-                <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+              {loadingBranches ? (
+                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
               ) : (
-                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
-                  {timeSlots.map(slot => (
-                    <div key={slot.id} className="flex justify-between items-center px-3.5 py-2 bg-slate-50 border rounded-xl">
-                      <span className="text-xs font-semibold text-slate-700">{slot.time_label}</span>
-                      <button onClick={() => handleDeleteTimeSlot(slot.id)} disabled={deletingSlotId === slot.id} className="p-1 text-slate-400 hover:text-rose-600 rounded">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                <div className="space-y-4">
+                  {branches.map(branch => (
+                    <div key={branch.id} className="p-4 bg-white/80 rounded-2xl border border-slate-200 space-y-2.5 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-800">{branch.name}</span>
+                        {editingBranchId === branch.id ? (
+                          <div className="flex gap-1">
+                            <button onClick={() => handleSaveHours(branch.id)} disabled={updatingBranchId === branch.id} className="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg">
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setEditingBranchId(null)} className="p-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-lg">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditingBranchId(branch.id); setTempHours(branch.working_hours || '') }} className="px-3 py-1 text-[10px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border rounded-xl transition">
+                            Edit Timings
+                          </button>
+                        )}
+                      </div>
+                      {editingBranchId === branch.id ? (
+                        <textarea rows={2} value={tempHours} onChange={e => setTempHours(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-cyan-500" />
+                      ) : (
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed">{branch.working_hours}</p>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Password change */}
-            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Key className="w-4 h-4 text-slate-500" />
-                Change Admin Password
-              </h3>
-              {successMsg && <div className="p-3 bg-emerald-50 border text-emerald-800 text-xs rounded-xl">{successMsg}</div>}
-              <form onSubmit={handlePasswordChange} className="space-y-4">
-                <input type="password" required placeholder="Enter new passcode" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-xl text-xs bg-white text-slate-850" />
-                <button type="submit" disabled={submitting} className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition">Change Passcode</button>
-              </form>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {activeTab === 'treatments' && (
-        <motion.div
-          key="treatments"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
-        >
-          {/* Add Treatment */}
-          <div className="md:col-span-1">
-            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4 sticky top-6">
-              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b">Add Procedure</h3>
-              <form onSubmit={handleCreateTreatment} className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase">Procedure Name</label>
-                  <input type="text" required placeholder="e.g. Tooth Extraction" value={newTreatmentName} onChange={e => setNewTreatmentName(e.target.value)} className="w-full px-3.5 py-2 border rounded-xl text-xs bg-white text-slate-850" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase">Selling Price (INR)</label>
-                  <input type="number" required placeholder="1200" value={newTreatmentPrice} onChange={e => setNewTreatmentPrice(e.target.value)} className="w-full px-3.5 py-2 border rounded-xl text-xs bg-white text-slate-855 font-mono" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase">Cost Price (INR)</label>
-                  <input type="number" required placeholder="400" value={newTreatmentCost} onChange={e => setNewTreatmentCost(e.target.value)} className="w-full px-3.5 py-2 border rounded-xl text-xs bg-white text-slate-855 font-mono" />
-                </div>
-                <button type="submit" disabled={addingTreatment} className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1">
-                  {addingTreatment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                  Add Procedure
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* List Treatments */}
-          <div className="md:col-span-2">
-            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b">Configured Clinic Procedures</h3>
-              {loadingTreatments ? (
-                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-slate-400 animate-spin" /></div>
-              ) : (
-                <div className="border border-slate-100 rounded-2xl overflow-hidden text-xs">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 font-semibold border-b">
-                        <th className="p-3">Procedure Name</th>
-                        <th className="p-3 font-mono">Selling Price</th>
-                        <th className="p-3 font-mono">Cost Price</th>
-                        <th className="p-3 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {treatments.map(t => (
-                        <tr key={t.id} className="border-b hover:bg-slate-50 transition text-slate-700">
-                          <td className="p-3 font-medium">{t.name}</td>
-                          <td className="p-3 font-mono">
-                            {editingTreatmentId === t.id ? (
-                              <input type="number" value={tempTreatmentPrice} onChange={e => setTempTreatmentPrice(e.target.value)} className="w-20 px-2 py-1 border rounded" />
-                            ) : (
-                              `Rs. ${Number(t.price).toFixed(2)}`
-                            )}
-                          </td>
-                          <td className="p-3 font-mono">
-                            {editingTreatmentId === t.id ? (
-                              <input type="number" value={tempTreatmentCost} onChange={e => setTempTreatmentCost(e.target.value)} className="w-20 px-2 py-1 border rounded" />
-                            ) : (
-                              `Rs. ${Number(t.cost || 0).toFixed(2)}`
-                            )}
-                          </td>
-                          <td className="p-3 text-right">
-                            {editingTreatmentId === t.id ? (
-                              <div className="flex gap-1 justify-end">
-                                <button onClick={() => handleSaveTreatmentDetails(t.id)} disabled={updatingTreatmentId === t.id} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded">
-                                  <Check className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => setEditingTreatmentId(null)} className="p-1 text-rose-500 hover:bg-rose-50 rounded">
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <button onClick={() => { setEditingTreatmentId(t.id); setTempTreatmentPrice(String(t.price)); setTempTreatmentCost(String(t.cost || 0)) }} className="p-1.5 text-slate-400 hover:text-cyan-600 rounded hover:bg-slate-100">
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {activeTab === 'medicines' && (
-        <motion.div
-          key="medicines"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-          className="space-y-6"
-        >
-          {/* Branch Selector for Inventory */}
-          <div className="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Inbox className="w-5 h-5 text-slate-500" />
-              <div>
-                <h4 className="text-sm font-semibold text-slate-800">Branch-Specific Inventory</h4>
-                <p className="text-[10px] text-slate-400 font-light">Select branch to view/add medicines stock.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setSelectedInventoryBranch('hazara')}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition ${
-                  selectedInventoryBranch === 'hazara'
-                    ? 'bg-white text-slate-800 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Hazara Dental Clinic
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedInventoryBranch('family')}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition ${
-                  selectedInventoryBranch === 'family'
-                    ? 'bg-white text-slate-800 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Family Dental Clinic
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Add Medicine Stock */}
-          <div className="md:col-span-1">
-            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4 sticky top-6">
-              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b">Register Medicine Stock</h3>
-              <form onSubmit={handleCreateMedicine} className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-505 uppercase">Barcode (GTIN)</label>
-                  <input type="text" required placeholder="e.g. 8901117210103" value={newMedBarcode} onChange={e => setNewMedBarcode(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-505 uppercase">Medicine Name</label>
-                  <input type="text" required placeholder="e.g. Amoxicillin 500mg" value={newMedName} onChange={e => setNewMedName(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white text-slate-850" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-505 uppercase">Generic Name</label>
-                  <input type="text" placeholder="e.g. Amoxicillin" value={newMedGeneric} onChange={e => setNewMedGeneric(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white text-slate-850" />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Batch No.</label>
-                    <input type="text" required value={newMedBatch} onChange={e => setNewMedBatch(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Expiry Date</label>
-                    <input type="date" required value={newMedExpiry} onChange={e => setNewMedExpiry(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white text-slate-850" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Tabs/Strip</label>
-                    <input type="number" required value={newMedTabletsPerPatch} onChange={e => setNewMedTabletsPerPatch(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Strips Quantity</label>
-                    <input type="number" required value={newMedQty} onChange={e => setNewMedQty(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Price / Strip</label>
-                    <input type="number" required placeholder="120" value={newMedPatchPrice} onChange={e => setNewMedPatchPrice(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-505 uppercase">Cost / Strip</label>
-                    <input type="number" required placeholder="80" value={newMedCostPrice} onChange={e => setNewMedCostPrice(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-mono text-slate-850" />
-                  </div>
-                </div>
-                <button type="submit" disabled={addingMed} className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1">
-                  {addingMed ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                  Register Stock
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* List Medicines */}
-          <div className="md:col-span-2">
-            <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b gap-3">
-                <h3 className="text-sm font-semibold text-slate-800">In-Stock Medicines (TiDB Cloud Inventory)</h3>
-                
-                <div className="flex items-center flex-wrap gap-2">
-                  {/* Download Template Button */}
-                  <button
-                    type="button"
-                    onClick={downloadMedTemplate}
-                    title="Download Excel/CSV Import Template"
-                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-slate-600 bg-slate-100 hover:bg-slate-200 border rounded-lg transition"
-                  >
-                    Template
-                  </button>
-
-                  {/* Export Inventory Button */}
-                  <button
-                    type="button"
-                    onClick={exportMedicinesInventory}
-                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-150 rounded-lg transition"
-                  >
-                    Export (CSV)
-                  </button>
-
-                  {/* Add by Mobile */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const url = `${window.location.origin}/admin/capture?branch=${selectedInventoryBranch}&mode=barcode`
-                      window.open(url, '_blank')
-                    }}
-                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 rounded-lg transition font-semibold"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                    Add by Mobile
-                  </button>
-
-                  {/* Import Button & File input */}
-                  <label
-                    htmlFor="bulk-import-meds-input"
-                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-150 rounded-lg cursor-pointer transition font-semibold"
-                  >
-                    Import (CSV)
-                  </label>
-                  <input
-                    type="file"
-                    id="bulk-import-meds-input"
-                    accept=".csv"
-                    className="hidden"
-                    onChange={handleBulkImportMeds}
-                  />
-                </div>
-              </div>
-              {loadingMeds ? (
-                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-slate-400 animate-spin" /></div>
-              ) : medsError ? (
-                <div className="p-4 bg-rose-50 text-rose-700 text-xs rounded-xl">{medsError}</div>
-              ) : (
-                <div className="border border-slate-100 rounded-2xl overflow-hidden text-xs">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 font-semibold border-b">
-                        <th className="p-3">Medicine Info</th>
-                        <th className="p-3 font-mono">Stock (Tabs)</th>
-                        <th className="p-3 font-mono">Price / Tab</th>
-                        <th className="p-3 font-mono">Cost / Tab</th>
-                        <th className="p-3">Expiry (Oldest)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {medicines.length === 0 ? (
-                        <tr><td colSpan={5} className="p-4 text-slate-400 text-center font-light">No medicines in inventory database.</td></tr>
+            {/* Camera Passcodes & Booking Time Slots */}
+            <div className="space-y-7">
+              {/* CCTV Camera Passcodes */}
+              <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
+                  <Camera className="w-4 h-4 text-cyan-600" />
+                  Live CCTV Security Feed Passcodes
+                </h3>
+                <div className="space-y-3">
+                  {branches.map(branch => (
+                    <div key={branch.id} className="p-3.5 bg-white/80 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
+                      <span className="text-xs font-bold text-slate-800">{branch.name}</span>
+                      {editingPasscodeId === branch.id ? (
+                        <div className="flex gap-1.5 items-center">
+                          <input type="text" maxLength={10} value={tempPasscode} onChange={e => setTempPasscode(e.target.value)} className="w-24 p-1.5 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 font-mono font-bold" />
+                          <button onClick={() => handleSavePasscode(branch.id)} disabled={updatingPasscodeId === branch.id} className="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setEditingPasscodeId(null)} className="p-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-lg">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       ) : (
-                        medicines.map(med => {
-                          const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
-                          const price = activeBatch ? Number(activeBatch.price) : 0
-                          const cost = activeBatch ? Number(activeBatch.cost_price || 0) : 0
-                          const expiry = activeBatch ? formatExpiry(activeBatch.expiry_date) : 'N/A'
-                          const tabsPerPatch = Number(med.tablets_per_patch || 10)
-                          const stripsStock = Math.floor(Number(med.stock) / tabsPerPatch)
-                          const remTabsStock = Number(med.stock) % tabsPerPatch
-
-                          return (
-                            <tr key={med.id} className="border-b hover:bg-slate-50 transition text-slate-700">
-                              <td className="p-3">
-                                <p className="font-semibold text-slate-800">{med.name}</p>
-                                <p className="text-[10px] text-slate-400 font-light">Generic: {med.generic_name || 'N/A'} | Barcode: {med.barcode}</p>
-                              </td>
-                              <td className="p-3 font-mono">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                  Number(med.stock) <= 0 
-                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                }`}>
-                                  {med.stock} tabs ({stripsStock} strips {remTabsStock > 0 ? `+ ${remTabsStock} tabs` : ''})
-                                </span>
-                              </td>
-                              <td className="p-3 font-mono">Rs. {price.toFixed(2)}</td>
-                              <td className="p-3 font-mono">Rs. {cost.toFixed(2)}</td>
-                              <td className="p-3 text-slate-500 font-light">{expiry}</td>
-                            </tr>
-                          )
-                        })
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200 text-xs font-bold text-slate-800">{branch.camera_passcode || '1234'}</span>
+                          <button onClick={() => { setEditingPasscodeId(branch.id); setTempPasscode(branch.camera_passcode || '') }} className="px-2.5 py-1 text-[10px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-xl transition">
+                            Change
+                          </button>
+                        </div>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+
+              {/* Patient Booking Time Slots */}
+              <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
+                  <Clock className="w-4 h-4 text-emerald-600" />
+                  Public Booking Time Slots Generator
+                </h3>
+                <form onSubmit={handleAddTimeSlot} className="flex gap-2">
+                  <input type="time" required value={newTime} onChange={e => setNewTime(e.target.value)} className="flex-1 px-4 py-2 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-cyan-500 shadow-sm" />
+                  <button type="submit" disabled={addingSlot || !newTime} className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-2xl transition flex items-center gap-1.5 shrink-0 shadow-md">
+                    {addingSlot ? <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" /> : <Plus className="w-3.5 h-3.5" />}
+                    Add Slot
+                  </button>
+                </form>
+                {loadingSlots ? (
+                  <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+                ) : (
+                  <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                    {timeSlots.map(slot => (
+                      <div key={slot.id} className="flex justify-between items-center px-3.5 py-2 bg-white/80 border border-slate-200 rounded-xl shadow-sm">
+                        <span className="text-xs font-bold font-mono text-slate-800">{slot.time_label}</span>
+                        <button onClick={() => handleDeleteTimeSlot(slot.id)} disabled={deletingSlotId === slot.id} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+
+        {/* ══ T3: TREATMENTS & PROCEDURES ══ */}
+        {activeTab === 'treatments' && (
+          <motion.div
+            key="treatments"
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.98 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-7"
+          >
+            {/* Add Treatment */}
+            <div className="md:col-span-1">
+              <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4 sticky top-6">
+                <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-cyan-600" />
+                  Add New Clinic Procedure
+                </h3>
+                <form onSubmit={handleCreateTreatment} className="space-y-3.5">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Procedure Name</label>
+                    <input type="text" required placeholder="e.g. Tooth Extraction" value={newTreatmentName} onChange={e => setNewTreatmentName(e.target.value)} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-cyan-500 shadow-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Selling Price (INR)</label>
+                    <input type="number" required placeholder="1200" value={newTreatmentPrice} onChange={e => setNewTreatmentPrice(e.target.value)} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-mono font-bold focus:outline-none focus:border-cyan-500 shadow-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Material Cost Price (INR)</label>
+                    <input type="number" required placeholder="400" value={newTreatmentCost} onChange={e => setNewTreatmentCost(e.target.value)} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-mono font-bold focus:outline-none focus:border-cyan-500 shadow-sm" />
+                  </div>
+                  <button type="submit" disabled={addingTreatment} className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-cyan-400 rounded-2xl text-xs font-bold shadow-md transition transform hover:scale-[1.01] flex items-center justify-center gap-1.5">
+                    {addingTreatment ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : <Plus className="w-4 h-4" />}
+                    Add Procedure Record
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* List Treatments */}
+            <div className="md:col-span-2">
+              <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+                <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-cyan-600" />
+                  Configured Procedures & Pricing Matrix
+                </h3>
+                {loadingTreatments ? (
+                  <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-cyan-600 animate-spin" /></div>
+                ) : (
+                  <div className="border border-slate-200/80 rounded-2xl overflow-hidden text-xs shadow-sm bg-white/80">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100/70 text-slate-600 font-bold border-b border-slate-200">
+                          <th className="p-3.5">Procedure Name</th>
+                          <th className="p-3.5 font-mono">Selling Price</th>
+                          <th className="p-3.5 font-mono">Material Cost</th>
+                          <th className="p-3.5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {treatments.map(t => (
+                          <tr key={t.id} className="hover:bg-slate-50/70 transition text-slate-800">
+                            <td className="p-3.5 font-semibold text-slate-900">{t.name}</td>
+                            <td className="p-3.5 font-mono font-bold text-emerald-600">
+                              {editingTreatmentId === t.id ? (
+                                <input type="number" value={tempTreatmentPrice} onChange={e => setTempTreatmentPrice(e.target.value)} className="w-24 px-2 py-1 border rounded-lg font-mono text-xs" />
+                              ) : (
+                                `INR ${Number(t.price).toFixed(2)}`
+                              )}
+                            </td>
+                            <td className="p-3.5 font-mono font-medium text-slate-500">
+                              {editingTreatmentId === t.id ? (
+                                <input type="number" value={tempTreatmentCost} onChange={e => setTempTreatmentCost(e.target.value)} className="w-24 px-2 py-1 border rounded-lg font-mono text-xs" />
+                              ) : (
+                                `INR ${Number(t.cost || 0).toFixed(2)}`
+                              )}
+                            </td>
+                            <td className="p-3.5 text-right">
+                              {editingTreatmentId === t.id ? (
+                                <div className="flex gap-1.5 justify-end">
+                                  <button onClick={() => handleSaveTreatmentDetails(t.id)} disabled={updatingTreatmentId === t.id} className="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg">
+                                    <Check className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => setEditingTreatmentId(null)} className="p-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-lg">
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button onClick={() => { setEditingTreatmentId(t.id); setTempTreatmentPrice(String(t.price)); setTempTreatmentCost(String(t.cost || 0)) }} className="p-1.5 text-slate-500 hover:text-cyan-600 rounded-lg hover:bg-cyan-50 transition">
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ══ T4: MEDICINES & STOCK INVENTORY ══ */}
+        {activeTab === 'medicines' && (
+          <motion.div
+            key="medicines"
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.98 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-7"
+          >
+            {/* Branch Selector for Inventory */}
+            <div className="card-3d glass-3d p-4 rounded-2xl border border-white/80 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-cyan-50 text-cyan-700 rounded-xl border border-cyan-100">
+                  <Inbox className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Branch-Specific Inventory</h4>
+                  <p className="text-[10px] text-slate-500 font-medium">Select branch to view or register medicine stock.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 p-1 bg-slate-200/60 rounded-xl border border-slate-200/40">
+                <button
+                  type="button"
+                  onClick={() => setSelectedInventoryBranch('hazara')}
+                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 ${
+                    selectedInventoryBranch === 'hazara'
+                      ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Hazara Dental Clinic
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedInventoryBranch('family')}
+                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 ${
+                    selectedInventoryBranch === 'family'
+                      ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Family Dental Clinic
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
+              {/* Add Medicine Stock Form */}
+              <div className="md:col-span-1">
+                <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4 sticky top-6">
+                  <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-cyan-600" />
+                    Register Medicine Stock Batch
+                  </h3>
+                  <form onSubmit={handleCreateMedicine} className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Barcode (GTIN)</label>
+                      <input type="text" required placeholder="e.g. 8901117210103" value={newMedBarcode} onChange={e => setNewMedBarcode(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Medicine Name</label>
+                      <input type="text" required placeholder="e.g. Amoxicillin 500mg" value={newMedName} onChange={e => setNewMedName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800 shadow-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Generic Name</label>
+                      <input type="text" placeholder="e.g. Amoxicillin" value={newMedGeneric} onChange={e => setNewMedGeneric(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 shadow-sm" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Batch No.</label>
+                        <input type="text" required value={newMedBatch} onChange={e => setNewMedBatch(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Expiry Date</label>
+                        <input type="date" required value={newMedExpiry} onChange={e => setNewMedExpiry(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 font-semibold shadow-sm" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tabs / Strip</label>
+                        <input type="number" required value={newMedTabletsPerPatch} onChange={e => setNewMedTabletsPerPatch(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Strips Quantity</label>
+                        <input type="number" required value={newMedQty} onChange={e => setNewMedQty(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Price / Strip</label>
+                        <input type="number" required placeholder="120" value={newMedPatchPrice} onChange={e => setNewMedPatchPrice(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Cost / Strip</label>
+                        <input type="number" required placeholder="80" value={newMedCostPrice} onChange={e => setNewMedCostPrice(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
+                      </div>
+                    </div>
+                    <button type="submit" disabled={addingMed} className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-cyan-400 rounded-2xl text-xs font-bold shadow-md transition transform hover:scale-[1.01] flex items-center justify-center gap-1.5">
+                      {addingMed ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : <Plus className="w-4 h-4" />}
+                      Register Stock
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              {/* Medicine Catalog Table */}
+              <div className="md:col-span-2">
+                <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/60 gap-3">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Pill className="w-4 h-4 text-cyan-600" />
+                      In-Stock Medicines Inventory (TiDB Cloud Database)
+                    </h3>
+                    
+                    <div className="flex items-center flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={downloadMedTemplate}
+                        title="Download CSV Import Template"
+                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition"
+                      >
+                        <Download className="w-3.5 h-3.5 text-slate-500" /> Template
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={exportMedicinesInventory}
+                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-xl shadow-sm transition"
+                      >
+                        <Download className="w-3.5 h-3.5 text-cyan-600" /> Export CSV
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = `${window.location.origin}/admin/capture?branch=${selectedInventoryBranch}&mode=barcode`
+                          window.open(url, '_blank')
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl shadow-sm transition"
+                      >
+                        <Camera className="w-3.5 h-3.5" /> Mobile Scan
+                      </button>
+
+                      <label
+                        htmlFor="bulk-import-meds-input"
+                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl cursor-pointer shadow-sm transition"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-emerald-600" /> Import CSV
+                      </label>
+                      <input
+                        type="file"
+                        id="bulk-import-meds-input"
+                        accept=".csv"
+                        className="hidden"
+                        onChange={handleBulkImportMeds}
+                      />
+                    </div>
+                  </div>
+
+                  {loadingMeds ? (
+                    <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-cyan-600 animate-spin" /></div>
+                  ) : medsError ? (
+                    <div className="p-4 bg-rose-50 text-rose-700 text-xs font-semibold rounded-2xl">{medsError}</div>
+                  ) : (
+                    <div className="border border-slate-200/80 rounded-2xl overflow-hidden text-xs shadow-sm bg-white/80">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-100/70 text-slate-600 font-bold border-b border-slate-200">
+                            <th className="p-3.5">Medicine Info</th>
+                            <th className="p-3.5 font-mono">Stock Level</th>
+                            <th className="p-3.5 font-mono">Strip Price</th>
+                            <th className="p-3.5 font-mono">Strip Cost</th>
+                            <th className="p-3.5">Expiry Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {medicines.length === 0 ? (
+                            <tr><td colSpan={5} className="p-6 text-slate-400 text-center font-light">No medicines registered in database for this branch.</td></tr>
+                          ) : (
+                            medicines.map(med => {
+                              const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
+                              const price = activeBatch ? Number(activeBatch.price) : 0
+                              const cost = activeBatch ? Number(activeBatch.cost_price || 0) : 0
+                              const expiry = activeBatch ? formatExpiry(activeBatch.expiry_date) : 'N/A'
+                              const tabsPerPatch = Number(med.tablets_per_patch || 10)
+                              const stripsStock = Math.floor(Number(med.stock) / tabsPerPatch)
+                              const remTabsStock = Number(med.stock) % tabsPerPatch
+
+                              return (
+                                <tr key={med.id} className="hover:bg-slate-50/70 transition text-slate-800">
+                                  <td className="p-3.5">
+                                    <p className="font-bold text-slate-900">{med.name}</p>
+                                    <p className="text-[10px] text-slate-400 font-mono">Generic: {med.generic_name || 'N/A'} | Barcode: {med.barcode}</p>
+                                  </td>
+                                  <td className="p-3.5 font-mono">
+                                    <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border ${
+                                      Number(med.stock) <= 0 
+                                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    }`}>
+                                      {med.stock} tabs ({stripsStock} strips {remTabsStock > 0 ? `+ ${remTabsStock} tabs` : ''})
+                                    </span>
+                                  </td>
+                                  <td className="p-3.5 font-mono font-bold text-emerald-600">INR {(price * tabsPerPatch).toFixed(2)}</td>
+                                  <td className="p-3.5 font-mono font-medium text-slate-500">INR {(cost * tabsPerPatch).toFixed(2)}</td>
+                                  <td className="p-3.5 text-slate-600 font-mono">{expiry}</td>
+                                </tr>
+                              )
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
-      
-      {/* Secure Notice */}
-      <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm bg-rose-50/10 border-rose-100">
-        <h3 className="text-sm font-semibold text-rose-800 flex items-center gap-2 pb-2 border-b border-rose-100/50">
+
+      {/* ════ SECTION 4: SECURITY AUTHORIZATION NOTICE ════ */}
+      <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-rose-200/60 bg-gradient-to-br from-rose-50/40 via-white to-amber-50/40 space-y-2">
+        <h3 className="text-sm font-bold text-rose-900 flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 text-rose-600" />
-          Access Notice
+          Administrator Authorization Notice
         </h3>
-        <p className="text-xs text-slate-500 leading-normal font-light pt-2">
-          This settings dashboard provides absolute controls over doctors, clinics, inventory databases, and appointment listings. Do not share admin panel authorization cookies or passwords. Store all credentials securely.
+        <p className="text-xs text-slate-600 font-medium leading-relaxed">
+          This system control terminal manages critical clinic configurations, financial payout policies, database inventory records, and authorization keys. Store all login passcodes and tokens securely.
         </p>
       </div>
 
-    </div>
+    </motion.div>
   )
 }
