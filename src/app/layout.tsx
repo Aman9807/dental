@@ -21,6 +21,11 @@ export const metadata: Metadata = {
     default: "Dental Clinics | Hazara & Family branches",
   },
   description: "Book free dental appointments at Hazara Dental Clinic or Family Dental Clinic.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

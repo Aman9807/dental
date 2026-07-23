@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Calendar, Shield, MapPin, ArrowRight, Sparkles, Heart, Star } from 'lucide-react'
 import AnimateOnScroll from '@/components/AnimateOnScroll'
+import DentalLogo from '@/components/DentalLogo'
 
 export default function Home() {
   return (
@@ -9,12 +10,17 @@ export default function Home() {
       {/* ═══ HEADER ═══ */}
       <header className="glass sticky top-0 z-50 animate-fade-in-down">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="text-xl font-serif tracking-tight font-medium text-slate-900">
-            Dental Clinic{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500 font-sans text-sm uppercase ml-1 tracking-wider font-semibold">
-              Network
-            </span>
-          </span>
+          <Link href="/" className="inline-flex items-center gap-3 group">
+            <DentalLogo size={36} />
+            <div className="flex flex-col">
+              <span className="text-lg font-serif font-semibold tracking-tight text-slate-900 group-hover:text-cyan-700 transition-colors">
+                Dental Clinic
+              </span>
+              <span className="text-[10px] font-sans font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500">
+                Network
+              </span>
+            </div>
+          </Link>
         </div>
       </header>
 

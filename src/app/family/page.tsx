@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Calendar, Clock, MapPin, Phone, ArrowLeft, ArrowRight, Heart, Star, Sparkles, Smile } from 'lucide-react'
 import { getAdminSupabase } from '@/lib/supabase'
 import AnimateOnScroll from '@/components/AnimateOnScroll'
+import DentalLogo from '@/components/DentalLogo'
 
 export default async function FamilyHome() {
   const supabaseServer = getAdminSupabase()
@@ -23,12 +24,15 @@ export default async function FamilyHome() {
             <ArrowLeft className="w-3.5 h-3.5 text-amber-700" />
             Clinic Portal
           </Link>
-          <span className="text-lg font-serif text-slate-900 font-normal">
-            Family{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-orange-500 font-light">
-              Dental Clinic
+          <div className="flex items-center gap-2.5">
+            <DentalLogo size={30} />
+            <span className="text-lg font-serif text-slate-900 font-normal">
+              Family{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-orange-500 font-light">
+                Dental Clinic
+              </span>
             </span>
-          </span>
+          </div>
           <Link
             href="/family/book"
             className="px-5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-xl transition-all duration-300 shadow-md shadow-amber-500/15 hover:shadow-lg hover:shadow-amber-500/25 btn-shimmer"

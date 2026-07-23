@@ -6,6 +6,7 @@ import {
   LayoutDashboard, Users, Settings, ShieldAlert, Sparkles, CircleDollarSign, Receipt
 } from 'lucide-react'
 import LogoutButton from './LogoutButton'
+import DentalLogo from '@/components/DentalLogo'
 
 export default async function AdminDashboardLayout({
   children,
@@ -27,9 +28,7 @@ export default async function AdminDashboardLayout({
         <div>
           {/* Logo */}
           <div className="h-16 border-b border-white/5 px-6 flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-teal-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
-              <span className="font-serif font-bold text-sm">D</span>
-            </div>
+            <DentalLogo size={32} />
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-white leading-tight">Clinic Admin</span>
               <span className="text-[10px] text-slate-400 font-light uppercase tracking-[0.15em]">Control Panel</span>

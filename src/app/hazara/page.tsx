@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Calendar, Clock, MapPin, Phone, ArrowLeft, ArrowRight, ShieldCheck, Star, Sparkles, Zap } from 'lucide-react'
 import { getAdminSupabase } from '@/lib/supabase'
 import AnimateOnScroll from '@/components/AnimateOnScroll'
+import DentalLogo from '@/components/DentalLogo'
 
 export default async function HazaraHome() {
   const supabaseServer = getAdminSupabase()
@@ -23,12 +24,15 @@ export default async function HazaraHome() {
             <ArrowLeft className="w-3.5 h-3.5 text-cyan-600" />
             Clinic Portal
           </Link>
-          <span className="text-lg font-serif text-slate-900 font-normal">
-            Hazara{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500 font-light">
-              Dental Clinic
+          <div className="flex items-center gap-2.5">
+            <DentalLogo size={30} />
+            <span className="text-lg font-serif text-slate-900 font-normal">
+              Hazara{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500 font-light">
+                Dental Clinic
+              </span>
             </span>
-          </span>
+          </div>
           <Link
             href="/hazara/book"
             className="px-5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 rounded-xl transition-all duration-300 shadow-md shadow-cyan-500/15 hover:shadow-lg hover:shadow-cyan-500/25 btn-shimmer"
