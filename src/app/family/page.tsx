@@ -58,14 +58,14 @@ export default async function FamilyHome() {
           <div className="absolute bottom-20 right-[30%] w-2 h-2 rounded-full bg-amber-400/20 animate-float" style={{ animationDelay: '4s' }} />
 
           <div className="relative z-10 max-w-4xl mx-auto">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/60 backdrop-blur-sm border border-amber-200/60 rounded-full text-amber-800 text-xs font-semibold tracking-wide animate-fade-in-up">
-              <Heart className="w-3.5 h-3.5" />
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/70 backdrop-blur-md border border-amber-200/60 rounded-full text-amber-800 text-xs font-semibold tracking-wide animate-fade-in-up animate-badge-bounce shadow-md shadow-amber-500/10">
+              <Heart className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
               Comfortable & Gentle Care for All Ages
             </span>
 
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif text-slate-900 font-normal mt-8 leading-[1.1] tracking-tight animate-fade-in-up delay-200">
               Gentle Dental Care{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-orange-500 to-yellow-500">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-orange-500 to-rose-500 animate-text-gradient font-semibold">
                 Built for Your Family
               </span>
             </h1>

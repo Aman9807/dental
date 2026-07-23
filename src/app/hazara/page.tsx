@@ -58,14 +58,14 @@ export default async function HazaraHome() {
           <div className="absolute bottom-20 left-[30%] w-2 h-2 rounded-full bg-cyan-400/20 animate-float" style={{ animationDelay: '4s' }} />
 
           <div className="relative z-10 max-w-4xl mx-auto">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/60 backdrop-blur-sm border border-cyan-200/60 rounded-full text-cyan-700 text-xs font-semibold tracking-wide animate-fade-in-up">
-              <Sparkles className="w-3.5 h-3.5" />
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/70 backdrop-blur-md border border-cyan-200/60 rounded-full text-cyan-700 text-xs font-semibold tracking-wide animate-fade-in-up animate-badge-bounce shadow-md shadow-cyan-500/10">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-600 animate-pulse" />
               Clinical Precision & Orthodontics
             </span>
 
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif text-slate-900 font-normal mt-8 leading-[1.1] tracking-tight animate-fade-in-up delay-200">
               Excellence in Dental Care &{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-500">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-500 animate-text-gradient font-semibold">
                 Clinical Precision
               </span>
             </h1>
