@@ -8,18 +8,28 @@ import {
   updateTreatmentPrice, getAllMedicines, saveMedicineStock 
 } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
+import { getMessagingSettings, saveMessagingSettings, MessagingSettings } from '@/lib/messaging'
 import { 
   Settings, Key, Server, Mail, ShieldAlert, 
   CheckCircle, Loader2, Clock, Edit2, Check, X, 
   Trash2, Plus, Camera, Activity, DollarSign, Barcode, Inbox,
-  Shield, Building2, Stethoscope, Pill, Download, Upload, Video
+  Shield, Building2, Stethoscope, Pill, Download, Upload, Video, MessageSquare, Send
 } from 'lucide-react'
 
 export default function AdminSettingsPage() {
-  const [activeTab, setActiveTab] = useState<'security' | 'branches' | 'treatments' | 'medicines'>('security')
+  const [activeTab, setActiveTab] = useState<'security' | 'branches' | 'treatments' | 'medicines' | 'messaging'>('security')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Messaging & WhatsApp Settings State
+  const [msgSettings, setMsgSettings] = useState<MessagingSettings>(getMessagingSettings())
+
+  const handleUpdateMsgSettings = (updated: Partial<MessagingSettings>) => {
+    const next = { ...msgSettings, ...updated }
+    setMsgSettings(next)
+    saveMessagingSettings(next)
+  }
 
   // Percentage Doctor Profit Share Rule State
   const [doctorRule, setDoctorRule] = useState<'present_days_only' | 'full_month'>('present_days_only')
@@ -593,6 +603,7 @@ export default function AdminSettingsPage() {
           { key: 'branches', label: '🏥 Branch Hours & Slots', icon: Building2 },
           { key: 'treatments', label: '🩺 Procedures & Pricing', icon: Stethoscope },
           { key: 'medicines', label: '💊 Medicine Inventory Stock', icon: Pill },
+          { key: 'messaging', label: '💬 WhatsApp & Email Channels', icon: MessageSquare },
         ].map(tab => {
           const Icon = tab.icon
           const isActive = activeTab === tab.key
@@ -1174,6 +1185,124 @@ export default function AdminSettingsPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ══ T5: WHATSAPP & EMAIL CHANNELS ══ */}
+        {activeTab === 'messaging' && (
+          <motion.div
+            key="messaging"
+            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.99 }}
+            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-7"
+          >
+            {/* Channel Selection Card */}
+            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-5">
+              <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
+                Active Messaging Delivery Channel
+              </h3>
+              
+              <div className="space-y-3 text-xs">
+                <label className={`flex items-center justify-between p-4 rounded-2xl border transition cursor-pointer ${
+                  msgSettings.channel === 'both' ? 'bg-emerald-50/70 border-emerald-300 text-emerald-900 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="msgChannel" 
+                      value="both"
+                      checked={msgSettings.channel === 'both'}
+                      onChange={() => handleUpdateMsgSettings({ channel: 'both' })}
+                      className="text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <strong className="font-bold block text-slate-900">WhatsApp + Email (Recommended)</strong>
+                      <span className="text-[11px] text-slate-500 font-medium">Sends reports, reminders, and notifications via both WhatsApp API and Email.</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold rounded-xl text-[10px] uppercase">Both</span>
+                </label>
+
+                <label className={`flex items-center justify-between p-4 rounded-2xl border transition cursor-pointer ${
+                  msgSettings.channel === 'whatsapp' ? 'bg-emerald-50/70 border-emerald-300 text-emerald-900 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="msgChannel" 
+                      value="whatsapp"
+                      checked={msgSettings.channel === 'whatsapp'}
+                      onChange={() => handleUpdateMsgSettings({ channel: 'whatsapp' })}
+                      className="text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <strong className="font-bold block text-slate-900">WhatsApp API Only</strong>
+                      <span className="text-[11px] text-slate-500 font-medium">Sends all patient communications strictly via Meta WhatsApp Cloud API.</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold rounded-xl text-[10px] uppercase">WhatsApp</span>
+                </label>
+
+                <label className={`flex items-center justify-between p-4 rounded-2xl border transition cursor-pointer ${
+                  msgSettings.channel === 'email' ? 'bg-emerald-50/70 border-emerald-300 text-emerald-900 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="msgChannel" 
+                      value="email"
+                      checked={msgSettings.channel === 'email'}
+                      onChange={() => handleUpdateMsgSettings({ channel: 'email' })}
+                      className="text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <strong className="font-bold block text-slate-900">Email Only</strong>
+                      <span className="text-[11px] text-slate-500 font-medium">Sends all patient communications strictly via Email SMTP.</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 bg-slate-200 text-slate-700 font-bold rounded-xl text-[10px] uppercase">Email</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Trigger Checkboxes Card */}
+            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
+                <Send className="w-4 h-4 text-cyan-600" />
+                Automated Message Triggers
+              </h3>
+              
+              <div className="space-y-3 text-xs">
+                {[
+                  { key: 'enableConfirmations', title: 'Appointment Booking Confirmations', desc: 'Send confirmation message when appointment is booked/confirmed.' },
+                  { key: 'enableReminders', title: 'Same-Day Appointment Reminders', desc: 'Send automated reminder message on the day of appointment.' },
+                  { key: 'enablePostponed', title: 'Reschedule / Postpone Alerts', desc: 'Send instant notification when appointment date/time is changed.' },
+                  { key: 'enableBirthdays', title: 'Patient Birthday Wishes', desc: 'Send automated birthday greetings to patients on their birthday.' },
+                  { key: 'enableReports', title: 'Clinical & Diagnostic Reports', desc: 'Send prescription PDFs & X-ray reports directly to patients.' },
+                ].map(item => {
+                  const isChecked = (msgSettings as any)[item.key]
+                  return (
+                    <label key={item.key} className={`flex items-start gap-3 p-3.5 rounded-2xl border transition cursor-pointer ${
+                      isChecked ? 'bg-cyan-50/60 border-cyan-200 text-cyan-950' : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}>
+                      <input 
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={e => handleUpdateMsgSettings({ [item.key]: e.target.checked })}
+                        className="mt-0.5 rounded text-cyan-600 focus:ring-cyan-500"
+                      />
+                      <div>
+                        <strong className="font-bold block text-slate-900">{item.title}</strong>
+                        <span className="text-[11px] text-slate-500 font-medium leading-snug block mt-0.5">{item.desc}</span>
+                      </div>
+                    </label>
+                  )
+                })}
               </div>
             </div>
           </motion.div>

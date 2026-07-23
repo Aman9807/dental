@@ -1477,3 +1477,182 @@ export async function getMedicineByBarcode(barcode: string) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MESSAGING & APPOINTMENT POSTPONE SERVER ACTIONS (WHATSAPP + EMAIL)
+// ═══════════════════════════════════════════════════════════════════
+
+import { sendNotification } from '@/lib/messaging'
+
+// Action: Postpone / Reschedule Appointment & Notify Patient via WhatsApp & Email
+export async function postponeAppointmentAction(appointmentId: string, newDate: string, newTime: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    // 1. Update appointment date & time
+    const { data: updated, error: updateErr } = await adminDb
+      .from('appointments')
+      .update({
+        appointment_date: newDate,
+        appointment_time: newTime,
+      })
+      .eq('id', appointmentId)
+      .select('*, patients(*), doctors(*), branches(*)')
+      .single()
+
+    if (updateErr) throw updateErr
+
+    // 2. Extract details
+    const patient = updated?.patients
+    const doctor = updated?.doctors
+    const branch = updated?.branches
+
+    if (patient) {
+      const patientName = patient.name || 'Valued Patient'
+      const doctorName = doctor?.name ? `Dr. ${doctor.name}` : 'your doctor'
+      const branchName = branch?.name || 'our clinic'
+      const messageBody = `Hello ${patientName},\n\nYour appointment with ${doctorName} at ${branchName} has been postponed / rescheduled to:\n📅 Date: ${newDate}\n⏰ Time: ${newTime}\n\nIf you have any questions, please contact us. Thank you!`
+
+      // 3. Dispatch automated notification via WhatsApp & Email
+      await sendNotification({
+        recipientName: patientName,
+        recipientPhone: patient.mobile,
+        recipientEmail: patient.email,
+        subject: 'Appointment Rescheduled - Dental Clinic',
+        messageBody,
+        type: 'appointment_postponed',
+      })
+    }
+
+    return { success: true, data: updated }
+  } catch (err: any) {
+    console.error('Error postponing appointment:', err)
+    return { success: false, error: err.message || 'Failed to postpone appointment.' }
+  }
+}
+
+// Action: Send Broadcast Campaign Messages
+export async function sendBroadcastCampaignAction(targetBranch: string, messageBody: string, attachmentUrl?: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    let query = adminDb.from('patients').select('*')
+    const { data: patients, error } = await query
+    if (error) throw error
+
+    let count = 0
+    if (patients && patients.length > 0) {
+      for (const p of patients) {
+        await sendNotification({
+          recipientName: p.name || 'Patient',
+          recipientPhone: p.mobile,
+          recipientEmail: p.email,
+          subject: 'Special Update - Dental Clinic',
+          messageBody: `Hello ${p.name || 'Patient'},\n\n${messageBody}`,
+          attachmentUrl: attachmentUrl || undefined,
+          type: 'broadcast_campaign',
+        })
+        count++
+      }
+    }
+
+    return { success: true, count }
+  } catch (err: any) {
+    console.error('Error sending broadcast campaign:', err)
+    return { success: false, error: err.message || 'Failed to send campaign broadcast.' }
+  }
+}
+
+// Action: Trigger Same-Day Reminders
+export async function triggerSameDayRemindersAction() {
+  const adminDb = getAdminSupabase()
+  const today = new Date().toISOString().split('T')[0]
+  try {
+    const { data: appointments, error } = await adminDb
+      .from('appointments')
+      .select('*, patients(*), doctors(*), branches(*)')
+      .eq('appointment_date', today)
+
+    if (error) throw error
+
+    let count = 0
+    if (appointments && appointments.length > 0) {
+      for (const appt of appointments) {
+        const p = appt.patients
+        const d = appt.doctors
+        const b = appt.branches
+        if (p) {
+          await sendNotification({
+            recipientName: p.name || 'Patient',
+            recipientPhone: p.mobile,
+            recipientEmail: p.email,
+            subject: 'Appointment Today Reminder - Dental Clinic',
+            messageBody: `Reminder: Hello ${p.name}, you have a dental appointment scheduled TODAY (${today}) at ${appt.appointment_time} with Dr. ${d?.name || 'Doctor'} at ${b?.name || 'our clinic'}. See you soon!`,
+            type: 'appointment_reminder',
+          })
+          count++
+        }
+      }
+    }
+
+    return { success: true, count }
+  } catch (err: any) {
+    console.error('Error triggering same-day reminders:', err)
+    return { success: false, error: err.message || 'Failed to trigger reminders.' }
+  }
+}
+
+// Action: Trigger Birthday Wishes
+export async function triggerBirthdayWishesAction() {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data: patients, error } = await adminDb.from('patients').select('*')
+    if (error) throw error
+
+    const today = new Date()
+    const currentMonthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+    let count = 0
+    if (patients && patients.length > 0) {
+      for (const p of patients) {
+        // If patient has DOB field matching today's month & day
+        if (p.dob && String(p.dob).endsWith(currentMonthDay)) {
+          await sendNotification({
+            recipientName: p.name || 'Patient',
+            recipientPhone: p.mobile,
+            recipientEmail: p.email,
+            subject: 'Happy Birthday from Dental Clinic! 🎉',
+            messageBody: `🎉 Happy Birthday ${p.name}! Wishing you a wonderful day filled with bright smiles and happiness. From all of us at Hazara & Family Dental Clinics! 🦷✨`,
+            type: 'birthday_wish',
+          })
+          count++
+        }
+      }
+    }
+
+    return { success: true, count }
+  } catch (err: any) {
+    console.error('Error sending birthday wishes:', err)
+    return { success: false, error: err.message || 'Failed to trigger birthday wishes.' }
+  }
+}
+
+// Action: Fetch Message Logs
+export async function getMessageLogsAction() {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data, error } = await adminDb
+      .from('message_logs')
+      .select('*')
+      .order('sent_at', { ascending: false })
+      .limit(50)
+
+    if (error) {
+      // Fallback if message_logs table is not yet migrated in Supabase
+      return { success: true, data: [] }
+    }
+    return { success: true, data: data || [] }
+  } catch (err: any) {
+    console.error('Error fetching message logs:', err)
+    return { success: true, data: [] }
+  }
+}
+
+

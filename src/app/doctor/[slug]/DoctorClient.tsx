@@ -13,7 +13,8 @@ import {
   clearCaptureTicket,
   searchMedicines,
   createInvoice,
-  triggerDeliverAndCleanup
+  triggerDeliverAndCleanup,
+  postponeAppointmentAction
 } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
@@ -164,6 +165,40 @@ export default function DoctorClient({
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'appointments' | 'book' | 'finances'>('appointments')
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments)
+
+  // Postpone Appointment Modal states for Doctor
+  const [showPostponeModal, setShowPostponeModal] = useState(false)
+  const [postponeAppt, setPostponeAppt] = useState<any | null>(null)
+  const [newPostponeDate, setNewPostponeDate] = useState('')
+  const [newPostponeTime, setNewPostponeTime] = useState('')
+  const [postponing, setPostponing] = useState(false)
+
+  const handleOpenPostponeModal = (appt: any) => {
+    setPostponeAppt(appt)
+    setNewPostponeDate(appt.appointment_date || '')
+    setNewPostponeTime(appt.appointment_time || '')
+    setShowPostponeModal(true)
+  }
+
+  const handleConfirmPostpone = async () => {
+    if (!postponeAppt || !newPostponeDate || !newPostponeTime) return
+    setPostponing(true)
+    try {
+      const timeVal = newPostponeTime.length === 5 ? `${newPostponeTime}:00` : newPostponeTime
+      const res = await postponeAppointmentAction(postponeAppt.id, newPostponeDate, timeVal)
+      if (res.success) {
+        setAppointments(prev => prev.map(a => a.id === postponeAppt.id ? { ...a, appointment_date: newPostponeDate, appointment_time: newPostponeTime } : a))
+        alert('Appointment rescheduled! Automated WhatsApp & Email notifications sent to patient.')
+        setShowPostponeModal(false)
+      } else {
+        alert(res.error || 'Failed to postpone appointment.')
+      }
+    } catch (err: any) {
+      alert(err.message || 'An error occurred.')
+    } finally {
+      setPostponing(false)
+    }
+  }
 
   // Booking Form states
   const [offlineName, setOfflineName] = useState('')
@@ -892,12 +927,22 @@ export default function DoctorClient({
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <button
-                              onClick={() => handleOpenReportsModal(appt)}
-                              className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs rounded-lg font-semibold tracking-wide shadow-md shadow-slate-800/20 transition-all hover:-translate-y-0.5"
-                            >
-                              {appt.report_sent_at ? 'Resend Report' : 'Send Report'}
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleOpenReportsModal(appt)}
+                                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs rounded-lg font-semibold tracking-wide shadow-md transition-all"
+                              >
+                                {appt.report_sent_at ? 'Resend Report' : 'Send Report'}
+                              </button>
+                              <button
+                                onClick={() => handleOpenPostponeModal(appt)}
+                                title="Postpone / Reschedule Appointment"
+                                className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs rounded-lg font-semibold shadow-sm transition-all flex items-center gap-1"
+                              >
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                Postpone
+                              </button>
+                            </div>
                           </td>
                         </motion.tr>
                       ))
@@ -1536,6 +1581,88 @@ export default function DoctorClient({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* POSTPONE MODAL FOR DOCTOR */}
+      {showPostponeModal && postponeAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-amber-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-100 text-amber-800 rounded-2xl">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Postpone Appointment</h3>
+                  <p className="text-xs text-slate-500 font-medium">Patient: {postponeAppt.patients?.name || 'Patient'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPostponeModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={e => { e.preventDefault(); handleConfirmPostpone() }} className="p-6 space-y-4">
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs space-y-1 text-slate-600">
+                <p><strong>Current Date:</strong> {postponeAppt.appointment_date}</p>
+                <p><strong>Current Time:</strong> {postponeAppt.appointment_time}</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">New Date</label>
+                <input
+                  type="date"
+                  required
+                  value={newPostponeDate}
+                  onChange={e => setNewPostponeDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-amber-500 shadow-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">New Time Slot</label>
+                <select
+                  value={newPostponeTime}
+                  required
+                  onChange={e => setNewPostponeTime(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-amber-500 shadow-sm"
+                >
+                  <option value="">Select Time Slot</option>
+                  {timeSlots.map(t => (
+                    <option key={t.id} value={t.time_value}>{t.time_label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="p-3 bg-amber-50/70 border border-amber-200/60 rounded-2xl text-[11px] text-amber-900 font-medium leading-relaxed">
+                ℹ️ Rescheduling sends an automated <strong>WhatsApp & Email notification</strong> to the patient.
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowPostponeModal(false)}
+                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={postponing}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-xl shadow-md transition flex items-center gap-1.5"
+                >
+                  {postponing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
+                  Confirm Reschedule
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
 
     </div>
   )
