@@ -563,9 +563,9 @@ export default function AdminSettingsPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
       className="perspective-stage space-y-7 font-sans max-w-6xl"
     >
       
@@ -620,10 +620,10 @@ export default function AdminSettingsPage() {
         {activeTab === 'security' && (
           <motion.div
             key="security"
-            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            initial={{ opacity: 0, y: 12, scale: 0.99 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.97 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: -10, scale: 0.99 }}
+            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Password Change */}
@@ -742,10 +742,10 @@ export default function AdminSettingsPage() {
         {activeTab === 'branches' && (
           <motion.div
             key="branches"
-            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            initial={{ opacity: 0, y: 12, scale: 0.99 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.97 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: -10, scale: 0.99 }}
+            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Branch Operating Hours */}
@@ -859,10 +859,10 @@ export default function AdminSettingsPage() {
         {activeTab === 'treatments' && (
           <motion.div
             key="treatments"
-            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            initial={{ opacity: 0, y: 12, scale: 0.99 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.97 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: -10, scale: 0.99 }}
+            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
             className="grid grid-cols-1 md:grid-cols-3 gap-7"
           >
             {/* Add Treatment */}
@@ -962,10 +962,10 @@ export default function AdminSettingsPage() {
         {activeTab === 'medicines' && (
           <motion.div
             key="medicines"
-            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            initial={{ opacity: 0, y: 12, scale: 0.99 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.97 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: -10, scale: 0.99 }}
+            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
             className="space-y-7"
           >
             {/* Branch Selector for Inventory */}

@@ -19,33 +19,33 @@ const containerVariants = {
 }
 
 const itemFadeUp = {
-  hidden: { opacity: 0, y: 30 },
+  hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: 'spring' as const, stiffness: 100, damping: 16 },
+    transition: { duration: 0.9, ease: [0.25, 0.1, 0.25, 1] as const },
   },
 }
 
 const cardVariantLeft = {
-  hidden: { opacity: 0, y: 50, x: -20, scale: 0.96 },
+  hidden: { opacity: 0, y: 30, x: -10, scale: 0.98 },
   visible: {
     opacity: 1,
     y: 0,
     x: 0,
     scale: 1,
-    transition: { type: 'spring' as const, stiffness: 90, damping: 15, delay: 0.4 },
+    transition: { duration: 1.15, ease: [0.25, 0.1, 0.25, 1] as const, delay: 0.3 },
   },
 }
 
 const cardVariantRight = {
-  hidden: { opacity: 0, y: 50, x: 20, scale: 0.96 },
+  hidden: { opacity: 0, y: 30, x: 10, scale: 0.98 },
   visible: {
     opacity: 1,
     y: 0,
     x: 0,
     scale: 1,
-    transition: { type: 'spring' as const, stiffness: 90, damping: 15, delay: 0.55 },
+    transition: { duration: 1.15, ease: [0.25, 0.1, 0.25, 1] as const, delay: 0.45 },
   },
 }
 
