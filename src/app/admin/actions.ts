@@ -855,26 +855,15 @@ export async function updateHelperAttendance(
 ) {
   const adminDb = getAdminSupabase()
   try {
-    if (status === 'absent') {
-      const { data, error } = await adminDb
-        .from('helper_attendance')
-        .upsert(
-          { helper_boy_id: helperBoyId, date, shift, status },
-          { onConflict: 'helper_boy_id,date,shift' }
-        )
-        .select()
-      if (error) throw error
-      return { success: true, data }
-    } else {
-      const { error } = await adminDb
-        .from('helper_attendance')
-        .delete()
-        .eq('helper_boy_id', helperBoyId)
-        .eq('date', date)
-        .eq('shift', shift)
-      if (error) throw error
-      return { success: true }
-    }
+    const { data, error } = await adminDb
+      .from('helper_attendance')
+      .upsert(
+        { helper_boy_id: helperBoyId, date, shift, status },
+        { onConflict: 'helper_boy_id,date,shift' }
+      )
+      .select()
+    if (error) throw error
+    return { success: true, data }
   } catch (err: any) {
     console.error('Error updating helper attendance:', err)
     return { success: false, error: err.message || 'Failed to update helper attendance.' }
@@ -884,29 +873,19 @@ export async function updateHelperAttendance(
 export async function updateDoctorAttendance(
   doctorId: string,
   date: string,
-  status: 'present' | 'absent'
+  status: 'present' | 'absent' | 'half_day'
 ) {
   const adminDb = getAdminSupabase()
   try {
-    if (status === 'absent') {
-      const { data, error } = await adminDb
-        .from('doctor_attendance')
-        .upsert(
-          { doctor_id: doctorId, date, status },
-          { onConflict: 'doctor_id,date' }
-        )
-        .select()
-      if (error) throw error
-      return { success: true, data }
-    } else {
-      const { error } = await adminDb
-        .from('doctor_attendance')
-        .delete()
-        .eq('doctor_id', doctorId)
-        .eq('date', date)
-      if (error) throw error
-      return { success: true }
-    }
+    const { data, error } = await adminDb
+      .from('doctor_attendance')
+      .upsert(
+        { doctor_id: doctorId, date, status },
+        { onConflict: 'doctor_id,date' }
+      )
+      .select()
+    if (error) throw error
+    return { success: true, data }
   } catch (err: any) {
     console.error('Error updating doctor attendance:', err)
     return { success: false, error: err.message || 'Failed to update doctor attendance.' }
