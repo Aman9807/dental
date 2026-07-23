@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { 
   sendBroadcastCampaignAction, 
   triggerSameDayRemindersAction, 
@@ -9,16 +9,11 @@ import {
   getMessageLogsAction 
 } from '@/app/admin/actions'
 import { 
-  MessageSquare, Send, ShieldCheck, Lock, Gift, Bell, 
-  CheckCircle, Loader2, RefreshCw, Calendar, FileText, Check, X, Users, Paperclip
+  MessageSquare, Send, Gift, Bell, 
+  CheckCircle, Loader2, RefreshCw, FileText, Users, Paperclip
 } from 'lucide-react'
 
 export default function MessagingCampaignPage() {
-  // Passcode Protection Login state
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [passcode, setPasscode] = useState('')
-  const [authError, setAuthError] = useState<string | null>(null)
-
   // Broadcast state
   const [targetAudience, setTargetAudience] = useState('all')
   const [campaignText, setCampaignText] = useState('')
@@ -35,28 +30,6 @@ export default function MessagingCampaignPage() {
   const [logs, setLogs] = useState<any[]>([])
   const [loadingLogs, setLoadingLogs] = useState(false)
 
-  // Verify stored passcode session
-  useEffect(() => {
-    const session = sessionStorage.getItem('dental_messaging_auth')
-    if (session === 'true') {
-      setIsAuthenticated(true)
-    }
-  }, [])
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    setAuthError(null)
-    const validPass = process.env.NEXT_PUBLIC_MESSAGING_PASSCODE || 'messaging123'
-    const adminPass = 'admin123'
-
-    if (passcode === validPass || passcode === adminPass) {
-      setIsAuthenticated(true)
-      sessionStorage.setItem('dental_messaging_auth', 'true')
-    } else {
-      setAuthError('Incorrect passcode! Please enter valid authorization passcode.')
-    }
-  }
-
   const fetchLogs = async () => {
     setLoadingLogs(true)
     try {
@@ -72,10 +45,8 @@ export default function MessagingCampaignPage() {
   }
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchLogs()
-    }
-  }, [isAuthenticated])
+    fetchLogs()
+  }, [])
 
   const handleSendCampaign = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -131,68 +102,11 @@ export default function MessagingCampaignPage() {
     }
   }
 
-  // 🔒 1. SECURITY LOGIN GATE IF NOT AUTHENTICATED
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-[75vh] flex items-center justify-center p-4 font-sans">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 16 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-          className="w-full max-w-md card-3d glass-3d p-8 rounded-3xl shadow-2xl border border-white/80 space-y-6"
-        >
-          <div className="flex flex-col items-center text-center gap-3">
-            <div className="p-4 bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl text-emerald-400 shadow-xl shadow-slate-900/20">
-              <Lock className="w-8 h-8" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">
-                Messaging & Campaign Hub
-              </h2>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Enter secure passcode to access WhatsApp & Email broadcast terminal.
-              </p>
-            </div>
-          </div>
-
-          {authError && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-2xl">
-              {authError}
-            </div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Access Passcode</label>
-              <input
-                type="password"
-                required
-                placeholder="Enter passcode (default: messaging123)"
-                value={passcode}
-                onChange={e => setPasscode(e.target.value)}
-                className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-emerald-500 shadow-sm"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3.5 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-emerald-400 rounded-2xl text-xs font-bold shadow-xl shadow-slate-900/15 transition transform hover:scale-[1.01] flex items-center justify-center gap-2"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              Authorize Access
-            </button>
-          </form>
-        </motion.div>
-      </div>
-    )
-  }
-
-  // 💬 2. AUTHENTICATED MESSAGING CAMPAIGN HUB
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+      transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
       className="perspective-stage space-y-7 font-sans max-w-6xl"
     >
       
@@ -211,16 +125,6 @@ export default function MessagingCampaignPage() {
             </p>
           </div>
         </div>
-
-        <button
-          onClick={() => {
-            sessionStorage.removeItem('dental_messaging_auth')
-            setIsAuthenticated(false)
-          }}
-          className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition border border-slate-200 self-start md:self-auto"
-        >
-          Lock Hub
-        </button>
       </div>
 
       {/* ══ AUTOMATED QUICK RUNNERS ══ */}
