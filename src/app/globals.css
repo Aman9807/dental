@@ -523,3 +523,68 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ═══════════════════════════════════════════
+   3D & SPATIAL UTILITIES (ANTIGRAVITY DESIGN)
+   ═══════════════════════════════════════════ */
+.perspective-stage {
+  perspective: 1200px;
+  perspective-origin: 50% 30%;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.card-3d {
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.card-3d:hover {
+  transform: translateY(-8px) rotateX(4deg) rotateY(-4deg) scale(1.01);
+  box-shadow: 0 30px 60px -15px rgba(6, 182, 212, 0.18), 0 15px 30px -10px rgba(0, 0, 0, 0.08);
+}
+
+.card-3d-tilt-left:hover {
+  transform: translateY(-8px) rotateX(5deg) rotateY(6deg) scale(1.01);
+  box-shadow: 0 30px 60px -15px rgba(16, 185, 129, 0.18), 0 15px 30px -10px rgba(0, 0, 0, 0.08);
+}
+
+.card-3d-tilt-right:hover {
+  transform: translateY(-8px) rotateX(5deg) rotateY(-6deg) scale(1.01);
+  box-shadow: 0 30px 60px -15px rgba(245, 158, 11, 0.18), 0 15px 30px -10px rgba(0, 0, 0, 0.08);
+}
+
+.floating-3d {
+  animation: float3d 6s ease-in-out infinite;
+}
+
+@keyframes float3d {
+  0%, 100% {
+    transform: translateY(0px) rotateX(0deg) rotateY(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotateX(3deg) rotateY(-3deg);
+  }
+}
+
+.glass-3d {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.07),
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.glass-3d-dark {
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.5),
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+}
+
