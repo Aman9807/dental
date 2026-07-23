@@ -4,11 +4,12 @@ import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
+  PieChart, Pie, Cell, Area, AreaChart
 } from 'recharts'
-import { Calendar, TrendingUp, DollarSign, Activity } from 'lucide-react'
+import { Calendar, TrendingUp, DollarSign, Activity, Sparkles, ShieldCheck, ArrowUpRight, BarChart3 } from 'lucide-react'
+import DentalLogo from '@/components/DentalLogo'
 
-const COLORS = ['#0891b2', '#059669', '#334155', '#e11d48', '#d97706', '#7c3aed']
+const PIE_COLORS = ['#0891b2', '#10b981', '#6366f1', '#f59e0b', '#ec4899', '#8b5cf6']
 
 interface AnalyticsTabProps {
   appointments: any[]
@@ -49,6 +50,31 @@ function getAppointmentFinances(appt: any) {
   }
 }
 
+// Custom Glassmorphic Tooltip Component
+const Custom3DTooltip = ({ active, payload, label, prefix = 'Rs. ' }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="glass-3d-dark p-3.5 rounded-2xl shadow-2xl border border-white/20 text-xs font-sans space-y-1.5 min-w-[160px]">
+        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider border-b border-white/10 pb-1">
+          {label}
+        </p>
+        {payload.map((entry: any, index: number) => (
+          <div key={`tooltip-${index}`} className="flex justify-between items-center gap-3">
+            <span className="flex items-center gap-1.5 text-slate-300 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
+              {entry.name || 'Value'}:
+            </span>
+            <span className="font-mono font-bold text-white">
+              {prefix}{Number(entry.value || 0).toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+  return null
+}
+
 export default function AnalyticsTab({
   appointments, electricityExpenses, helperBoys, helperAttendance, extraExpenses, doctors, doctorAttendance, selectedBranch
 }: AnalyticsTabProps) {
@@ -57,7 +83,6 @@ export default function AnalyticsTab({
   const monthlyData = useMemo(() => {
     const dataMap: Record<string, any> = {}
 
-    // Initialize map from appointments
     appointments.forEach(appt => {
       const d = new Date(appt.appointment_date)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -68,7 +93,6 @@ export default function AnalyticsTab({
       }
     })
 
-    // Compute basic revenue & treatment/medicine profits
     Object.keys(dataMap).forEach(key => {
       let tProf = 0, mProf = 0
       dataMap[key].appts.forEach((a: any) => {
@@ -78,31 +102,27 @@ export default function AnalyticsTab({
           mProf += fin.medicineProfit
         }
       })
-      dataMap[key].treatmentProfit = tProf
-      dataMap[key].medicineProfit = mProf
-      dataMap[key].revenue = tProf + mProf
+      dataMap[key].treatmentProfit = Math.round(tProf)
+      dataMap[key].medicineProfit = Math.round(mProf)
+      dataMap[key].revenue = Math.round(tProf + mProf)
     })
 
-    // Approximate Expenses per month
-    // Extra Expenses
     extraExpenses.forEach(ex => {
       const d = new Date(ex.expense_date)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       if (dataMap[key]) {
         if (selectedBranch === 'all' || (doctors.find(doc => doc.branch_id === ex.branch_id && doc.branches?.slug === selectedBranch))) {
-          dataMap[key].expenses += ex.amount || 0
+          dataMap[key].expenses += Math.round(ex.amount || 0)
         }
       }
     })
 
-    // Electricity
     electricityExpenses.forEach(elec => {
       if (dataMap[elec.month_year]) {
-        dataMap[elec.month_year].expenses += elec.electricity_bill || 0
+        dataMap[elec.month_year].expenses += Math.round(elec.electricity_bill || 0)
       }
     })
 
-    // Net Profit
     Object.keys(dataMap).forEach(key => {
       dataMap[key].netProfit = dataMap[key].revenue - dataMap[key].expenses
     })
@@ -124,7 +144,7 @@ export default function AnalyticsTab({
       
       if (!weeks[key]) weeks[key] = { week: key, profit: 0 }
       const fin = getAppointmentFinances(appt)
-      if (fin) weeks[key].profit += fin.totalProfit
+      if (fin) weeks[key].profit += Math.round(fin.totalProfit)
     })
     return Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week)).slice(-10)
   }, [appointments, selectedBranch])
@@ -141,44 +161,103 @@ export default function AnalyticsTab({
       }
     })
     return [
-      { name: 'Treatment Profit', value: t },
-      { name: 'Medicine Profit', value: m }
+      { name: 'Treatment Profit', value: Math.round(t) },
+      { name: 'Medicine Profit', value: Math.round(m) }
     ]
   }, [appointments, selectedBranch])
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+    <div className="perspective-stage space-y-8 font-sans">
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Net Profit Trend (Monthly) */}
-        <div className="bg-white p-6 border border-slate-200 rounded-3xl shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-6">
-            <TrendingUp className="w-4 h-4 text-cyan-600" />
-            Monthly Net Profit Trend
-          </h3>
-          <div className="h-72">
+      {/* ═══ 3D CHARTS GRID (ROW 1) ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* CHART 1: MONTHLY NET PROFIT TREND */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+          className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
+        >
+          <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-serif font-semibold text-slate-900 leading-tight">
+                  Monthly Net Profit Trajectory
+                </h3>
+                <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider">
+                  Live revenue minus operational expenses
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 bg-cyan-500/10 border border-cyan-400/30 rounded-full text-[10px] font-bold text-cyan-700 uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-cyan-600 animate-pulse" />
+              Interactive 3D
+            </span>
+          </div>
+
+          <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <AreaChart data={monthlyData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+                <defs>
+                  <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0891b2" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#0891b2" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.6} />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-                  formatter={(value: any) => [`₹${Number(value || 0).toLocaleString()}`, 'Net Profit']}
+                <Tooltip content={<Custom3DTooltip />} />
+                <Area 
+                  type="monotone" 
+                  dataKey="netProfit" 
+                  name="Net Profit"
+                  stroke="#0891b2" 
+                  strokeWidth={4} 
+                  fill="url(#profitGrad)"
+                  dot={{ r: 5, fill: '#0891b2', strokeWidth: 3, stroke: '#ffffff' }} 
+                  activeDot={{ r: 8, fill: '#06b6d4', stroke: '#ffffff', strokeWidth: 3 }} 
+                  isAnimationActive={true}
+                  animationDuration={1800}
+                  animationEasing="ease-out"
                 />
-                <Line type="monotone" dataKey="netProfit" stroke="#0891b2" strokeWidth={3} dot={{ r: 4, fill: '#0891b2', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Revenue Breakdown */}
-        <div className="bg-white p-6 border border-slate-200 rounded-3xl shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-6">
-            <Activity className="w-4 h-4 text-emerald-600" />
-            Profit Distribution (Medicine vs Treatment)
-          </h3>
-          <div className="h-72">
+        {/* CHART 2: PROFIT DISTRIBUTION (PIE CHART) */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.25 }}
+          className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
+        >
+          <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <Activity className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-serif font-semibold text-slate-900 leading-tight">
+                  Profit Distribution Split
+                </h3>
+                <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider">
+                  Medicine Stock vs Clinical Procedure Profit
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-400/30 rounded-full text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+              <ArrowUpRight className="w-3 h-3 text-emerald-600" />
+              Share Ratio
+            </span>
+          </div>
+
+          <div className="h-72 w-full flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -186,72 +265,155 @@ export default function AnalyticsTab({
                   cx="50%"
                   cy="50%"
                   innerRadius={70}
-                  outerRadius={100}
-                  paddingAngle={5}
+                  outerRadius={105}
+                  paddingAngle={6}
                   dataKey="value"
+                  isAnimationActive={true}
+                  animationDuration={1600}
+                  animationBegin={300}
                 >
                   {revenueBreakdown.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={PIE_COLORS[index % PIE_COLORS.length]} 
+                      stroke="#ffffff" 
+                      strokeWidth={3} 
+                    />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: any) => `₹${Number(value || 0).toLocaleString()}`} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#64748b' }} />
+                <Tooltip content={<Custom3DTooltip />} />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#475569', fontWeight: 600 }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Weekly Profit Bar Chart */}
-        <div className="bg-white p-6 border border-slate-200 rounded-3xl shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-6">
-            <Calendar className="w-4 h-4 text-indigo-600" />
-            Weekly Profit Trajectory (Last 10 Weeks)
-          </h3>
-          <div className="h-72">
+      {/* ═══ 3D CHARTS GRID (ROW 2) ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* CHART 3: WEEKLY PROFIT TRAJECTORY */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
+          className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
+        >
+          <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-serif font-semibold text-slate-900 leading-tight">
+                  Weekly Profit Trajectory
+                </h3>
+                <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider">
+                  Recent 10-Week Performance Cycles
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-400/30 rounded-full text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
+              10 Weeks
+            </span>
+          </div>
+
+          <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <BarChart data={weeklyData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+                <defs>
+                  <linearGradient id="barGradIndigo" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#4f46e5" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.6} />
                 <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
-                <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-                  formatter={(value: any) => [`₹${Number(value || 0).toLocaleString()}`, 'Profit']}
+                <Tooltip content={<Custom3DTooltip />} />
+                <Bar 
+                  dataKey="profit" 
+                  name="Weekly Profit"
+                  fill="url(#barGradIndigo)" 
+                  radius={[8, 8, 0, 0]} 
+                  barSize={32}
+                  isAnimationActive={true}
+                  animationDuration={1800}
+                  animationBegin={500}
                 />
-                <Bar dataKey="profit" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={32} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Expenses Composition over Months */}
-        <div className="bg-white p-6 border border-slate-200 rounded-3xl shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-6">
-            <DollarSign className="w-4 h-4 text-rose-500" />
-            Revenue vs Expenses (Monthly)
-          </h3>
-          <div className="h-72">
+        {/* CHART 4: REVENUE VS EXPENSES COMPOSITION */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.55 }}
+          className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
+        >
+          <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/20">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-serif font-semibold text-slate-900 leading-tight">
+                  Revenue vs Expenses Monthly
+                </h3>
+                <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider">
+                  Gross Income vs Total Operational Costs
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 bg-rose-500/10 border border-rose-400/30 rounded-full text-[10px] font-bold text-rose-700 uppercase tracking-wider">
+              Comparison
+            </span>
+          </div>
+
+          <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <BarChart data={monthlyData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+                <defs>
+                  <linearGradient id="barGradRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#059669" />
+                  </linearGradient>
+                  <linearGradient id="barGradExpenses" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f43f5e" />
+                    <stop offset="100%" stopColor="#e11d48" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.6} />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
-                <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-                  formatter={(value: any) => `₹${Number(value || 0).toLocaleString()}`}
+                <Tooltip content={<Custom3DTooltip />} />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#475569', fontWeight: 600 }} />
+                <Bar 
+                  dataKey="revenue" 
+                  name="Total Revenue" 
+                  fill="url(#barGradRevenue)" 
+                  radius={[8, 8, 0, 0]} 
+                  isAnimationActive={true}
+                  animationDuration={2000}
+                  animationBegin={600}
                 />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#64748b' }} />
-                <Bar dataKey="revenue" name="Total Revenue" fill="#059669" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expenses" name="Total Expenses" fill="#e11d48" radius={[4, 4, 0, 0]} />
+                <Bar 
+                  dataKey="expenses" 
+                  name="Total Expenses" 
+                  fill="url(#barGradExpenses)" 
+                  radius={[8, 8, 0, 0]} 
+                  isAnimationActive={true}
+                  animationDuration={2000}
+                  animationBegin={700}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
       </div>
 
-    </motion.div>
+    </div>
   )
 }

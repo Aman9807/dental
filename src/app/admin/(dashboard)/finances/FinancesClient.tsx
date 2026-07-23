@@ -804,21 +804,23 @@ export default function FinancesClient({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="space-y-6"
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className="perspective-stage space-y-7"
     >
       
-      {/* ════ SECTION 1: GLOBAL CONTROL BAR ════ */}
-      <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* ════ SECTION 1: GLOBAL CONTROL BAR (3D GLASS) ════ */}
+      <div className="card-3d glass-3d p-5 rounded-3xl shadow-xl border border-white/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
         
         {/* Branch Filters */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl self-start">
+        <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/50 rounded-2xl self-start backdrop-blur-sm border border-slate-200/40">
           <button
             onClick={() => setSelectedBranch('all')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-              selectedBranch === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all duration-300 ${
+              selectedBranch === 'all' 
+                ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md shadow-cyan-600/20' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
             All Branches
@@ -827,8 +829,10 @@ export default function FinancesClient({
             <button
               key={b.id}
               onClick={() => setSelectedBranch(b.slug)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                selectedBranch === b.slug ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all duration-300 ${
+                selectedBranch === b.slug 
+                  ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md shadow-cyan-600/20' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               {b.name.split(' ')[0]}
@@ -837,38 +841,38 @@ export default function FinancesClient({
         </div>
 
         {/* Month Selector & Extra Expense Button & Export Buttons */}
-        <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center flex-wrap gap-2.5">
           <div className="relative">
-            <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <Calendar className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-400" />
             <input
               type="month"
               value={selectedMonth}
               onChange={e => setSelectedMonth(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+              className="pl-10 pr-4 py-2 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:border-cyan-500 bg-white shadow-sm font-semibold text-slate-800"
             />
           </div>
 
           <button
             onClick={exportSalesLedger}
             title="Download CSV for Excel"
-            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-xl text-xs font-semibold shadow-sm transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-2xl text-xs font-semibold shadow-sm transition transform hover:scale-105"
           >
-            <CircleDollarSign className="w-3.5 h-3.5 text-emerald-600" />
+            <CircleDollarSign className="w-4 h-4 text-emerald-600" />
             Export Sales (CSV)
           </button>
 
           <button
             onClick={exportPatientDirectory}
             title="Download CSV for Excel"
-            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-xl text-xs font-semibold shadow-sm transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-2xl text-xs font-semibold shadow-sm transition transform hover:scale-105"
           >
-            <User2 className="w-3.5 h-3.5 text-cyan-600" />
+            <User2 className="w-4 h-4 text-cyan-600" />
             Export Patients (CSV)
           </button>
 
           <button
             onClick={() => setShowAddExpense(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-rose-600/15 transition transform hover:scale-105"
           >
             <PlusCircle className="w-4 h-4" /> Add Extra Expense
           </button>
@@ -876,51 +880,53 @@ export default function FinancesClient({
 
       </div>
 
-      {/* ════ SECTION 2: STATS OVERVIEW ════ */}
+      {/* ════ SECTION 2: STATS OVERVIEW (3D CARDS) ════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
-        <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-1">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Gross Charged</p>
-          <p className="text-xl font-semibold text-slate-800">INR {totals.totalCharged.toLocaleString()}</p>
+        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-white/80 space-y-1">
+          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Gross Charged</p>
+          <p className="text-xl font-bold font-mono text-slate-900">INR {totals.totalCharged.toLocaleString()}</p>
         </div>
 
-        <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-1">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Treatment Costs</p>
-          <p className="text-xl font-semibold text-slate-500">INR {totals.totalTreatmentCost.toLocaleString()}</p>
+        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-white/80 space-y-1">
+          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Treatment Costs</p>
+          <p className="text-xl font-bold font-mono text-slate-500">INR {totals.totalTreatmentCost.toLocaleString()}</p>
         </div>
 
-        <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-1">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Treatment Profits</p>
-          <p className="text-xl font-semibold text-teal-600">INR {totals.treatmentProfit.toLocaleString()}</p>
+        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-teal-200/60 bg-gradient-to-br from-teal-50/60 to-emerald-50/60 space-y-1">
+          <p className="text-[10px] text-teal-700 uppercase tracking-wider font-bold">Treatment Profits</p>
+          <p className="text-xl font-bold font-mono text-teal-600">INR {totals.treatmentProfit.toLocaleString()}</p>
         </div>
 
-        <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-1">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Total Expenses</p>
-          <p className="text-xl font-semibold text-rose-600">INR {totals.totalExpenses.toLocaleString()}</p>
+        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-rose-200/60 bg-gradient-to-br from-rose-50/60 to-amber-50/60 space-y-1">
+          <p className="text-[10px] text-rose-700 uppercase tracking-wider font-bold">Total Expenses</p>
+          <p className="text-xl font-bold font-mono text-rose-600">INR {totals.totalExpenses.toLocaleString()}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-5 border border-slate-900 rounded-2xl shadow-md text-white space-y-1">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light">Net Profits</p>
-          <p className="text-xl font-semibold">INR {totals.netProfit.toLocaleString()}</p>
+        <div className="card-3d glass-3d-dark p-5 rounded-3xl shadow-2xl border border-white/10 text-white space-y-1">
+          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Net Profits</p>
+          <p className="text-xl font-bold font-mono text-cyan-400">INR {totals.netProfit.toLocaleString()}</p>
         </div>
 
       </div>
 
-      {/* ════ SECTION 3: TABS NAVIGATION ════ */}
-      <div className="border-b border-slate-200 flex gap-4 text-xs font-semibold">
+      {/* ════ SECTION 3: TABS NAVIGATION (3D GLASS DECK) ════ */}
+      <div className="card-3d glass-3d p-2 rounded-2xl shadow-lg border border-white/80 flex items-center gap-2 overflow-x-auto">
         {[
-          { key: 'analytics', label: 'Graphs & Analytics' },
-          { key: 'closing', label: 'Closing Time Payouts' },
-          { key: 'attendance', label: 'Attendance Logger' },
-          { key: 'helpers', label: 'Helper Boys Details' },
-          { key: 'doctors', label: 'Doctor Earnings' },
-          { key: 'extra', label: 'Extra Expenses Log' }
+          { key: 'analytics', label: '📊 Graphs & Analytics' },
+          { key: 'closing', label: '💰 Closing Time Payouts' },
+          { key: 'attendance', label: '📅 Attendance Logger' },
+          { key: 'helpers', label: '👷 Helper Boys Details' },
+          { key: 'doctors', label: '👨‍⚕️ Doctor Earnings' },
+          { key: 'extra', label: '📝 Extra Expenses Log' }
         ].map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key as any)}
-            className={`pb-3 border-b-2 px-1 transition ${
-              activeTab === tab.key ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'
+            className={`px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
+              activeTab === tab.key 
+                ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-cyan-400 shadow-md border border-white/10' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
             }`}
           >
             {tab.label}
