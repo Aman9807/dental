@@ -184,7 +184,7 @@ export default function Home() {
               variants={cardVariantLeft}
               whileHover={{
                 y: -8,
-                transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] }
+                transition: { duration: 0.85, ease: [0.25, 0.1, 0.25, 1] as const }
               }}
               className="group relative h-full card-3d glass-3d border border-white/80 rounded-3xl p-8 flex flex-col justify-between overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-cyan-500/20 transform-gpu subpixel-antialiased"
             >
@@ -192,10 +192,10 @@ export default function Home() {
               <div className="absolute -top-12 -right-12 w-44 h-44 bg-gradient-to-br from-cyan-400/20 to-teal-400/20 rounded-full blur-2xl group-hover:from-cyan-400/35 group-hover:to-teal-400/35 transition-all duration-700 pointer-events-none" />
               
               <div className="relative z-10">
-                <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-2xl text-white mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 ease-out shadow-md shadow-cyan-500/25">
+                <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-2xl text-white mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-700 ease-out shadow-md shadow-cyan-500/25">
                   <MapPin className="w-6 h-6 animate-pulse" />
                 </div>
-                <h2 className="text-2xl font-serif font-bold text-slate-900 mb-3 group-hover:text-cyan-700 transition-colors duration-300">
+                <h2 className="text-2xl font-serif font-bold text-slate-900 mb-3 group-hover:text-cyan-700 transition-colors duration-500">
                   Hazara Dental Clinic
                 </h2>
                 <p className="text-slate-600 text-sm font-light leading-relaxed mb-6">
@@ -203,15 +203,15 @@ export default function Home() {
                 </p>
                 
                 <ul className="space-y-3 text-xs text-slate-600 font-medium mb-8">
-                  <motion.li whileHover={{ x: 6 }} className="flex items-center gap-2.5 transition-transform duration-200">
+                  <motion.li whileHover={{ x: 6, transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const } }} className="flex items-center gap-2.5 transition-transform duration-500">
                     <span className="w-2 h-2 rounded-full bg-cyan-500 shrink-0 shadow-sm shadow-cyan-500/50" />
                     Orthodontics & Invisible Braces
                   </motion.li>
-                  <motion.li whileHover={{ x: 6 }} className="flex items-center gap-2.5 transition-transform duration-200">
+                  <motion.li whileHover={{ x: 6, transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const } }} className="flex items-center gap-2.5 transition-transform duration-500">
                     <span className="w-2 h-2 rounded-full bg-teal-500 shrink-0 shadow-sm shadow-teal-500/50" />
                     Dental Implants & Laser Surgery
                   </motion.li>
-                  <motion.li whileHover={{ x: 6 }} className="flex items-center gap-2.5 transition-transform duration-200">
+                  <motion.li whileHover={{ x: 6, transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const } }} className="flex items-center gap-2.5 transition-transform duration-500">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/50" />
                     Professional Laser Teeth Whitening
                   </motion.li>
@@ -220,10 +220,10 @@ export default function Home() {
 
               <Link 
                 href="/hazara"
-                className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:from-cyan-700 hover:to-emerald-700 text-white rounded-2xl font-bold text-sm transition-all duration-300 shadow-lg shadow-cyan-600/20 hover:shadow-xl hover:shadow-cyan-600/30 btn-shimmer"
+                className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:from-cyan-700 hover:to-emerald-700 text-white rounded-2xl font-bold text-sm transition-all duration-500 shadow-lg shadow-cyan-600/20 hover:shadow-xl hover:shadow-cyan-600/30 btn-shimmer"
               >
                 Visit Hazara Branch Portal
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-500" />
               </Link>
             </motion.div>
 
@@ -232,7 +232,7 @@ export default function Home() {
               variants={cardVariantRight}
               whileHover={{
                 y: -8,
-                transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] }
+                transition: { duration: 0.85, ease: [0.25, 0.1, 0.25, 1] as const }
               }}
               className="group relative h-full card-3d glass-3d border border-white/80 rounded-3xl p-8 flex flex-col justify-between overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-amber-500/20 transform-gpu subpixel-antialiased"
             >
@@ -240,10 +240,10 @@ export default function Home() {
               <div className="absolute -top-12 -right-12 w-44 h-44 bg-gradient-to-br from-amber-400/20 to-orange-400/20 rounded-full blur-2xl group-hover:from-amber-400/35 group-hover:to-orange-400/35 transition-all duration-700 pointer-events-none" />
 
               <div className="relative z-10">
-                <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl text-white mb-6 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500 ease-out shadow-md shadow-amber-500/25">
+                <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl text-white mb-6 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-700 ease-out shadow-md shadow-amber-500/25">
                   <MapPin className="w-6 h-6 animate-pulse" />
                 </div>
-                <h2 className="text-2xl font-serif font-bold text-slate-900 mb-3 group-hover:text-amber-800 transition-colors duration-300">
+                <h2 className="text-2xl font-serif font-bold text-slate-900 mb-3 group-hover:text-amber-800 transition-colors duration-500">
                   Family Dental Clinic
                 </h2>
                 <p className="text-slate-600 text-sm font-light leading-relaxed mb-6">
@@ -251,15 +251,15 @@ export default function Home() {
                 </p>
                 
                 <ul className="space-y-3 text-xs text-slate-600 font-medium mb-8">
-                  <motion.li whileHover={{ x: 6 }} className="flex items-center gap-2.5 transition-transform duration-200">
+                  <motion.li whileHover={{ x: 6, transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const } }} className="flex items-center gap-2.5 transition-transform duration-500">
                     <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 shadow-sm shadow-amber-500/50" />
                     Gentle Pediatric Dental Care
                   </motion.li>
-                  <motion.li whileHover={{ x: 6 }} className="flex items-center gap-2.5 transition-transform duration-200">
+                  <motion.li whileHover={{ x: 6, transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const } }} className="flex items-center gap-2.5 transition-transform duration-500">
                     <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 shadow-sm shadow-orange-500/50" />
                     Routine Preventive Cleanings
                   </motion.li>
-                  <motion.li whileHover={{ x: 6 }} className="flex items-center gap-2.5 transition-transform duration-200">
+                  <motion.li whileHover={{ x: 6, transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const } }} className="flex items-center gap-2.5 transition-transform duration-500">
                     <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-sm shadow-rose-500/50" />
                     Aesthetic Restorations & White Fillings
                   </motion.li>
@@ -268,10 +268,10 @@ export default function Home() {
 
               <Link 
                 href="/family"
-                className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 text-white rounded-2xl font-bold text-sm transition-all duration-300 shadow-lg shadow-amber-600/20 hover:shadow-xl hover:shadow-amber-600/30 btn-shimmer"
+                className="relative z-10 inline-flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 text-white rounded-2xl font-bold text-sm transition-all duration-500 shadow-lg shadow-amber-600/20 hover:shadow-xl hover:shadow-amber-600/30 btn-shimmer"
               >
                 Visit Family Branch Portal
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-500" />
               </Link>
             </motion.div>
 
