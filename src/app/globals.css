@@ -209,16 +209,6 @@ html {
   100% { background-position: 0% 50%; }
 }
 
-@keyframes float3D {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-12px) rotate(1.5deg); }
-}
-
-@keyframes float3DReverse {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(12px) rotate(-1.5deg); }
-}
-
 @keyframes cardGlowPulse {
   0%, 100% { 
     box-shadow: 0 10px 30px -10px rgba(6, 182, 212, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.8);
@@ -230,7 +220,7 @@ html {
 
 @keyframes badgeBounce {
   0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-4px) scale(1.03); }
+  50% { transform: translateY(-4px) scale(1.02); }
 }
 
 @keyframes staggerFadeInUp {
@@ -250,14 +240,6 @@ html {
 .animate-text-gradient {
   background-size: 200% 200%;
   animation: textGradientFlow 5s ease infinite;
-}
-
-.animate-float-3d {
-  animation: float3D 6s ease-in-out infinite;
-}
-
-.animate-float-3d-reverse {
-  animation: float3DReverse 7s ease-in-out infinite;
 }
 
 .animate-glow-pulse {
@@ -341,9 +323,11 @@ html {
    ═══════════════════════════════════════════ */
 .scroll-hidden {
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity var(--duration-slower) var(--ease-out-expo),
-              transform var(--duration-slower) var(--ease-out-expo);
+  transform: translateY(28px);
+  will-change: opacity, transform;
+  transition: opacity var(--duration-slowest) var(--ease-out-expo),
+              transform var(--duration-slowest) var(--ease-out-expo);
+  backface-visibility: hidden;
 }
 
 .scroll-visible {
@@ -353,30 +337,44 @@ html {
 
 .scroll-hidden-left {
   opacity: 0;
-  transform: translateX(-30px);
-  transition: opacity var(--duration-slower) var(--ease-out-expo),
-              transform var(--duration-slower) var(--ease-out-expo);
+  transform: translateY(24px) translateX(-16px);
+  will-change: opacity, transform;
+  transition: opacity var(--duration-slowest) var(--ease-out-expo),
+              transform var(--duration-slowest) var(--ease-out-expo);
+  backface-visibility: hidden;
+}
+
+.scroll-visible-left {
+  opacity: 1;
+  transform: translateY(0) translateX(0);
 }
 
 .scroll-hidden-right {
   opacity: 0;
-  transform: translateX(30px);
-  transition: opacity var(--duration-slower) var(--ease-out-expo),
-              transform var(--duration-slower) var(--ease-out-expo);
+  transform: translateY(24px) translateX(16px);
+  will-change: opacity, transform;
+  transition: opacity var(--duration-slowest) var(--ease-out-expo),
+              transform var(--duration-slowest) var(--ease-out-expo);
+  backface-visibility: hidden;
+}
+
+.scroll-visible-right {
+  opacity: 1;
+  transform: translateY(0) translateX(0);
 }
 
 .scroll-hidden-scale {
   opacity: 0;
   transform: scale(0.92);
-  transition: opacity var(--duration-slower) var(--ease-out-expo),
-              transform var(--duration-slower) var(--ease-out-expo);
+  will-change: opacity, transform;
+  transition: opacity var(--duration-slowest) var(--ease-out-expo),
+              transform var(--duration-slowest) var(--ease-out-expo);
+  backface-visibility: hidden;
 }
 
-.scroll-visible-left,
-.scroll-visible-right,
 .scroll-visible-scale {
   opacity: 1;
-  transform: translateX(0) scale(1);
+  transform: scale(1);
 }
 
 /* ═══════════════════════════════════════════
@@ -578,6 +576,9 @@ html {
 /* ═══════════════════════════════════════════
    3D & SPATIAL UTILITIES (ANTIGRAVITY DESIGN - ULTRA SHARP TEXT)
    ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   3D & SPATIAL UTILITIES (ANTIGRAVITY DESIGN - ULTRA SMOOTH TEXT & CARDS)
+   ═══════════════════════════════════════════ */
 .perspective-stage {
   perspective: 1200px;
   perspective-origin: 50% 30%;
@@ -588,46 +589,23 @@ html {
 }
 
 .card-3d {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+  will-change: transform, box-shadow;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .card-3d:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 24px 48px -12px rgba(6, 182, 212, 0.16), 0 12px 24px -8px rgba(0, 0, 0, 0.06);
-}
-
-.card-3d-tilt-left:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 24px 48px -12px rgba(16, 185, 129, 0.16), 0 12px 24px -8px rgba(0, 0, 0, 0.06);
-}
-
-.card-3d-tilt-right:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 24px 48px -12px rgba(245, 158, 11, 0.16), 0 12px 24px -8px rgba(0, 0, 0, 0.06);
-}
-
-.floating-3d {
-  animation: float3d 6s ease-in-out infinite;
-  backface-visibility: hidden;
-}
-
-@keyframes float3d {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
+  transform: translateY(-8px);
+  box-shadow: 0 28px 56px -12px rgba(6, 182, 212, 0.18), 0 14px 28px -8px rgba(0, 0, 0, 0.08);
 }
 
 .glass-3d {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.85);
   box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.06),
               inset 0 1px 1px 0 rgba(255, 255, 255, 1);
   backface-visibility: hidden;
