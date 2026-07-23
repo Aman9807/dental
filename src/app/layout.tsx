@@ -22,7 +22,10 @@ export const metadata: Metadata = {
   },
   description: "Book free dental appointments at Hazara Dental Clinic or Family Dental Clinic.",
   icons: {
-    icon: "/logo.png",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/logo.png", type: "image/png" },
+    ],
     shortcut: "/logo.png",
     apple: "/logo.png",
   },

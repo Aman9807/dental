@@ -11,15 +11,17 @@ export default function DentalLogo({ className = '', iconOnly = true, size = 36 
   return (
     <div className={`inline-flex items-center gap-3 ${className}`}>
       <div 
-        className="relative flex items-center justify-center rounded-2xl overflow-hidden shadow-md shadow-cyan-500/20 group cursor-pointer border border-cyan-100/80 bg-white transition-all duration-300 hover:scale-105 shrink-0"
+        className="relative flex items-center justify-center rounded-2xl overflow-hidden shadow-md shadow-cyan-500/20 group cursor-pointer border border-cyan-200/80 bg-white transition-all duration-300 hover:scale-105 shrink-0"
         style={{ width: size, height: size }}
       >
         <Image
           src="/logo.png"
           alt="Dental Clinic Logo Mark"
-          width={size}
-          height={size}
-          className="object-cover w-full h-full rounded-2xl transition-transform duration-300 group-hover:scale-110"
+          width={256}
+          height={256}
+          unoptimized
+          style={{ imageRendering: 'crisp-edges' }}
+          className="object-contain w-full h-full p-0.5 rounded-2xl transition-transform duration-300 group-hover:scale-110"
           priority
         />
       </div>
