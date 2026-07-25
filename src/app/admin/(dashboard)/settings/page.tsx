@@ -575,7 +575,7 @@ export default function AdminSettingsPage() {
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 85, damping: 15 }}
+      transition={{ type: "spring", stiffness: 75, damping: 18 }}
       className="perspective-stage space-y-7 font-sans max-w-6xl text-pretty"
     >
       
@@ -621,7 +621,7 @@ export default function AdminSettingsPage() {
                 <motion.div
                   layoutId="activeTabIndicator"
                   className="absolute inset-0 bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl -z-10 shadow-md border border-white/10"
-                  transition={{ type: "spring", stiffness: 380, damping: 26 }}
+                  transition={{ type: "spring", stiffness: 120, damping: 22 }}
                 />
               )}
               <Icon className={`w-4 h-4 transition-colors duration-200 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
@@ -641,7 +641,7 @@ export default function AdminSettingsPage() {
             initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            transition={{ type: "spring", stiffness: 110, damping: 20 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Password Change */}
@@ -690,7 +690,11 @@ export default function AdminSettingsPage() {
                 </h3>
                 
                 {/* Interactive Tooltip Icon */}
-                <div className="relative group">
+                <div 
+                  className="relative"
+                  onMouseEnter={() => setShowDoctorRuleInfo(true)}
+                  onMouseLeave={() => setShowDoctorRuleInfo(false)}
+                >
                   <button 
                     type="button" 
                     onClick={() => setShowDoctorRuleInfo(!showDoctorRuleInfo)}
@@ -700,18 +704,26 @@ export default function AdminSettingsPage() {
                     i
                   </button>
 
-                  <div className={`absolute right-0 top-8 w-72 p-4 bg-slate-900 text-white text-xs rounded-2xl shadow-2xl z-50 space-y-2.5 transition-all duration-200 border border-white/10 ${
-                    showDoctorRuleInfo ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-hover:scale-100'
-                  }`}>
-                    <div className="flex justify-between items-center border-b border-slate-700 pb-1.5">
-                      <strong className="text-cyan-400 font-semibold text-[11px] uppercase tracking-wider">Payout Rule Explanation</strong>
-                      <button onClick={() => setShowDoctorRuleInfo(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
-                    </div>
-                    <div className="space-y-2 text-[11px] leading-relaxed text-slate-300">
-                      <p><strong className="text-white">Option 1 (Present Days Only):</strong> Profit share is calculated strictly on days the doctor was present in clinic.</p>
-                      <p><strong className="text-white">Option 2 (Full Month Branch Profit):</strong> Profit share is calculated on the total net monthly branch profit regardless of individual absent days.</p>
-                    </div>
-                  </div>
+                  <AnimatePresence>
+                    {showDoctorRuleInfo && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                        transition={{ type: "spring", stiffness: 100, damping: 20 }}
+                        className="absolute right-0 top-8 w-72 p-4 bg-slate-900 text-white text-xs rounded-2xl shadow-2xl z-50 space-y-2.5 border border-white/10"
+                      >
+                        <div className="flex justify-between items-center border-b border-slate-700 pb-1.5">
+                          <strong className="text-cyan-400 font-semibold text-[11px] uppercase tracking-wider">Payout Rule Explanation</strong>
+                          <button onClick={() => setShowDoctorRuleInfo(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+                        </div>
+                        <div className="space-y-2 text-[11px] leading-relaxed text-slate-300">
+                          <p><strong className="text-white">Option 1 (Present Days Only):</strong> Profit share is calculated strictly on days the doctor was present in clinic.</p>
+                          <p><strong className="text-white">Option 2 (Full Month Branch Profit):</strong> Profit share is calculated on the total net monthly branch profit regardless of individual absent days.</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
@@ -765,7 +777,7 @@ export default function AdminSettingsPage() {
             initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            transition={{ type: "spring", stiffness: 110, damping: 20 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Branch Operating Hours */}
@@ -888,7 +900,7 @@ export default function AdminSettingsPage() {
             initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            transition={{ type: "spring", stiffness: 110, damping: 20 }}
             className="grid grid-cols-1 md:grid-cols-3 gap-7 text-pretty"
           >
             {/* Add Treatment */}
@@ -997,7 +1009,7 @@ export default function AdminSettingsPage() {
             initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            transition={{ type: "spring", stiffness: 110, damping: 20 }}
             className="space-y-7 text-pretty"
           >
             {/* Branch Selector for Inventory */}
@@ -1027,7 +1039,7 @@ export default function AdminSettingsPage() {
                         <motion.div
                           layoutId="branchInventoryActive"
                           className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-teal-600 rounded-lg -z-10 shadow-sm"
-                          transition={{ type: "spring", stiffness: 380, damping: 25 }}
+                          transition={{ type: "spring", stiffness: 120, damping: 22 }}
                         />
                       )}
                       {branch === 'hazara' ? 'Hazara Dental Clinic' : 'Family Dental Clinic'}
@@ -1232,7 +1244,7 @@ export default function AdminSettingsPage() {
             initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            transition={{ type: "spring", stiffness: 110, damping: 20 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7 text-pretty"
           >
             {/* Channel Selection Card */}
@@ -1343,17 +1355,6 @@ export default function AdminSettingsPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* ════ SECTION 4: SECURITY AUTHORIZATION NOTICE ════ */}
-      <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-rose-200/60 bg-gradient-to-br from-rose-50/40 via-white to-amber-50/40 space-y-2">
-        <h3 className="text-sm font-bold text-rose-900 flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-rose-600" />
-          Administrator Authorization Notice
-        </h3>
-        <p className="text-xs text-slate-600 font-medium leading-relaxed">
-          This system control terminal manages critical clinic configurations, financial payout policies, database inventory records, and authorization keys. Store all login passcodes and tokens securely.
-        </p>
-      </div>
 
     </motion.div>
   )
