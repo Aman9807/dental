@@ -111,7 +111,7 @@ export default function MessagingCampaignPage() {
     >
       
       {/* ══ HEADER ══ */}
-      <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="clay p-6 border border-slate-200/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="p-3 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl text-emerald-400 shadow-md">
             <MessageSquare className="w-6 h-6" />
@@ -131,7 +131,7 @@ export default function MessagingCampaignPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         
         {/* Same-Day Reminders */}
-        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-white/80 flex items-center justify-between gap-4">
+        <div className="clay p-5 border border-slate-200/60 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-cyan-50 text-cyan-700 rounded-2xl border border-cyan-100">
               <Bell className="w-5 h-5" />
@@ -153,7 +153,7 @@ export default function MessagingCampaignPage() {
         </div>
 
         {/* Birthday Greetings */}
-        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-white/80 flex items-center justify-between gap-4">
+        <div className="clay p-5 border border-slate-200/60 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100">
               <Gift className="w-5 h-5" />
@@ -188,7 +188,7 @@ export default function MessagingCampaignPage() {
         
         {/* Campaign Composer */}
         <div className="md:col-span-1">
-          <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4 sticky top-6">
+          <div className="clay p-6 border border-slate-200/60 space-y-4 sticky top-6">
             <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
               <Send className="w-4 h-4 text-emerald-600" />
               Compose Broadcast Campaign
@@ -255,7 +255,7 @@ export default function MessagingCampaignPage() {
 
         {/* Message Delivery Logs */}
         <div className="md:col-span-2">
-          <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+          <div className="clay p-6 border border-slate-200/60 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-emerald-600" />

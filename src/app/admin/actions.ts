@@ -1418,6 +1418,11 @@ export async function createInvoice(
         if (itemErr) throw itemErr
       }
     }
+    // 4. Automatically mark the appointment status as 'completed'
+    await adminDb
+      .from('appointments')
+      .update({ status: 'completed' })
+      .eq('id', appointmentId)
 
     return { success: true, invoiceId }
   } catch (err: any) {

@@ -395,6 +395,20 @@ export default function FinancesClient({
       const apptMonthStr = `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}`
       if (apptMonthStr !== selectedMonth) return false
       if (selectedBranch !== 'all' && appt.branches?.slug !== selectedBranch) return false
+      
+      // Grouping filter: If this appointment has no invoices, check if another appointment for the same patient on the same day has invoices
+      const hasInvoice = appt.invoices && appt.invoices.length > 0
+      if (!hasInvoice && appt.patients?.id) {
+        const hasAlternativeBilled = appointments.some(other => 
+          other.id !== appt.id &&
+          other.patients?.id === appt.patients?.id &&
+          other.appointment_date === appt.appointment_date &&
+          other.invoices && other.invoices.length > 0
+        )
+        if (hasAlternativeBilled) {
+          return false // Skip duplicate invoice-less rows since patient has a finalized invoice today
+        }
+      }
       return true
     })
   }
@@ -888,8 +902,8 @@ export default function FinancesClient({
       className="perspective-stage space-y-7"
     >
       
-      {/* ════ SECTION 1: GLOBAL CONTROL BAR (3D GLASS) ════ */}
-      <div className="card-3d glass-3d p-5 rounded-3xl shadow-xl border border-white/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* ════ SECTION 1: GLOBAL CONTROL BAR (CLAYMORPHISM) ════ */}
+      <div className="clay p-5 border border-slate-200/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
         
         {/* Branch Filters */}
         <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/50 rounded-2xl self-start backdrop-blur-sm border border-slate-200/40">
@@ -958,38 +972,37 @@ export default function FinancesClient({
 
       </div>
 
-      {/* ════ SECTION 2: STATS OVERVIEW (3D CARDS) ════ */}
+      {/* ════ SECTION 2: STATS OVERVIEW (CLAY CARDS) ════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
-        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-white/80 space-y-1">
+        <div className="clay p-5 border border-slate-200/60 space-y-1">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Gross Charged</p>
           <p className="text-xl font-bold font-mono text-slate-900">INR {totals.totalCharged.toLocaleString()}</p>
         </div>
 
-        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-white/80 space-y-1">
+        <div className="clay p-5 border border-slate-200/60 space-y-1">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Treatment Costs</p>
           <p className="text-xl font-bold font-mono text-slate-500">INR {totals.totalTreatmentCost.toLocaleString()}</p>
         </div>
 
-        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-teal-200/60 bg-gradient-to-br from-teal-50/60 to-emerald-50/60 space-y-1">
+        <div className="clay clay-emerald p-5 border border-teal-100/50 space-y-1">
           <p className="text-[10px] text-teal-700 uppercase tracking-wider font-bold">Treatment Profits</p>
           <p className="text-xl font-bold font-mono text-teal-600">INR {totals.treatmentProfit.toLocaleString()}</p>
         </div>
 
-        <div className="card-3d glass-3d p-5 rounded-3xl shadow-lg border border-rose-200/60 bg-gradient-to-br from-rose-50/60 to-amber-50/60 space-y-1">
+        <div className="clay clay-rose p-5 border border-rose-100/50 space-y-1">
           <p className="text-[10px] text-rose-700 uppercase tracking-wider font-bold">Total Expenses</p>
           <p className="text-xl font-bold font-mono text-rose-600">INR {totals.totalExpenses.toLocaleString()}</p>
         </div>
 
-        <div className="card-3d glass-3d-dark p-5 rounded-3xl shadow-2xl border border-white/10 text-white space-y-1">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Net Profits</p>
-          <p className="text-xl font-bold font-mono text-cyan-400">INR {totals.netProfit.toLocaleString()}</p>
+        <div className="clay clay-cyan p-5 border border-cyan-100/50 text-slate-800 space-y-1">
+          <p className="text-[10px] text-cyan-700 uppercase tracking-wider font-bold">Net Profits</p>
+          <p className="text-xl font-bold font-mono text-cyan-600">INR {totals.netProfit.toLocaleString()}</p>
         </div>
 
       </div>
 
-      {/* ════ SECTION 3: TABS NAVIGATION (3D GLASS DECK) ════ */}
-      <div className="card-3d glass-3d p-2 rounded-2xl shadow-lg border border-white/80 flex items-center gap-2 overflow-x-auto">
+      <div className="clay p-2 border border-slate-200/60 flex items-center gap-2 overflow-x-auto">
         {[
           { key: 'analytics', label: '📊 Graphs & Analytics' },
           { key: 'closing', label: '💰 Closing Time Payouts' },
@@ -1029,7 +1042,7 @@ export default function FinancesClient({
         )}
         
         {activeTab === 'closing' && (
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden p-6 space-y-4">
+        <div className="clay border border-slate-200/60 overflow-hidden p-6 space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-slate-500" />
@@ -1323,7 +1336,7 @@ export default function FinancesClient({
                   const todayStr = new Date().toISOString().split('T')[0]
 
                   return (
-                    <div key={doc.id} className="p-5 bg-white/80 rounded-3xl border border-slate-200/80 space-y-3 shadow-sm">
+                    <div key={doc.id} className="clay border border-slate-200/60 p-5 space-y-3">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-slate-900">Dr. {doc.name}</span>
                         <div className="flex gap-2">
@@ -1398,7 +1411,7 @@ export default function FinancesClient({
                   const todayStr = new Date().toISOString().split('T')[0]
 
                   return (
-                    <div key={helper.id} className="p-5 bg-white/80 rounded-3xl border border-slate-200/80 space-y-4 shadow-sm">
+                    <div key={helper.id} className="clay border border-slate-200/60 p-5 space-y-4">
                       <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2">
                         <div>
                           <span className="font-bold text-slate-900">{helper.name}</span>
@@ -1511,9 +1524,8 @@ export default function FinancesClient({
         </div>
       )}
 
-      {/* 4C. HELPER BOYS MANAGEMENT */}
       {activeTab === 'helpers' && (
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 space-y-6">
+        <div className="clay border border-slate-200/60 p-6 space-y-6">
           <div className="flex justify-between items-center border-b pb-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
@@ -1627,9 +1639,8 @@ export default function FinancesClient({
         </div>
       )}
 
-      {/* 4D. DOCTOR COMPENSATION LIST */}
       {activeTab === 'doctors' && (
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 space-y-4">
+        <div className="clay border border-slate-200/60 p-6 space-y-4">
           <div className="border-b pb-3">
             <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4 text-slate-500" />
@@ -1744,9 +1755,8 @@ export default function FinancesClient({
         </div>
       )}
 
-      {/* 4E. EXTRA EXPENSES */}
       {activeTab === 'extra' && (
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 space-y-4">
+        <div className="clay border border-slate-200/60 p-6 space-y-4">
           <div className="border-b pb-3 flex justify-between items-center">
             <div>
               <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">

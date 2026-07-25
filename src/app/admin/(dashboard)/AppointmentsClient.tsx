@@ -361,58 +361,70 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       {/* 1. Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        <div className="bg-white p-6 border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-sm">
+        <motion.div 
+          whileHover={{ y: -3 }}
+          className="clay clay-cyan p-6 border border-slate-200/20 flex items-center justify-between"
+        >
           <div className="space-y-1">
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-light">Total Appointments</p>
-            <p className="text-2xl font-semibold text-slate-800">{totalCount}</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Appointments</p>
+            <p className="text-2xl font-serif font-bold text-slate-800">{totalCount}</p>
           </div>
-          <div className="p-3 bg-slate-50 rounded-xl text-slate-700">
+          <div className="p-3.5 bg-white/70 rounded-2xl text-slate-700 shadow-sm">
             <Building className="w-5 h-5" />
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-6 border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-sm">
+        <motion.div 
+          whileHover={{ y: -3 }}
+          className="clay clay-amber p-6 border border-slate-200/20 flex items-center justify-between"
+        >
           <div className="space-y-1">
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-light">Pending Review</p>
-            <p className="text-2xl font-semibold text-amber-600">{pendingCount}</p>
+            <p className="text-xs text-amber-700 uppercase tracking-wider font-semibold">Pending Review</p>
+            <p className="text-2xl font-serif font-bold text-amber-800">{pendingCount}</p>
           </div>
-          <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
+          <div className="p-3.5 bg-white/70 rounded-2xl text-amber-700 shadow-sm">
             <Clock className="w-5 h-5" />
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-6 border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-sm">
+        <motion.div 
+          whileHover={{ y: -3 }}
+          className="clay clay-violet p-6 border border-slate-200/20 flex items-center justify-between"
+        >
           <div className="space-y-1">
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-light">Confirmed Slots</p>
-            <p className="text-2xl font-semibold text-blue-600">{confirmedCount}</p>
+            <p className="text-xs text-violet-700 uppercase tracking-wider font-semibold">Confirmed Slots</p>
+            <p className="text-2xl font-serif font-bold text-violet-800">{confirmedCount}</p>
           </div>
-          <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+          <div className="p-3.5 bg-white/70 rounded-2xl text-violet-700 shadow-sm">
             <CheckCircle2 className="w-5 h-5" />
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-6 border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-sm">
+        <motion.div 
+          whileHover={{ y: -3 }}
+          className="clay clay-emerald p-6 border border-slate-200/20 flex items-center justify-between"
+        >
           <div className="space-y-1">
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-light">Completed Care</p>
-            <p className="text-2xl font-semibold text-emerald-600">{completedCount}</p>
+            <p className="text-xs text-emerald-700 uppercase tracking-wider font-semibold">Completed Care</p>
+            <p className="text-2xl font-serif font-bold text-emerald-800">{completedCount}</p>
           </div>
-          <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
+          <div className="p-3.5 bg-white/70 rounded-2xl text-emerald-700 shadow-sm">
             <Check className="w-5 h-5" />
           </div>
-        </div>
+        </motion.div>
 
       </div>
 
       {/* 2. Search and Filters Bar */}
-      <div className="bg-white p-5 border border-slate-200/80 rounded-2xl shadow-sm space-y-4">
+      <div className="clay p-5 border border-slate-200/60 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           
           {/* Branch Filter Tabs & Book Offline Button */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl self-start">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl self-start">
               <button
                 onClick={() => setSelectedBranch('all')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all ${
                   selectedBranch === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -422,7 +434,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                 <button
                   key={b.id}
                   onClick={() => setSelectedBranch(b.slug)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all ${
                     selectedBranch === b.slug ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
@@ -431,7 +443,9 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
               ))}
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => {
                 setOfflineName('')
                 setOfflineEmail('')
@@ -444,21 +458,21 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                 setOfflineProblem('')
                 setShowOfflineModal(true)
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-white rounded-2xl text-xs font-semibold shadow-md transition shrink-0"
             >
               <Plus className="w-3.5 h-3.5" /> Book Offline
-            </button>
+            </motion.button>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Date Filter */}
             <div className="relative">
-              <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+              <Calendar className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
               <input
                 type="date"
                 value={selectedDate}
                 onChange={e => setSelectedDate(e.target.value)}
-                className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                className="pl-9 pr-4 py-2.5 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:border-slate-800 bg-white shadow-inner-sm transition"
               />
               {selectedDate && (
                 <button
@@ -472,13 +486,13 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
 
             {/* Search Input */}
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search patient, email, phone..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 w-full border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                className="pl-9 pr-4 py-2.5 w-full border border-slate-200 rounded-2xl text-xs focus:outline-none focus:border-slate-800 bg-white shadow-inner-sm transition"
               />
             </div>
           </div>
@@ -487,7 +501,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       </div>
 
       {/* 3. Table Card */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+      <div className="clay border border-slate-200/60 overflow-hidden">
         {filteredAppointments.length === 0 ? (
           <div className="p-12 text-center text-slate-400">
             <AlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-4" />
@@ -621,7 +635,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       {/* ═══ 4. DIAGNOSTIC REPORTS MODAL ═══ */}
       {showReportsModal && activeAppt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col justify-between animate-fade-in-up">
+          <div className="clay border border-slate-200/60 w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col justify-between animate-fade-in-up">
             
             {/* Modal Header */}
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-3xl">
@@ -916,7 +930,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       {/* 5. MODAL overlay for BOOK OFFLINE APPOINTMENT */}
       {showOfflineModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="clay border border-slate-200/60 w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
             
             {/* Modal Header */}
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
@@ -1141,7 +1155,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       {/* ═══ 5. POSTPONE / RESCHEDULE APPOINTMENT MODAL ═══ */}
       {showPostponeModal && postponeAppt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-fade-in-up">
+          <div className="clay border border-slate-200/60 w-full max-w-md overflow-hidden flex flex-col animate-fade-in-up">
             
             {/* Header */}
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-amber-50/50">

@@ -177,7 +177,7 @@ export default function AnalyticsTab({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.12 }}
-          className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
+          className="clay p-6 md:p-7 border border-slate-200/60 space-y-6 relative overflow-hidden"
         >
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
             <div className="flex items-center gap-3">
@@ -234,7 +234,7 @@ export default function AnalyticsTab({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.12 }}
-          className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
+          className="clay p-6 md:p-7 border border-slate-200/60 space-y-6 relative overflow-hidden"
         >
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
             <div className="flex items-center gap-3">
@@ -295,7 +295,7 @@ export default function AnalyticsTab({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.12 }}
-          className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
+          className="clay p-6 md:p-7 border border-slate-200/60 space-y-6 relative overflow-hidden"
         >
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
             <div className="flex items-center gap-3">
@@ -348,7 +348,7 @@ export default function AnalyticsTab({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.12 }}
-          className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
+          className="clay p-6 md:p-7 border border-slate-200/60 space-y-6 relative overflow-hidden"
         >
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
             <div className="flex items-center gap-3">

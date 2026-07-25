@@ -580,7 +580,7 @@ export default function AdminSettingsPage() {
     >
       
       {/* ════ SECTION 1: HEADER & TITLE ════ */}
-      <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="clay p-6 border border-slate-200/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl text-cyan-400 shadow-md">
             <Settings className="w-6 h-6 animate-spin-slow" />
@@ -597,7 +597,7 @@ export default function AdminSettingsPage() {
       </div>
 
       {/* ════ SECTION 2: 3D TABS CONTROL DECK ════ */}
-      <div className="card-3d glass-3d p-2 rounded-2xl shadow-lg border border-white/80 flex items-center gap-2 overflow-x-auto relative">
+      <div className="clay p-2 border border-slate-200/60 flex items-center gap-2 overflow-x-auto relative">
         {[
           { key: 'security', label: '🔐 Security & Policies', icon: Shield },
           { key: 'branches', label: '🏥 Branch Hours & Slots', icon: Building2 },
@@ -645,7 +645,7 @@ export default function AdminSettingsPage() {
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Password Change */}
-            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+            <div className="clay p-6 border border-slate-200/60 space-y-4">
               <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2 pb-3 border-b border-slate-200/60 leading-none">
                 <Key className="w-4 h-4 text-cyan-600 animate-pulse" />
                 Change Admin System Passcode
@@ -682,7 +682,7 @@ export default function AdminSettingsPage() {
             </div>
 
             {/* Doctor Profit Share Calculation Policy */}
-            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+            <div className="clay p-6 border border-slate-200/60 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-emerald-600" />
@@ -781,7 +781,7 @@ export default function AdminSettingsPage() {
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Branch Operating Hours */}
-            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4 text-pretty">
+            <div className="clay p-6 border border-slate-200/60 space-y-4 text-pretty">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
                 <Clock className="w-4 h-4 text-cyan-600" />
                 Clinic Branch Operating Hours
@@ -823,7 +823,7 @@ export default function AdminSettingsPage() {
             {/* Camera Passcodes & Booking Time Slots */}
             <div className="space-y-7">
               {/* CCTV Camera Passcodes */}
-              <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+              <div className="clay p-6 border border-slate-200/60 space-y-4">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
                   <Camera className="w-4 h-4 text-cyan-600" />
                   Live CCTV Security Feed Passcodes
@@ -856,7 +856,7 @@ export default function AdminSettingsPage() {
               </div>
 
               {/* Patient Booking Time Slots */}
-              <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+              <div className="clay p-6 border border-slate-200/60 space-y-4">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
                   <Clock className="w-4 h-4 text-emerald-600" />
                   Public Booking Time Slots Generator
@@ -905,7 +905,7 @@ export default function AdminSettingsPage() {
           >
             {/* Add Treatment */}
             <div className="md:col-span-1">
-              <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4 sticky top-6">
+              <div className="clay p-6 border border-slate-200/60 space-y-4 sticky top-6">
                 <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2 leading-none">
                   <Plus className="w-4 h-4 text-cyan-600" />
                   Add New Clinic Procedure
@@ -939,7 +939,7 @@ export default function AdminSettingsPage() {
 
             {/* List Treatments */}
             <div className="md:col-span-2">
-              <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+              <div className="clay p-6 border border-slate-200/60 space-y-4">
                 <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
                   <Stethoscope className="w-4 h-4 text-cyan-600" />
                   Configured Procedures & Pricing Matrix
@@ -1013,7 +1013,7 @@ export default function AdminSettingsPage() {
             className="space-y-7 text-pretty"
           >
             {/* Branch Selector for Inventory */}
-            <div className="card-3d glass-3d p-4 rounded-2xl border border-white/80 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="clay p-4 border border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-cyan-50 text-cyan-700 rounded-xl border border-cyan-100">
                   <Inbox className="w-5 h-5" />
@@ -1052,7 +1052,7 @@ export default function AdminSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
               {/* Add Medicine Stock Form */}
               <div className="md:col-span-1">
-                <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4 sticky top-6">
+                <div className="clay p-6 border border-slate-200/60 space-y-4 sticky top-6">
                   <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
                     <Plus className="w-4 h-4 text-cyan-600" />
                     Register Medicine Stock Batch
@@ -1116,7 +1116,7 @@ export default function AdminSettingsPage() {
 
               {/* Medicine Catalog Table */}
               <div className="md:col-span-2">
-                <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+                <div className="clay p-6 border border-slate-200/60 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/60 gap-3">
                     <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                       <Pill className="w-4 h-4 text-cyan-600 animate-pulse" />
@@ -1248,7 +1248,7 @@ export default function AdminSettingsPage() {
             className="grid grid-cols-1 md:grid-cols-2 gap-7 text-pretty"
           >
             {/* Channel Selection Card */}
-            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-5">
+            <div className="clay p-6 border border-slate-200/60 space-y-5">
               <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-emerald-600" />
                 Active Messaging Delivery Channel
@@ -1318,7 +1318,7 @@ export default function AdminSettingsPage() {
             </div>
 
             {/* Trigger Checkboxes Card */}
-            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+            <div className="clay p-6 border border-slate-200/60 space-y-4">
               <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
                 <Send className="w-4 h-4 text-cyan-600" />
                 Automated Message Triggers
