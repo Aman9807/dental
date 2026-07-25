@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
   CircleDollarSign, TrendingUp, CheckCircle, AlertCircle, Calendar, Plus, Trash2, 
-  User2, PlusCircle, HelpCircle, Save, Info, RefreshCw, Layers, Zap, Clock, X
+  User2, PlusCircle, HelpCircle, Save, Info, RefreshCw, Layers, Zap, Clock, X, Loader2
 } from 'lucide-react'
 import { 
   updateAppointmentFinances, 
@@ -48,7 +48,7 @@ interface HelperAttendance {
   helper_boy_id: string
   date: string
   shift: number
-  status: 'present' | 'absent'
+  status: 'present' | 'absent' | 'half_day'
 }
 
 interface DoctorAttendance {
@@ -209,8 +209,35 @@ export default function FinancesClient({
     return now.toISOString().split('T')[0]
   })
 
-  // Loading state for attendance buttons — stores key like "helperId-shift" or "doctorId"
-  const [loadingAttKey, setLoadingAttKey] = useState<string | null>(null)
+  // Pending daily attendance choices before update is clicked
+  const [pendingAttendance, setPendingAttendance] = useState<{ [key: string]: 'present' | 'absent' | 'half_day' }>({})
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false)
+
+  // Initialize pending values on date/branch/lists load
+  useEffect(() => {
+    const initial: { [key: string]: 'present' | 'absent' | 'half_day' } = {}
+    
+    helperBoysList.forEach(helper => {
+      if (helper.shift_1_enabled) {
+        const key = `helper-${helper.id}-1`
+        const rec = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 1)
+        initial[key] = (rec?.status as 'present' | 'absent' | 'half_day') || 'present'
+      }
+      if (helper.shift_2_enabled) {
+        const key = `helper-${helper.id}-2`
+        const rec = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 2)
+        initial[key] = (rec?.status as 'present' | 'absent' | 'half_day') || 'present'
+      }
+    })
+    
+    getBranchFilteredDoctors().forEach(doc => {
+      const key = `doc-${doc.id}`
+      const rec = doctorAttendance.find(a => a.doctor_id === doc.id && a.date === attendanceDate)
+      initial[key] = (rec?.status as 'present' | 'absent' | 'half_day') || 'present'
+    })
+    
+    setPendingAttendance(initial)
+  }, [attendanceDate, helperAttendance, doctorAttendance, selectedBranch])
 
   // Inputs for saving closing charges
   const [tempCharges, setTempCharges] = useState<{ [apptId: string]: { charged: string; cost: string } }>({})
@@ -378,14 +405,14 @@ export default function FinancesClient({
     
     // Count absences for this month
     const absences = helperAttendance.filter(a => {
-      if (a.helper_boy_id !== helper.id || a.status !== 'absent') return false
+      if (a.helper_boy_id !== helper.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
       const absDate = new Date(a.date)
       const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
       return absMonthStr === selectedMonth
     })
     
-    const shift1Absences = absences.filter(a => a.shift === 1).length
-    const shift2Absences = absences.filter(a => a.shift === 2).length
+    const shift1Absences = absences.filter(a => a.shift === 1).reduce((sum, a) => sum + (a.status === 'half_day' ? 0.5 : 1), 0)
+    const shift2Absences = absences.filter(a => a.shift === 2).reduce((sum, a) => sum + (a.status === 'half_day' ? 0.5 : 1), 0)
 
     const shift1Worked = helper.shift_1_enabled ? Math.max(0, totalWorkingDays - shift1Absences) : 0
     const shift2Worked = helper.shift_2_enabled ? Math.max(0, totalWorkingDays - shift2Absences) : 0
@@ -687,51 +714,92 @@ export default function FinancesClient({
     }
   }
 
-  // Toggle Helper Attendance (Status toggle present/absent for specific date and shift)
-  const handleToggleHelperAttendance = async (helperId: string, shift: number, targetDate: string, currentStatus: 'present' | 'absent') => {
-    const key = `${helperId}-${shift}`
-    if (loadingAttKey === key) return
-    setLoadingAttKey(key)
-    const nextStatus: 'present' | 'absent' = currentStatus === 'present' ? 'absent' : 'present'
-    try {
-      const res = await updateHelperAttendance(helperId, targetDate, shift, nextStatus)
-      if (res.success) {
-        setHelperAttendance(prev => {
-          const withoutMatch = prev.filter(a => !(a.helper_boy_id === helperId && a.date === targetDate && a.shift === shift))
-          return [...withoutMatch, { helper_boy_id: helperId, date: targetDate, shift, status: nextStatus }]
-        })
-      } else {
-        alert(res.error || 'Failed to update helper attendance')
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoadingAttKey(null)
-    }
+  // Set Helper daily attendance selection locally (no API call yet)
+  const handleToggleHelperAttendance = (helperId: string, shift: number, status: 'present' | 'absent' | 'half_day') => {
+    const key = `helper-${helperId}-${shift}`
+    setPendingAttendance(prev => ({
+      ...prev,
+      [key]: status
+    }))
   }
 
-  // Toggle Doctor Attendance (cycles: present -> absent -> half_day -> present for specific date)
-  const handleToggleDoctorAttendance = async (doctorId: string, dateStr: string, currentStatus: 'present' | 'absent' | 'half_day') => {
+  // Set Doctor daily attendance selection locally (no API call yet)
+  const handleToggleDoctorAttendance = (doctorId: string, status: 'present' | 'absent' | 'half_day') => {
     const key = `doc-${doctorId}`
-    if (loadingAttKey === key) return
-    setLoadingAttKey(key)
-    const nextStatus: 'present' | 'absent' | 'half_day' =
-      currentStatus === 'present' ? 'absent' : currentStatus === 'absent' ? 'half_day' : 'present'
+    setPendingAttendance(prev => ({
+      ...prev,
+      [key]: status
+    }))
+  }
 
+  // Batch update all changed attendance records for the selected date
+  const handleSaveAllAttendance = async () => {
+    setIsSavingAttendance(true)
     try {
-      const res = await updateDoctorAttendance(doctorId, dateStr, nextStatus)
-      if (res.success) {
-        setDoctorAttendance(prev => {
-          const withoutMatch = prev.filter(a => !(a.doctor_id === doctorId && a.date === dateStr))
-          return [...withoutMatch, { doctor_id: doctorId, date: dateStr, status: nextStatus }]
-        })
+      const promises: Promise<any>[] = []
+      
+      const helpersToUpdate: { id: string; shift: number; status: 'present' | 'absent' | 'half_day' }[] = []
+      getBranchFilteredHelpers().forEach(helper => {
+        if (helper.shift_1_enabled) {
+          const key = `helper-${helper.id}-1`
+          const status = pendingAttendance[key] || 'present'
+          helpersToUpdate.push({ id: helper.id, shift: 1, status })
+        }
+        if (helper.shift_2_enabled) {
+          const key = `helper-${helper.id}-2`
+          const status = pendingAttendance[key] || 'present'
+          helpersToUpdate.push({ id: helper.id, shift: 2, status })
+        }
+      })
+      
+      const doctorsToUpdate: { id: string; status: 'present' | 'absent' | 'half_day' }[] = []
+      getBranchFilteredDoctors().forEach(doc => {
+        const key = `doc-${doc.id}`
+        const status = pendingAttendance[key] || 'present'
+        doctorsToUpdate.push({ id: doc.id, status })
+      })
+
+      // Run all upserts in parallel
+      helpersToUpdate.forEach(item => {
+        promises.push(updateHelperAttendance(item.id, attendanceDate, item.shift, item.status))
+      })
+      
+      doctorsToUpdate.forEach(item => {
+        promises.push(updateDoctorAttendance(item.id, attendanceDate, item.status))
+      })
+
+      const results = await Promise.all(promises)
+      const failed = results.filter(r => !r.success)
+
+      if (failed.length > 0) {
+        alert('Failed to update some records: ' + failed.map(f => f.error).join(', '))
       } else {
-        alert(res.error || 'Failed to update doctor attendance')
+        alert('Attendance records successfully updated for ' + attendanceDate)
+        
+        // Sync visual lists
+        setHelperAttendance(prev => {
+          let next = [...prev]
+          helpersToUpdate.forEach(item => {
+            next = next.filter(a => !(a.helper_boy_id === item.id && a.date === attendanceDate && a.shift === item.shift))
+            next.push({ helper_boy_id: item.id, date: attendanceDate, shift: item.shift, status: item.status })
+          })
+          return next
+        })
+
+        setDoctorAttendance(prev => {
+          let next = [...prev]
+          doctorsToUpdate.forEach(item => {
+            next = next.filter(a => !(a.doctor_id === item.id && a.date === attendanceDate))
+            next.push({ doctor_id: item.id, date: attendanceDate, status: item.status })
+          })
+          return next
+        })
       }
     } catch (err) {
       console.error(err)
+      alert('An error occurred during save.')
     } finally {
-      setLoadingAttKey(null)
+      setIsSavingAttendance(false)
     }
   }
 
@@ -1047,7 +1115,7 @@ export default function FinancesClient({
 
       {/* 4B. ATTENDANCE LOGGER */}
       {activeTab === 'attendance' && (
-        <div className="card-3d glass-3d rounded-3xl shadow-xl border border-white/80 p-6 md:p-8 space-y-8">
+        <div className="clay rounded-3xl p-6 md:p-8 space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200/60 pb-4 gap-4">
             <div>
               <h3 className="text-base font-serif font-semibold text-slate-900 flex items-center gap-2">
@@ -1055,7 +1123,7 @@ export default function FinancesClient({
                 Staff Monthly Attendance Matrix & Daily Logger
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Click any day square in the matrix to cycle status: <span className="font-bold text-emerald-600">PRES (Green)</span>, <span className="font-bold text-rose-600">ABS (Red)</span>, <span className="font-bold text-amber-600">HALF (Orange)</span>. All clicks update database instantly.
+                Select a date below to log/edit daily attendance. View monthly matrix grids at the bottom.
               </p>
             </div>
             
@@ -1071,69 +1139,92 @@ export default function FinancesClient({
           </div>
 
           {/* ══ CLAYMORPHISM DAILY QUICK LOGGER GRID ══ */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             {/* ── Helper Boys Logger ── */}
-            <div className="clay" style={{ padding: 20, borderRadius: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: 12, marginBottom: 16 }}>
-                <div>
-                  <h4 style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.01em' }}>
-                    <User2 size={14} color="#0891b2" />
-                    Helper Boys Logger
-                  </h4>
-                  <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Tap to toggle Present ↔ Absent</p>
-                </div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#0891b2', background: '#ecfeff', padding: '3px 8px', borderRadius: 8 }}>{attendanceDate}</span>
+            <div className="clay p-5 rounded-2xl border border-slate-100 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <User2 className="w-4 h-4 text-cyan-600" />
+                  Helper Boys Daily Quick Logger ({attendanceDate})
+                </h4>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="divide-y divide-slate-100">
                 {getBranchFilteredHelpers().length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#cbd5e1', fontSize: 11, padding: '20px 0' }}>No helper boys assigned.</p>
+                  <p className="py-4 text-xs text-slate-400 text-center font-light">No helper boys assigned to this branch.</p>
                 ) : (
                   getBranchFilteredHelpers().map(helper => {
-                    const shift1Record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 1)
-                    const shift2Record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 2)
-                    const isShift1Absent = shift1Record?.status === 'absent'
-                    const isShift2Absent = shift2Record?.status === 'absent'
+                    const key1 = `helper-${helper.id}-1`
+                    const key2 = `helper-${helper.id}-2`
+                    const status1 = pendingAttendance[key1] || 'present'
+                    const status2 = pendingAttendance[key2] || 'present'
 
                     return (
-                      <div
-                        key={helper.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 14px',
-                          borderRadius: 14,
-                          background: '#f8fafc',
-                        }}
-                      >
-                        <div>
-                          <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{helper.name}</p>
-                          <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 500 }}>
-                            {helper.sunday_enabled ? 'Sun included' : 'Mon–Sat'}
+                      <div key={helper.id} className="py-4 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs font-bold text-slate-900">{helper.name}</p>
+                          <span className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
+                            {helper.sunday_enabled ? 'Works Sundays' : 'Mon-Sat Only'}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
+
+                        {/* Shift 1 & 2 Options */}
+                        <div className="space-y-2 pl-2 border-l-2 border-cyan-500/20">
                           {helper.shift_1_enabled && (
-                            <button
-                              onClick={() => handleToggleHelperAttendance(helper.id, 1, attendanceDate, isShift1Absent ? 'absent' : 'present')}
-                              disabled={loadingAttKey === `${helper.id}-1`}
-                              className={`att-btn ${loadingAttKey === `${helper.id}-1` ? 'att-btn-loading' : isShift1Absent ? 'att-btn-absent' : 'att-btn-present'}`}
-                              style={{ minWidth: 90, fontSize: 10 }}
-                            >
-                              {loadingAttKey === `${helper.id}-1` ? '...' : isShift1Absent ? '❌ S1 ABS' : '✅ S1 PRES'}
-                            </button>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <span className="text-[10px] font-semibold text-slate-500">Shift 1 (Morning)</span>
+                              <div className="flex gap-1.5">
+                                {['present', 'absent', 'half_day'].map(opt => {
+                                  const isSel = status1 === opt
+                                  let btnClass = 'px-3 py-1 text-[9px] font-bold rounded-lg border transition-all '
+                                  if (isSel) {
+                                    btnClass += opt === 'present' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
+                                              : opt === 'absent' ? 'bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/20'
+                                              : 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/20'
+                                  } else {
+                                    btnClass += 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                  }
+                                  return (
+                                    <button
+                                      key={opt}
+                                      onClick={() => handleToggleHelperAttendance(helper.id, 1, opt as any)}
+                                      className={btnClass}
+                                    >
+                                      {opt === 'present' ? 'PRESENT' : opt === 'absent' ? 'ABSENT' : 'HALF DAY'}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
                           )}
+
                           {helper.shift_2_enabled && (
-                            <button
-                              onClick={() => handleToggleHelperAttendance(helper.id, 2, attendanceDate, isShift2Absent ? 'absent' : 'present')}
-                              disabled={loadingAttKey === `${helper.id}-2`}
-                              className={`att-btn ${loadingAttKey === `${helper.id}-2` ? 'att-btn-loading' : isShift2Absent ? 'att-btn-absent' : 'att-btn-present'}`}
-                              style={{ minWidth: 90, fontSize: 10 }}
-                            >
-                              {loadingAttKey === `${helper.id}-2` ? '...' : isShift2Absent ? '❌ S2 ABS' : '✅ S2 PRES'}
-                            </button>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                              <span className="text-[10px] font-semibold text-slate-500">Shift 2 (Evening)</span>
+                              <div className="flex gap-1.5">
+                                {['present', 'absent', 'half_day'].map(opt => {
+                                  const isSel = status2 === opt
+                                  let btnClass = 'px-3 py-1 text-[9px] font-bold rounded-lg border transition-all '
+                                  if (isSel) {
+                                    btnClass += opt === 'present' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
+                                              : opt === 'absent' ? 'bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/20'
+                                              : 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/20'
+                                  } else {
+                                    btnClass += 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                  }
+                                  return (
+                                    <button
+                                      key={opt}
+                                      onClick={() => handleToggleHelperAttendance(helper.id, 2, opt as any)}
+                                      className={btnClass}
+                                    >
+                                      {opt === 'present' ? 'PRESENT' : opt === 'absent' ? 'ABSENT' : 'HALF DAY'}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1144,73 +1235,53 @@ export default function FinancesClient({
             </div>
 
             {/* ── Doctors Logger ── */}
-            <div className="clay" style={{ padding: 20, borderRadius: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: 12, marginBottom: 16 }}>
-                <div>
-                  <h4 style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.01em' }}>
-                    <User2 size={14} color="#059669" />
-                    Doctor Logger
-                  </h4>
-                  <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Tap to cycle: Present → Absent → Half Day</p>
-                </div>
-                <div style={{ display: 'flex', gap: 5 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#059669', background: '#ecfdf5', padding: '2px 7px', borderRadius: 6 }}>✅ PRES</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e11d48', background: '#fff1f2', padding: '2px 7px', borderRadius: 6 }}>❌ ABS</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#d97706', background: '#fffbeb', padding: '2px 7px', borderRadius: 6 }}>🌓 HALF</span>
-                </div>
+            <div className="clay p-5 rounded-2xl border border-slate-100 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <User2 className="w-4 h-4 text-emerald-600" />
+                  Doctor Daily Quick Logger ({attendanceDate})
+                </h4>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="divide-y divide-slate-100">
                 {getBranchFilteredDoctors().length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#cbd5e1', fontSize: 11, padding: '20px 0' }}>No doctors assigned.</p>
+                  <p className="py-4 text-xs text-slate-400 text-center font-light">No doctors assigned to this branch.</p>
                 ) : (
                   getBranchFilteredDoctors().map(doc => {
-                    const attRecord = doctorAttendance.find(a => a.doctor_id === doc.id && a.date === attendanceDate)
-                    const status = attRecord?.status || 'present'
-                    const isLoading = loadingAttKey === `doc-${doc.id}`
-
-                    const btnClass = isLoading
-                      ? 'att-btn att-btn-loading'
-                      : status === 'absent'
-                      ? 'att-btn att-btn-absent'
-                      : status === 'half_day'
-                      ? 'att-btn att-btn-halfday'
-                      : 'att-btn att-btn-present'
-
-                    const btnLabel = isLoading
-                      ? 'Saving...'
-                      : status === 'absent'
-                      ? '❌ ABSENT'
-                      : status === 'half_day'
-                      ? '🌓 HALF DAY'
-                      : '✅ PRESENT'
+                    const key = `doc-${doc.id}`
+                    const status = pendingAttendance[key] || 'present'
 
                     return (
-                      <div
-                        key={doc.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 14px',
-                          borderRadius: 14,
-                          background: status === 'absent' ? '#fff1f2' : status === 'half_day' ? '#fffbeb' : '#f0fdf4',
-                          transition: 'background 0.15s ease',
-                        }}
-                      >
+                      <div key={doc.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                          <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Dr. {doc.name}</p>
-                          <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 500 }}>
-                            {doc.compensation_type === 'percentage' ? `${doc.profit_percentage}% share` : `₹${doc.fixed_salary} salary`}
+                          <p className="text-xs font-bold text-slate-900">Dr. {doc.name}</p>
+                          <span className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
+                            {doc.compensation_type === 'percentage' ? `${doc.profit_percentage}% Profit Share` : `INR ${doc.fixed_salary} Salary`}
                           </span>
                         </div>
-                        <button
-                          onClick={() => handleToggleDoctorAttendance(doc.id, attendanceDate, status as 'present' | 'absent' | 'half_day')}
-                          disabled={isLoading}
-                          className={btnClass}
-                        >
-                          {btnLabel}
-                        </button>
+
+                        <div className="flex gap-1.5">
+                          {['present', 'absent', 'half_day'].map(opt => {
+                            const isSel = status === opt
+                            let btnClass = 'px-3.5 py-1.5 text-[9px] font-bold rounded-lg border transition-all '
+                            if (isSel) {
+                              btnClass += opt === 'present' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
+                                        : opt === 'absent' ? 'bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/20'
+                                        : 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/20'
+                            } else {
+                              btnClass += 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => handleToggleDoctorAttendance(doc.id, opt as any)}
+                                className={btnClass}
+                              >
+                                {opt === 'present' ? 'PRESENT' : opt === 'absent' ? 'ABSENT' : 'HALF DAY'}
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
                     )
                   })
@@ -1220,32 +1291,59 @@ export default function FinancesClient({
 
           </div>
 
-          {/* ═══ FULL MONTHLY ATTENDANCE MATRIX SECTION ═══ */}
-          <div className="space-y-6 border-t border-slate-200/60 pt-6">
+          {/* Save Button for selected date */}
+          <div className="flex justify-end pt-4 border-t border-slate-100">
+            <button
+              onClick={handleSaveAllAttendance}
+              disabled={isSavingAttendance}
+              className="px-6 py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-2xl font-bold text-xs shadow-md transition transform hover:scale-102 flex items-center gap-2 disabled:opacity-50"
+            >
+              {isSavingAttendance && <Loader2 className="w-4 h-4 animate-spin" />}
+              Update Daily Attendance for {attendanceDate}
+            </button>
+          </div>
+
+          {/* ═══ FULL MONTHLY ATTENDANCE MATRIX SECTION (7-COLUMN CALENDAR GRID) ═══ */}
+          <div className="space-y-8 border-t border-slate-200/60 pt-6">
             
-            {/* DOCTOR MONTHLY MATRIX */}
+            {/* DOCTOR MONTHLY GRID */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                  Doctor Monthly Attendance Matrix ({selectedMonth})
+                  Doctor Monthly Attendance Calendar Grid ({selectedMonth})
                 </h4>
-                <span className="text-[10px] text-slate-500 font-medium">Click any past/current day square to cycle status</span>
+                <span className="text-[10px] text-slate-400 font-medium">Click any day square to select it for daily logging</span>
               </div>
 
-              <div className="space-y-4 overflow-x-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {getBranchFilteredDoctors().map(doc => {
                   const totalDays = new Date(year, month, 0).getDate()
+                  const firstDayOfWeek = new Date(year, month - 1, 1).getDay()
                   const todayStr = new Date().toISOString().split('T')[0]
 
                   return (
-                    <div key={doc.id} className="p-4 bg-white/80 rounded-2xl border border-slate-200/80 space-y-2 shadow-sm">
+                    <div key={doc.id} className="p-5 bg-white/80 rounded-3xl border border-slate-200/80 space-y-3 shadow-sm">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-slate-900">Dr. {doc.name}</span>
-                        <span className="text-[10px] text-slate-400 font-light">Cycle: PRES → ABS → HALF → PRES</span>
+                        <div className="flex gap-2">
+                          <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">PRES</span>
+                          <span className="text-[8px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">ABS</span>
+                          <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">HALF</span>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-16 lg:grid-cols-31 gap-1.5 pt-1">
+                      {/* Weekday titles */}
+                      <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-slate-400 border-b border-slate-100 pb-1">
+                        <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+                      </div>
+
+                      {/* Calendar Grid */}
+                      <div className="grid grid-cols-7 gap-1 pt-1">
+                        {Array.from({ length: firstDayOfWeek }).map((_, emptyIdx) => (
+                          <div key={`empty-${emptyIdx}`} className="h-8 bg-slate-50/50 rounded-lg" />
+                        ))}
+                        
                         {Array.from({ length: totalDays }, (_, i) => {
                           const dayNum = i + 1
                           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
@@ -1262,12 +1360,16 @@ export default function FinancesClient({
                           return (
                             <div
                               key={dayNum}
-                              onClick={() => !isFuture && handleToggleDoctorAttendance(doc.id, dateStr, status)}
-                              title={`${dateStr} - Click to toggle (${isFuture ? 'Future' : status.toUpperCase()})`}
-                              className={`h-10 flex flex-col items-center justify-center rounded-xl text-[10px] transition transform hover:scale-105 cursor-pointer select-none ${bgClass}`}
+                              onClick={() => {
+                                if (!isFuture) {
+                                  setAttendanceDate(dateStr)
+                                }
+                              }}
+                              title={`${dateStr} - Click to select log date`}
+                              className={`h-8 flex flex-col items-center justify-center rounded-lg text-[9px] transition transform hover:scale-105 cursor-pointer select-none ${bgClass}`}
                             >
-                              <span>{dayNum}</span>
-                              <span className="text-[7px] uppercase leading-none opacity-90 font-mono">
+                              <span className="font-semibold">{dayNum}</span>
+                              <span className="text-[6px] uppercase leading-none opacity-90 font-mono">
                                 {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : 'PRES'}
                               </span>
                             </div>
@@ -1280,102 +1382,125 @@ export default function FinancesClient({
               </div>
             </div>
 
-            {/* HELPER BOYS MONTHLY MATRIX */}
+            {/* HELPER BOYS MONTHLY GRID */}
             <div className="space-y-4 border-t border-slate-200/60 pt-6">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
-                  Helper Boys Monthly Attendance Matrix ({selectedMonth})
+                  Helper Boys Monthly Attendance Calendar Grid ({selectedMonth})
                 </h4>
-                <span className="text-[10px] text-slate-500 font-medium">Click any past/current day square to cycle Shift 1 & Shift 2 status</span>
               </div>
 
-              <div className="space-y-4 overflow-x-auto">
+              <div className="space-y-6">
                 {getBranchFilteredHelpers().map(helper => {
                   const totalDays = new Date(year, month, 0).getDate()
+                  const firstDayOfWeek = new Date(year, month - 1, 1).getDay()
                   const todayStr = new Date().toISOString().split('T')[0]
 
                   return (
-                    <div key={helper.id} className="p-4 bg-white/80 rounded-2xl border border-slate-200/80 space-y-3 shadow-sm">
-                      <div className="flex justify-between items-center text-xs">
+                    <div key={helper.id} className="p-5 bg-white/80 rounded-3xl border border-slate-200/80 space-y-4 shadow-sm">
+                      <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2">
                         <div>
                           <span className="font-bold text-slate-900">{helper.name}</span>
                           <span className="text-[10px] text-slate-400 ml-2 font-light">
                             Rates: S1=₹{helper.shift_1_rate} | S2=₹{helper.shift_2_rate}
                           </span>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-light">Cycle: PRES → ABS → PRES</span>
                       </div>
 
-                      {/* Shift 1 Row */}
-                      {helper.shift_1_enabled && (
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Shift 1 (Morning)</span>
-                          <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-16 lg:grid-cols-31 gap-1.5">
-                            {Array.from({ length: totalDays }, (_, i) => {
-                              const dayNum = i + 1
-                              const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-                              const isFuture = dateStr > todayStr
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Shift 1 Calendar */}
+                        {helper.shift_1_enabled && (
+                          <div className="space-y-2">
+                            <span className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider block">Shift 1 (Morning)</span>
+                            <div className="grid grid-cols-7 gap-1 text-center text-[8px] font-bold text-slate-400 border-b border-slate-100 pb-1">
+                              <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+                            </div>
+                            <div className="grid grid-cols-7 gap-1">
+                              {Array.from({ length: firstDayOfWeek }).map((_, emptyIdx) => (
+                                <div key={`empty-s1-${emptyIdx}`} className="h-8 bg-slate-50/50 rounded-lg" />
+                              ))}
+                              {Array.from({ length: totalDays }, (_, i) => {
+                                const dayNum = i + 1
+                                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+                                const isFuture = dateStr > todayStr
 
-                              const record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === dateStr && a.shift === 1)
-                              const isAbsent = record?.status === 'absent'
+                                const record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === dateStr && a.shift === 1)
+                                const status = record?.status || 'present'
 
-                              let bgClass = 'bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm'
-                              if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                              else if (isAbsent) bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
+                                let bgClass = 'bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm'
+                                if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                                else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
+                                else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm'
 
-                              return (
-                                <div
-                                  key={`s1_${dayNum}`}
-                                  onClick={() => !isFuture && handleToggleHelperAttendance(helper.id, 1, dateStr, isAbsent ? 'absent' : 'present')}
-                                  title={`${dateStr} (Shift 1) - Click to toggle`}
-                                  className={`h-9 flex flex-col items-center justify-center rounded-xl text-[10px] transition transform hover:scale-105 cursor-pointer select-none ${bgClass}`}
-                                >
-                                  <span>{dayNum}</span>
-                                  <span className="text-[7px] uppercase leading-none opacity-90 font-mono">
-                                    {isFuture ? 'WAIT' : isAbsent ? 'ABS' : 'PRES'}
-                                  </span>
-                                </div>
-                              )
-                            })}
+                                return (
+                                  <div
+                                    key={`s1_${dayNum}`}
+                                    onClick={() => {
+                                      if (!isFuture) {
+                                        setAttendanceDate(dateStr)
+                                      }
+                                    }}
+                                    title={`${dateStr} (Shift 1) - Click to select log date`}
+                                    className={`h-8 flex flex-col items-center justify-center rounded-lg text-[9px] transition transform hover:scale-105 cursor-pointer select-none ${bgClass}`}
+                                  >
+                                    <span className="font-semibold">{dayNum}</span>
+                                    <span className="text-[6px] uppercase leading-none opacity-90 font-mono">
+                                      {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : 'PRES'}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Shift 2 Row */}
-                      {helper.shift_2_enabled && (
-                        <div className="space-y-1 pt-1">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Shift 2 (Evening)</span>
-                          <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-16 lg:grid-cols-31 gap-1.5">
-                            {Array.from({ length: totalDays }, (_, i) => {
-                              const dayNum = i + 1
-                              const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-                              const isFuture = dateStr > todayStr
+                        {/* Shift 2 Calendar */}
+                        {helper.shift_2_enabled && (
+                          <div className="space-y-2">
+                            <span className="text-[10px] font-bold text-teal-600 uppercase tracking-wider block">Shift 2 (Evening)</span>
+                            <div className="grid grid-cols-7 gap-1 text-center text-[8px] font-bold text-slate-400 border-b border-slate-100 pb-1">
+                              <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+                            </div>
+                            <div className="grid grid-cols-7 gap-1">
+                              {Array.from({ length: firstDayOfWeek }).map((_, emptyIdx) => (
+                                <div key={`empty-s2-${emptyIdx}`} className="h-8 bg-slate-50/50 rounded-lg" />
+                              ))}
+                              {Array.from({ length: totalDays }, (_, i) => {
+                                const dayNum = i + 1
+                                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+                                const isFuture = dateStr > todayStr
 
-                              const record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === dateStr && a.shift === 2)
-                              const isAbsent = record?.status === 'absent'
+                                const record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === dateStr && a.shift === 2)
+                                const status = record?.status || 'present'
 
-                              let bgClass = 'bg-teal-600 text-white font-bold hover:bg-teal-700 shadow-sm'
-                              if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                              else if (isAbsent) bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
+                                let bgClass = 'bg-teal-600 text-white font-bold hover:bg-teal-700 shadow-sm'
+                                if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                                else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
+                                else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm'
 
-                              return (
-                                <div
-                                  key={`s2_${dayNum}`}
-                                  onClick={() => !isFuture && handleToggleHelperAttendance(helper.id, 2, dateStr, isAbsent ? 'absent' : 'present')}
-                                  title={`${dateStr} (Shift 2) - Click to toggle`}
-                                  className={`h-9 flex flex-col items-center justify-center rounded-xl text-[10px] transition transform hover:scale-105 cursor-pointer select-none ${bgClass}`}
-                                >
-                                  <span>{dayNum}</span>
-                                  <span className="text-[7px] uppercase leading-none opacity-90 font-mono">
-                                    {isFuture ? 'WAIT' : isAbsent ? 'ABS' : 'PRES'}
-                                  </span>
-                                </div>
-                              )
-                            })}
+                                return (
+                                  <div
+                                    key={`s2_${dayNum}`}
+                                    onClick={() => {
+                                      if (!isFuture) {
+                                        setAttendanceDate(dateStr)
+                                      }
+                                    }}
+                                    title={`${dateStr} (Shift 2) - Click to select log date`}
+                                    className={`h-8 flex flex-col items-center justify-center rounded-lg text-[9px] transition transform hover:scale-105 cursor-pointer select-none ${bgClass}`}
+                                  >
+                                    <span className="font-semibold">{dayNum}</span>
+                                    <span className="text-[6px] uppercase leading-none opacity-90 font-mono">
+                                      {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : 'PRES'}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   )
                 })}

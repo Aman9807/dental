@@ -57,13 +57,13 @@ interface HelperAttendance {
   helper_boy_id: string
   date: string
   shift: number
-  status: 'present' | 'absent'
+  status: 'present' | 'absent' | 'half_day'
 }
 
 interface DoctorAttendance {
   doctor_id: string
   date: string
-  status: 'present' | 'absent'
+  status: 'present' | 'absent' | 'half_day'
 }
 
 interface ElectricityExpense {
@@ -1134,38 +1134,78 @@ export default function DoctorClient({
                     </>
                   )}
                 </div>
-              </div>
-
-              {/* Attendance Card */}
+              </div>              {/* Attendance Card */}
               <div className="bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl p-8 shadow-[0_20px_40px_rgba(0,0,0,0.04)] flex flex-col relative overflow-hidden">
-                <div className="absolute bottom-0 right-0 w-40 h-40 bg-rose-400/5 rounded-full blur-3xl" />
+                <div className="absolute bottom-0 right-0 w-40 h-40 bg-teal-400/5 rounded-full blur-3xl" />
                 
-                <div className="flex items-center gap-2 border-b border-slate-200/50 pb-4 mb-6 z-10">
-                  <Calendar className="w-5 h-5 text-rose-400" />
-                  <h3 className="text-lg font-['Poppins',_sans-serif] font-bold text-slate-800">Absences Log</h3>
+                <div className="flex items-center gap-2 border-b border-slate-200/50 pb-4 mb-6 z-10 justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-teal-600" />
+                    <h3 className="text-lg font-['Poppins',_sans-serif] font-bold text-slate-800">Attendance Calendar</h3>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">PRES</span>
+                    <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">ABS</span>
+                    <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">HALF</span>
+                  </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto z-10 pr-2 space-y-3">
-                  {finances.absences.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center space-y-3 opacity-60">
-                      <CheckCircle className="w-12 h-12 text-emerald-400" />
-                      <p className="text-sm font-medium text-slate-500">Perfect attendance this month!</p>
-                    </div>
-                  ) : (
-                    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-3">
-                      {finances.absences.map((abs, idx) => (
-                        <motion.div variants={itemVariants} key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                          <span className="font-semibold text-slate-700">{new Date(abs.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                          <span className="text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wide">Absent</span>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
+                <div className="z-10 space-y-4">
+                  {/* Weekday titles */}
+                  <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-1.5">
+                    <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+                  </div>
+
+                  {/* Calendar Grid */}
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {/* Padding cells */}
+                    {(() => {
+                      const [yearStr, monthStr] = selectedMonth.split('-')
+                      const y = parseInt(yearStr || '2026', 10)
+                      const m = parseInt(monthStr || '07', 10)
+                      const firstDay = new Date(y, m - 1, 1).getDay()
+                      const totalDays = new Date(y, m, 0).getDate()
+                      const todayStr = new Date().toISOString().split('T')[0]
+
+                      return (
+                        <>
+                          {Array.from({ length: firstDay }).map((_, emptyIdx) => (
+                            <div key={`empty-${emptyIdx}`} className="h-10 bg-slate-50/40 rounded-xl" />
+                          ))}
+
+                          {Array.from({ length: totalDays }).map((_, idx) => {
+                            const dayNum = idx + 1
+                            const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+                            const isFuture = dateStr > todayStr
+
+                            const attRecord = doctorAttendance.find(a => a.date === dateStr)
+                            const status = attRecord?.status || 'present'
+
+                            let bgClass = 'bg-emerald-500 text-white font-bold'
+                            if (isFuture) bgClass = 'bg-slate-100 text-slate-350 border border-slate-200/60'
+                            else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold'
+                            else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold'
+
+                            return (
+                              <div
+                                key={dayNum}
+                                className={`h-10 flex flex-col items-center justify-center rounded-xl text-[10px] relative ${bgClass}`}
+                              >
+                                <span className="font-semibold text-xs">{dayNum}</span>
+                                <span className="text-[6.5px] uppercase opacity-90 font-mono tracking-tighter">
+                                  {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : 'PRES'}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </>
+                      )
+                    })()}
                 </div>
               </div>
-
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
 
         </AnimatePresence>
       </div>

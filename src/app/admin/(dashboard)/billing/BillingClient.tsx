@@ -244,13 +244,42 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
   // Update item quantity, price, unitType or custom text
   const updateItem = (key: string, field: 'quantity' | 'price' | 'name' | 'unitType', value: any) => {
-    const updated = billingItems.map(item => {
+    const updated = billingItems.map((item): BillingItem => {
       if (item.key === key) {
         if (field === 'unitType') {
-          return { ...item, unitType: value }
+          const nextUnit = value as 'strips' | 'tablets'
+          const tabsPerPatch = item.tabletsPerPatch || 10
+          let newQty = item.quantity
+          
+          if (item.type === 'medicine' && item.maxStock) {
+            const effectiveQty = nextUnit === 'strips' ? newQty * tabsPerPatch : newQty
+            if (effectiveQty > item.maxStock) {
+              newQty = nextUnit === 'strips' 
+                ? Math.floor(item.maxStock / tabsPerPatch) 
+                : item.maxStock
+              if (newQty < 1 && nextUnit === 'strips') {
+                alert(`Not enough stock for a full strip. Only ${item.maxStock} tablets left. Switching to tablets.`)
+                return { ...item, unitType: 'tablets', quantity: item.maxStock }
+              } else {
+                alert(`Adjusted quantity to ${newQty} ${nextUnit} because only ${item.maxStock} tablets are available.`)
+              }
+            }
+          }
+          return { ...item, unitType: nextUnit, quantity: newQty }
         }
         if (field === 'quantity') {
           let val = parseFloat(value) || 1
+          if (item.type === 'medicine' && item.maxStock) {
+            const tabsPerPatch = item.tabletsPerPatch || 10
+            const effectiveQty = item.unitType === 'strips' ? val * tabsPerPatch : val
+            if (effectiveQty > item.maxStock) {
+              const maxPossible = item.unitType === 'strips' 
+                ? Math.floor(item.maxStock / tabsPerPatch) 
+                : item.maxStock
+              alert(`Cannot exceed stock. Only ${item.maxStock} tablets in stock (${Math.floor(item.maxStock / tabsPerPatch)} strips).`)
+              val = maxPossible
+            }
+          }
           return { ...item, quantity: Math.max(0.1, val) }
         }
         if (field === 'price') {
@@ -803,7 +832,12 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                                 />
                               </div>
                             ) : (
-                              <span className="font-mono font-semibold text-slate-700">Rs. {item.price.toFixed(2)}/tab</span>
+                              <span className="font-mono font-semibold text-slate-700">
+                                Rs. {item.type === 'medicine' && item.unitType === 'strips'
+                                  ? (item.price * (item.tabletsPerPatch || 10)).toFixed(2)
+                                  : item.price.toFixed(2)}
+                                {item.type === 'medicine' ? (item.unitType === 'strips' ? '/strip' : '/tab') : ''}
+                              </span>
                             )}
                           </div>
 

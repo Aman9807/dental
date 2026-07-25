@@ -851,7 +851,7 @@ export async function updateHelperAttendance(
   helperBoyId: string,
   date: string,
   shift: number,
-  status: 'present' | 'absent'
+  status: 'present' | 'absent' | 'half_day'
 ) {
   const adminDb = getAdminSupabase()
   try {
@@ -967,7 +967,7 @@ export async function searchMedicines(query: string, branchSlug?: string) {
     let sql = `
       SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
       FROM medicines m
-      LEFT JOIN medicine_batches b ON m.id = b.medicine_id
+      LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.stock > 0 AND b.expiry_date >= CURDATE()
       WHERE LOWER(m.name) LIKE ? OR LOWER(m.generic_name) LIKE ? OR LOWER(m.barcode) = ?
       GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
     `
@@ -977,7 +977,7 @@ export async function searchMedicines(query: string, branchSlug?: string) {
       sql = `
         SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
         FROM medicines m
-        LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.branch_slug = ?
+        LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.branch_slug = ? AND b.stock > 0 AND b.expiry_date >= CURDATE()
         WHERE LOWER(m.name) LIKE ? OR LOWER(m.generic_name) LIKE ? OR LOWER(m.barcode) = ?
         GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
       `
@@ -1187,7 +1187,7 @@ export async function getAllMedicines(branchSlug: string = 'hazara') {
     const sql = `
       SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
       FROM medicines m
-      LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.branch_slug = ?
+      LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.branch_slug = ? AND b.stock > 0 AND b.expiry_date >= CURDATE()
       GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
       ORDER BY m.name ASC
     `
