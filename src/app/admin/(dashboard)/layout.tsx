@@ -2,11 +2,26 @@ import React from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { Outfit, DM_Sans } from 'next/font/google'
 import { 
   LayoutDashboard, Users, Settings, ShieldAlert, Sparkles, CircleDollarSign, Receipt, MessageSquare
 } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 import DentalLogo from '@/components/DentalLogo'
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-outfit",
+  display: "swap",
+})
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
+})
 
 export default async function AdminDashboardLayout({
   children,
@@ -21,7 +36,14 @@ export default async function AdminDashboardLayout({
   }
 
   return (
-    <div className="flex bg-slate-50 min-h-screen font-sans">
+    <div 
+      className={`${outfit.variable} ${dmSans.variable} flex bg-slate-50 min-h-screen`}
+      style={{
+        fontFamily: 'var(--font-dm-sans), sans-serif',
+        ['--font-sans' as any]: 'var(--font-dm-sans), sans-serif',
+        ['--font-serif' as any]: 'var(--font-outfit), sans-serif'
+      }}
+    >
       
       {/* ═══ SIDEBAR ═══ */}
       <aside className="w-64 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen">
