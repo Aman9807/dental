@@ -660,9 +660,9 @@ export default function DoctorClient({
           ...a, 
           status: 'completed',
           report_sent_at: sentTime,
-          prescription_text: null, // cleared as part of purge
-          prescription_url: null,
-          xray_url: null,
+          prescription_text: prescriptionText || a.prescription_text,
+          prescription_url: res.prescriptionUrl || a.prescription_url,
+          xray_url: res.xrayUrl || a.xray_url,
           temp_mobile_photo: null
         } : a)
       )

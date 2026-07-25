@@ -207,6 +207,21 @@ serve(async (req) => {
       page.drawText(`${it.quantity}`, { x: 325, y: yPosition, size: 9, font: font, color: darkColor })
       page.drawText(`Rs. ${Number(it.unit_price).toFixed(2)}`, { x: 400, y: yPosition, size: 9, font: font, color: darkColor })
       page.drawText(`Rs. ${Number(it.total_price).toFixed(2)}`, { x: 485, y: yPosition, size: 9, font: boldFont, color: darkColor })
+      
+      const isMedicine = it.item_type === 'medicine';
+      if (isMedicine) {
+        yPosition -= 11
+        const medDiscPercent = Number(invoice.medicine_discount_percentage || 0);
+        const totalBefore = Number(it.total_price);
+        const totalAfter = totalBefore * (1 - medDiscPercent / 100);
+        page.drawText(`(Before Disc: Rs. ${totalBefore.toFixed(2)} | After Disc: Rs. ${totalAfter.toFixed(2)} [${medDiscPercent.toFixed(2)}% off])`, {
+          x: 55,
+          y: yPosition,
+          size: 7.5,
+          font: italicFont,
+          color: grayColor
+        })
+      }
       yPosition -= rowHeight
     }
 
@@ -219,37 +234,58 @@ serve(async (req) => {
     })
 
     // 4. Summary box
+    const summaryBoxHeight = 115
     const summaryBoxY = yPosition - 10
     
     // Draw background for totals summary
     page.drawRectangle({
-      x: 350,
-      y: summaryBoxY - 70,
-      width: 205,
-      height: 75,
+      x: 340,
+      y: summaryBoxY - summaryBoxHeight,
+      width: 215,
+      height: summaryBoxHeight,
       color: backgroundTeal,
       borderColor: lightGray,
       borderWidth: 1
     })
 
-    page.drawText('Subtotal:', { x: 365, y: summaryBoxY - 18, size: 10, font: font, color: darkColor })
-    page.drawText(`Rs. ${Number(invoice.subtotal).toFixed(2)}`, { x: 475, y: summaryBoxY - 18, size: 10, font: font, color: darkColor })
+    let currentSumY = summaryBoxY - 18
+    page.drawText('Subtotal:', { x: 350, y: currentSumY, size: 9, font: font, color: darkColor })
+    page.drawText(`Rs. ${Number(invoice.subtotal).toFixed(2)}`, { x: 475, y: currentSumY, size: 9, font: font, color: darkColor })
+    
+    currentSumY -= 15
+    const treatDisc = Number(invoice.treatment_discount_percentage || 0);
+    page.drawText(`Treatment Disc (${treatDisc.toFixed(2)}%):`, { x: 350, y: currentSumY, size: 9, font: font, color: darkColor })
+    const treatSub = (items || []).filter((i: any) => i.item_type === 'treatment' || i.item_type === 'custom').reduce((sum: number, i: any) => sum + (Number(i.unit_price) * Number(i.quantity)), 0);
+    const treatDiscVal = treatSub * (treatDisc / 100);
+    page.drawText(`- Rs. ${treatDiscVal.toFixed(2)}`, { x: 475, y: currentSumY, size: 9, font: font, color: darkColor })
 
-    page.drawText(`Discount (${invoice.discount_percentage}%):`, { x: 365, y: summaryBoxY - 38, size: 10, font: font, color: darkColor })
-    page.drawText(`- Rs. ${((Number(invoice.subtotal) * Number(invoice.discount_percentage)) / 100).toFixed(2)}`, { x: 475, y: summaryBoxY - 38, size: 10, font: font, color: darkColor })
+    currentSumY -= 15
+    const medDisc = Number(invoice.medicine_discount_percentage || 0);
+    page.drawText(`Medicine Disc (${medDisc.toFixed(2)}%):`, { x: 350, y: currentSumY, size: 9, font: font, color: darkColor })
+    const medSub = (items || []).filter((i: any) => i.item_type === 'medicine').reduce((sum: number, i: any) => sum + (Number(i.unit_price) * Number(i.quantity)), 0);
+    const medDiscVal = medSub * (medDisc / 100);
+    page.drawText(`- Rs. ${medDiscVal.toFixed(2)}`, { x: 475, y: currentSumY, size: 9, font: font, color: darkColor })
 
+    currentSumY -= 15
+    const overallDisc = Number(invoice.discount_percentage || 0);
+    page.drawText(`Overall Disc (${overallDisc.toFixed(2)}%):`, { x: 350, y: currentSumY, size: 9, font: boldFont, color: darkColor })
+    const overallDiscVal = treatDiscVal + medDiscVal;
+    page.drawText(`- Rs. ${overallDiscVal.toFixed(2)}`, { x: 475, y: currentSumY, size: 9, font: boldFont, color: darkColor })
+
+    currentSumY -= 8
     page.drawLine({
-      start: { x: 360, y: summaryBoxY - 45 },
-      end: { x: 545, y: summaryBoxY - 45 },
+      start: { x: 345, y: currentSumY },
+      end: { x: 550, y: currentSumY },
       thickness: 1,
       color: lightGray
     })
 
-    page.drawText('Grand Total:', { x: 365, y: summaryBoxY - 60, size: 11, font: boldFont, color: tealColor })
-    page.drawText(`Rs. ${Number(invoice.total).toFixed(2)}`, { x: 475, y: summaryBoxY - 60, size: 11, font: boldFont, color: tealColor })
+    currentSumY -= 18
+    page.drawText('Grand Total:', { x: 350, y: currentSumY, size: 11, font: boldFont, color: tealColor })
+    page.drawText(`Rs. ${Number(invoice.total).toFixed(2)}`, { x: 475, y: currentSumY, size: 11, font: boldFont, color: tealColor })
 
     // 5. Prescription Copy Box if prescription exists
-    let advisoryBoxY = summaryBoxY - 95
+    let advisoryBoxY = summaryBoxY - summaryBoxHeight - 25
     // 6. Footer Section
     page.drawText(`Thank you for choosing ${branch.name}.`, { x: 40, y: 50, size: 10, font: boldFont, color: tealColor })
     page.drawText('This invoice is a dynamically generated patient receipt. For any billing query, contact support.', { x: 40, y: 35, size: 8, font: font, color: grayColor })
@@ -298,18 +334,57 @@ serve(async (req) => {
             ${invoice ? `
             <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 20px 0;">
               <h4 style="margin-top: 0; color: #0f766e;">Billing Summary:</h4>
+              
+              <!-- Items Table -->
+              <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 15px;">
+                <thead>
+                  <tr style="border-bottom: 2px solid #e5e7eb; text-align: left; color: #4b5563;">
+                    <th style="padding: 6px 0;">Item Description</th>
+                    <th style="padding: 6px 0; text-align: center;">Qty</th>
+                    <th style="padding: 6px 0; text-align: right;">Total Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${(items || []).map((it: any) => {
+                    const isMed = it.item_type === 'medicine';
+                    const medDisc = Number(invoice.medicine_discount_percentage || 0);
+                    const beforePrice = Number(it.total_price);
+                    const afterPrice = beforePrice * (1 - medDisc / 100);
+                    
+                    return `
+                      <tr style="border-bottom: 1px solid #f3f4f6;">
+                        <td style="padding: 8px 0;">
+                          <strong style="color: #1f2937;">[${it.item_type.toUpperCase()}] ${it.custom_name || 'Clinical Item'}</strong>
+                          ${isMed ? `<div style="font-size: 11px; color: #6b7280; margin-top: 2px;">Before Disc: Rs. ${beforePrice.toFixed(2)} | After Disc: Rs. ${afterPrice.toFixed(2)} (${medDisc.toFixed(2)}% off)</div>` : ''}
+                        </td>
+                        <td style="padding: 8px 0; text-align: center;">${it.quantity}</td>
+                        <td style="padding: 8px 0; text-align: right;">Rs. ${Number(it.total_price).toFixed(2)}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+
               <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                 <tr>
                   <td style="padding: 4px 0; color: #6b7280;">Subtotal:</td>
-                  <td style="padding: 4px 0; text-align: right;">Rs. ${invoice.subtotal}</td>
+                  <td style="padding: 4px 0; text-align: right;">Rs. ${Number(invoice.subtotal).toFixed(2)}</td>
                 </tr>
                 <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Discount Applied:</td>
-                  <td style="padding: 4px 0; text-align: right;">${invoice.discount_percentage}%</td>
+                  <td style="padding: 4px 0; color: #6b7280;">Treatment Discount:</td>
+                  <td style="padding: 4px 0; text-align: right;">${Number(invoice.treatment_discount_percentage || 0).toFixed(2)}%</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Medicine Discount:</td>
+                  <td style="padding: 4px 0; text-align: right;">${Number(invoice.medicine_discount_percentage || 0).toFixed(2)}%</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Overall Discount:</td>
+                  <td style="padding: 4px 0; text-align: right;">${Number(invoice.discount_percentage || 0).toFixed(2)}%</td>
                 </tr>
                 <tr style="border-top: 1px solid #e5e7eb; font-weight: bold; color: #111827;">
                   <td style="padding: 8px 0 0 0;">Total Paid:</td>
-                  <td style="padding: 8px 0 0 0; text-align: right; color: #0f766e;">Rs. ${invoice.total}</td>
+                  <td style="padding: 8px 0 0 0; text-align: right; color: #0f766e;">Rs. ${Number(invoice.total).toFixed(2)}</td>
                 </tr>
               </table>
             </div>
@@ -397,7 +472,9 @@ serve(async (req) => {
       return url.split('/').pop() || null
     }
 
-    // A. Delete physical storage files
+    // A. Keep physical storage files (disabled physical storage deletion)
+    console.log('Retaining clinical attachment files in storage bucket.')
+    /*
     const filesToDelete = [
       getFileName(appt.xray_url),
       getFileName(appt.prescription_url),
@@ -413,9 +490,11 @@ serve(async (req) => {
         console.log('Successfully deleted files from storage:', deleteData)
       }
     }
+    */
 
-    // B. Clear clinical medical rows in public.appointments
-    console.log('Clearing medical fields from public.appointments row...')
+    // B. Keep clinical medical rows in public.appointments (disabled database fields cleanup)
+    console.log('Retaining medical fields in public.appointments row.')
+    /*
     const { error: updateErr } = await supabase
       .from('appointments')
       .update({
@@ -429,9 +508,11 @@ serve(async (req) => {
     if (updateErr) {
       throw new Error(`Failed to clear appointments table fields: ${updateErr.message}`)
     }
+    */
 
-    // C. Delete invoice record (invoice items will cascade delete via schema)
-    console.log('Deleting invoice record from database rows...')
+    // C. Keep invoice record for financial reporting and analysis (disabled physical deletion)
+    console.log('Retaining invoice record in database rows for financial ledger tracking.')
+    /*
     const { error: invoiceDeleteErr } = await supabase
       .from('invoices')
       .delete()
@@ -440,6 +521,7 @@ serve(async (req) => {
     if (invoiceDeleteErr) {
       throw new Error(`Failed to delete invoice row: ${invoiceDeleteErr.message}`)
     }
+    */
 
     console.log('Auto-cleanup completed successfully!')
 

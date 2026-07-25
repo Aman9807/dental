@@ -573,10 +573,10 @@ export default function AdminSettingsPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
-      className="perspective-stage space-y-7 font-sans max-w-6xl"
+      transition={{ type: "spring", stiffness: 85, damping: 15 }}
+      className="perspective-stage space-y-7 font-sans max-w-6xl text-pretty"
     >
       
       {/* ════ SECTION 1: HEADER & TITLE ════ */}
@@ -586,10 +586,10 @@ export default function AdminSettingsPage() {
             <Settings className="w-6 h-6 animate-spin-slow" />
           </div>
           <div>
-            <h1 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">
+            <h1 className="text-2xl font-serif font-bold text-slate-900 tracking-tight text-balance leading-tight">
               System Settings & Control Terminal
             </h1>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="text-sm text-slate-500 font-medium text-pretty mt-1 leading-relaxed max-w-prose">
               Configure clinic security, doctor profit share policies, branch hours, time slots, treatments, and stock inventory.
             </p>
           </div>
@@ -597,7 +597,7 @@ export default function AdminSettingsPage() {
       </div>
 
       {/* ════ SECTION 2: 3D TABS CONTROL DECK ════ */}
-      <div className="card-3d glass-3d p-2 rounded-2xl shadow-lg border border-white/80 flex items-center gap-2 overflow-x-auto">
+      <div className="card-3d glass-3d p-2 rounded-2xl shadow-lg border border-white/80 flex items-center gap-2 overflow-x-auto relative">
         {[
           { key: 'security', label: '🔐 Security & Policies', icon: Shield },
           { key: 'branches', label: '🏥 Branch Hours & Slots', icon: Building2 },
@@ -611,14 +611,21 @@ export default function AdminSettingsPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key as any)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 ${
+              className={`relative flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 z-10 ${
                 isActive 
-                  ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-cyan-400 shadow-md border border-white/10' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                  ? 'text-cyan-400 font-extrabold' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/30'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
-              {tab.label}
+              {isActive && (
+                <motion.div
+                  layoutId="activeTabIndicator"
+                  className="absolute inset-0 bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl -z-10 shadow-md border border-white/10"
+                  transition={{ type: "spring", stiffness: 380, damping: 26 }}
+                />
+              )}
+              <Icon className={`w-4 h-4 transition-colors duration-200 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+              <span>{tab.label}</span>
             </button>
           )
         })}
@@ -631,16 +638,16 @@ export default function AdminSettingsPage() {
         {activeTab === 'security' && (
           <motion.div
             key="security"
-            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.99 }}
-            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Password Change */}
             <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
-                <Key className="w-4 h-4 text-cyan-600" />
+              <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2 pb-3 border-b border-slate-200/60 leading-none">
+                <Key className="w-4 h-4 text-cyan-600 animate-pulse" />
                 Change Admin System Passcode
               </h3>
               {successMsg && (
@@ -650,25 +657,27 @@ export default function AdminSettingsPage() {
                 </div>
               )}
               <form onSubmit={handlePasswordChange} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">New Admin Passcode</label>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-none">New Admin Passcode</label>
                   <input
                     type="password"
                     required
                     placeholder="Enter new admin passcode"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-cyan-500 shadow-sm"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-cyan-500 shadow-sm transition-colors duration-200"
                   />
                 </div>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.015 }}
+                  whileTap={{ scale: 0.985 }}
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-cyan-400 rounded-2xl text-xs font-bold shadow-md shadow-slate-900/15 transition transform hover:scale-[1.01] flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-cyan-400 rounded-2xl text-xs font-bold shadow-md shadow-slate-900/15 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : <Key className="w-4 h-4" />}
                   Update Access Passcode
-                </button>
+                </motion.button>
               </form>
             </div>
 
@@ -753,14 +762,14 @@ export default function AdminSettingsPage() {
         {activeTab === 'branches' && (
           <motion.div
             key="branches"
-            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.99 }}
-            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Branch Operating Hours */}
-            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
+            <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4 text-pretty">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
                 <Clock className="w-4 h-4 text-cyan-600" />
                 Clinic Branch Operating Hours
@@ -842,10 +851,16 @@ export default function AdminSettingsPage() {
                 </h3>
                 <form onSubmit={handleAddTimeSlot} className="flex gap-2">
                   <input type="time" required value={newTime} onChange={e => setNewTime(e.target.value)} className="flex-1 px-4 py-2 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-cyan-500 shadow-sm" />
-                  <button type="submit" disabled={addingSlot || !newTime} className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-2xl transition flex items-center gap-1.5 shrink-0 shadow-md">
+                  <motion.button 
+                    whileHover={{ scale: 1.015 }}
+                    whileTap={{ scale: 0.985 }}
+                    type="submit" 
+                    disabled={addingSlot || !newTime} 
+                    className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-2xl transition flex items-center gap-1.5 shrink-0 shadow-md cursor-pointer"
+                  >
                     {addingSlot ? <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" /> : <Plus className="w-3.5 h-3.5" />}
                     Add Slot
-                  </button>
+                  </motion.button>
                 </form>
                 {loadingSlots ? (
                   <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
@@ -870,16 +885,16 @@ export default function AdminSettingsPage() {
         {activeTab === 'treatments' && (
           <motion.div
             key="treatments"
-            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.99 }}
-            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-7"
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-7 text-pretty"
           >
             {/* Add Treatment */}
             <div className="md:col-span-1">
               <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4 sticky top-6">
-                <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-200/60 flex items-center gap-2 leading-none">
                   <Plus className="w-4 h-4 text-cyan-600" />
                   Add New Clinic Procedure
                 </h3>
@@ -896,10 +911,16 @@ export default function AdminSettingsPage() {
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Material Cost Price (INR)</label>
                     <input type="number" required placeholder="400" value={newTreatmentCost} onChange={e => setNewTreatmentCost(e.target.value)} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-mono font-bold focus:outline-none focus:border-cyan-500 shadow-sm" />
                   </div>
-                  <button type="submit" disabled={addingTreatment} className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-cyan-400 rounded-2xl text-xs font-bold shadow-md transition transform hover:scale-[1.01] flex items-center justify-center gap-1.5">
+                  <motion.button 
+                    whileHover={{ scale: 1.015 }}
+                    whileTap={{ scale: 0.985 }}
+                    type="submit" 
+                    disabled={addingTreatment} 
+                    className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-cyan-400 rounded-2xl text-xs font-bold shadow-md transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
                     {addingTreatment ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : <Plus className="w-4 h-4" />}
                     Add Procedure Record
-                  </button>
+                  </motion.button>
                 </form>
               </div>
             </div>
@@ -928,14 +949,14 @@ export default function AdminSettingsPage() {
                         {treatments.map(t => (
                           <tr key={t.id} className="hover:bg-slate-50/70 transition text-slate-800">
                             <td className="p-3.5 font-semibold text-slate-900">{t.name}</td>
-                            <td className="p-3.5 font-mono font-bold text-emerald-600">
+                            <td className="p-3.5 font-mono tabular-nums font-bold text-emerald-600">
                               {editingTreatmentId === t.id ? (
                                 <input type="number" value={tempTreatmentPrice} onChange={e => setTempTreatmentPrice(e.target.value)} className="w-24 px-2 py-1 border rounded-lg font-mono text-xs" />
                               ) : (
                                 `INR ${Number(t.price).toFixed(2)}`
                               )}
                             </td>
-                            <td className="p-3.5 font-mono font-medium text-slate-500">
+                            <td className="p-3.5 font-mono tabular-nums font-medium text-slate-500">
                               {editingTreatmentId === t.id ? (
                                 <input type="number" value={tempTreatmentCost} onChange={e => setTempTreatmentCost(e.target.value)} className="w-24 px-2 py-1 border rounded-lg font-mono text-xs" />
                               ) : (
@@ -973,11 +994,11 @@ export default function AdminSettingsPage() {
         {activeTab === 'medicines' && (
           <motion.div
             key="medicines"
-            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.99 }}
-            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
-            className="space-y-7"
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="space-y-7 text-pretty"
           >
             {/* Branch Selector for Inventory */}
             <div className="card-3d glass-3d p-4 rounded-2xl border border-white/80 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -987,32 +1008,32 @@ export default function AdminSettingsPage() {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Branch-Specific Inventory</h4>
-                  <p className="text-[10px] text-slate-500 font-medium">Select branch to view or register medicine stock.</p>
+                  <p className="text-xs text-slate-500 font-medium">Select branch to view or register medicine stock.</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 p-1 bg-slate-200/60 rounded-xl border border-slate-200/40">
-                <button
-                  type="button"
-                  onClick={() => setSelectedInventoryBranch('hazara')}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 ${
-                    selectedInventoryBranch === 'hazara'
-                      ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Hazara Dental Clinic
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedInventoryBranch('family')}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 ${
-                    selectedInventoryBranch === 'family'
-                      ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Family Dental Clinic
-                </button>
+              <div className="flex items-center gap-1.5 p-1 bg-slate-200/60 rounded-xl border border-slate-200/40 relative">
+                {['hazara', 'family'].map(branch => {
+                  const isSelected = selectedInventoryBranch === branch
+                  return (
+                    <button
+                      key={branch}
+                      type="button"
+                      onClick={() => setSelectedInventoryBranch(branch)}
+                      className={`relative px-4 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 z-10 ${
+                        isSelected ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="branchInventoryActive"
+                          className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-teal-600 rounded-lg -z-10 shadow-sm"
+                          transition={{ type: "spring", stiffness: 380, damping: 25 }}
+                        />
+                      )}
+                      {branch === 'hazara' ? 'Hazara Dental Clinic' : 'Family Dental Clinic'}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -1067,10 +1088,16 @@ export default function AdminSettingsPage() {
                         <input type="number" required placeholder="80" value={newMedCostPrice} onChange={e => setNewMedCostPrice(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
                       </div>
                     </div>
-                    <button type="submit" disabled={addingMed} className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-cyan-400 rounded-2xl text-xs font-bold shadow-md transition transform hover:scale-[1.01] flex items-center justify-center gap-1.5">
+                    <motion.button 
+                      whileHover={{ scale: 1.015 }}
+                      whileTap={{ scale: 0.985 }}
+                      type="submit" 
+                      disabled={addingMed} 
+                      className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-cyan-400 rounded-2xl text-xs font-bold shadow-md transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
                       {addingMed ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : <Plus className="w-4 h-4" />}
                       Register Stock
-                    </button>
+                    </motion.button>
                   </form>
                 </div>
               </div>
@@ -1080,45 +1107,53 @@ export default function AdminSettingsPage() {
                 <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/60 gap-3">
                     <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                      <Pill className="w-4 h-4 text-cyan-600" />
+                      <Pill className="w-4 h-4 text-cyan-600 animate-pulse" />
                       In-Stock Medicines Inventory (TiDB Cloud Database)
                     </h3>
                     
                     <div className="flex items-center flex-wrap gap-2">
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
                         type="button"
                         onClick={downloadMedTemplate}
                         title="Download CSV Import Template"
-                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition"
+                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition-all duration-200 cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5 text-slate-500" /> Template
-                      </button>
+                      </motion.button>
 
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
                         type="button"
                         onClick={exportMedicinesInventory}
-                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-xl shadow-sm transition"
+                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-xl shadow-sm transition-all duration-200 cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5 text-cyan-600" /> Export CSV
-                      </button>
+                      </motion.button>
 
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
                         type="button"
                         onClick={() => {
                           const url = `${window.location.origin}/admin/capture?branch=${selectedInventoryBranch}&mode=barcode`
                           window.open(url, '_blank')
                         }}
-                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl shadow-sm transition"
+                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl shadow-sm transition-all duration-200 cursor-pointer"
                       >
                         <Camera className="w-3.5 h-3.5" /> Mobile Scan
-                      </button>
+                      </motion.button>
 
-                      <label
+                      <motion.label
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
                         htmlFor="bulk-import-meds-input"
-                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl cursor-pointer shadow-sm transition"
+                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl cursor-pointer shadow-sm transition-all duration-200"
                       >
                         <Upload className="w-3.5 h-3.5 text-emerald-600" /> Import CSV
-                      </label>
+                      </motion.label>
                       <input
                         type="file"
                         id="bulk-import-meds-input"
@@ -1173,9 +1208,9 @@ export default function AdminSettingsPage() {
                                       {med.stock} tabs ({stripsStock} strips {remTabsStock > 0 ? `+ ${remTabsStock} tabs` : ''})
                                     </span>
                                   </td>
-                                  <td className="p-3.5 font-mono font-bold text-emerald-600">INR {(price * tabsPerPatch).toFixed(2)}</td>
-                                  <td className="p-3.5 font-mono font-medium text-slate-500">INR {(cost * tabsPerPatch).toFixed(2)}</td>
-                                  <td className="p-3.5 text-slate-600 font-mono">{expiry}</td>
+                                  <td className="p-3.5 font-mono tabular-nums font-bold text-emerald-600">INR {(price * tabsPerPatch).toFixed(2)}</td>
+                                  <td className="p-3.5 font-mono tabular-nums font-medium text-slate-500">INR {(cost * tabsPerPatch).toFixed(2)}</td>
+                                  <td className="p-3.5 text-slate-600 font-mono tabular-nums">{expiry}</td>
                                 </tr>
                               )
                             })
@@ -1194,11 +1229,11 @@ export default function AdminSettingsPage() {
         {activeTab === 'messaging' && (
           <motion.div
             key="messaging"
-            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.99 }}
-            transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1] }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-7"
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-7 text-pretty"
           >
             {/* Channel Selection Card */}
             <div className="card-3d glass-3d p-6 rounded-3xl shadow-xl border border-white/80 space-y-5">

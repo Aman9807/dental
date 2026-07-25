@@ -87,6 +87,8 @@ interface Invoice {
   total: number
   subtotal: number
   discount_percentage: number
+  treatment_discount_percentage?: number
+  medicine_discount_percentage?: number
   invoice_items: InvoiceItem[]
 }
 
@@ -131,7 +133,8 @@ function getAppointmentFinances(appt: Appointment) {
   const invoice = appt.invoices?.[0]
   if (!invoice) return null
 
-  const discountMultiplier = 1 - (invoice.discount_percentage || 0) / 100
+  const treatmentDiscountMultiplier = 1 - (invoice.treatment_discount_percentage || 0) / 100
+  const medicineDiscountMultiplier = 1 - (invoice.medicine_discount_percentage || 0) / 100
 
   let treatmentRevenue = 0
   let treatmentCost = 0
@@ -153,8 +156,8 @@ function getAppointmentFinances(appt: Appointment) {
     })
   }
 
-  const netTreatmentRevenue = treatmentRevenue * discountMultiplier
-  const netMedicineRevenue = medicineRevenue * discountMultiplier
+  const netTreatmentRevenue = treatmentRevenue * treatmentDiscountMultiplier
+  const netMedicineRevenue = medicineRevenue * medicineDiscountMultiplier
 
   const treatmentProfit = netTreatmentRevenue - treatmentCost
   const medicineProfit = netMedicineRevenue - medicineCost

@@ -56,6 +56,8 @@ export default async function AdminFinancesPage() {
             total,
             subtotal,
             discount_percentage,
+            treatment_discount_percentage,
+            medicine_discount_percentage,
             invoice_items (
               id,
               item_type,

@@ -25,7 +25,8 @@ interface AnalyticsTabProps {
 function getAppointmentFinances(appt: any) {
   const invoice = appt.invoices?.[0]
   if (!invoice) return null
-  const discountMultiplier = 1 - (invoice.discount_percentage || 0) / 100
+  const treatmentDiscountMultiplier = 1 - (invoice.treatment_discount_percentage || 0) / 100
+  const medicineDiscountMultiplier = 1 - (invoice.medicine_discount_percentage || 0) / 100
   let tRev = 0, tCost = 0, mRev = 0, mCost = 0
 
   if (invoice.invoice_items) {
@@ -41,8 +42,8 @@ function getAppointmentFinances(appt: any) {
     })
   }
 
-  const netT = tRev * discountMultiplier
-  const netM = mRev * discountMultiplier
+  const netT = tRev * treatmentDiscountMultiplier
+  const netM = mRev * medicineDiscountMultiplier
   return {
     netTreatmentRevenue: netT, treatmentCost: tCost, treatmentProfit: netT - tCost,
     netMedicineRevenue: netM, medicineCost: mCost, medicineProfit: netM - mCost,

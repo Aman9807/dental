@@ -275,9 +275,9 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
           ...appt, 
           status: 'completed',
           report_sent_at: sentTime,
-          prescription_text: null, // cleared as part of purge
-          prescription_url: null,
-          xray_url: null,
+          prescription_text: prescriptionText || appt.prescription_text,
+          prescription_url: res.prescriptionUrl || appt.prescription_url,
+          xray_url: res.xrayUrl || appt.xray_url,
           temp_mobile_photo: null,
           patient_id: res.updatedPatient?.id || appt.patient_id,
           patients: res.updatedPatient || appt.patients
