@@ -173,11 +173,10 @@ export default function AnalyticsTab({
       {/* ═══ 3D CHARTS GRID (ROW 1) ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* CHART 1: MONTHLY NET PROFIT TREND */}
         <motion.div 
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.12 }}
           className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
         >
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
@@ -231,11 +230,10 @@ export default function AnalyticsTab({
           </div>
         </motion.div>
 
-        {/* CHART 2: PROFIT DISTRIBUTION (PIE CHART) */}
         <motion.div 
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.25 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.12 }}
           className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
         >
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
@@ -293,11 +291,10 @@ export default function AnalyticsTab({
       {/* ═══ 3D CHARTS GRID (ROW 2) ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* CHART 3: WEEKLY PROFIT TRAJECTORY */}
         <motion.div 
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.12 }}
           className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
         >
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
@@ -347,11 +344,10 @@ export default function AnalyticsTab({
           </div>
         </motion.div>
 
-        {/* CHART 4: REVENUE VS EXPENSES COMPOSITION */}
         <motion.div 
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.55 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.12 }}
           className="card-3d glass-3d p-6 md:p-7 rounded-3xl shadow-xl border border-white/80 space-y-6 relative overflow-hidden"
         >
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">

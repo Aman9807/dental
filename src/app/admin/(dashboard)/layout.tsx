@@ -2,24 +2,16 @@ import React from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Outfit, DM_Sans } from 'next/font/google'
+import { JetBrains_Mono } from 'next/font/google'
 import { 
   LayoutDashboard, Users, Settings, ShieldAlert, Sparkles, CircleDollarSign, Receipt, MessageSquare
 } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 import DentalLogo from '@/components/DentalLogo'
 
-const outfit = Outfit({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  variable: "--font-outfit",
-  display: "swap",
-})
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-dm-sans",
+  variable: "--font-mono",
   display: "swap",
 })
 
@@ -37,11 +29,12 @@ export default async function AdminDashboardLayout({
 
   return (
     <div 
-      className={`${outfit.variable} ${dmSans.variable} flex bg-slate-50 min-h-screen`}
+      className={`${jetbrainsMono.variable} flex bg-slate-50 min-h-screen`}
       style={{
-        fontFamily: 'var(--font-dm-sans), sans-serif',
-        ['--font-sans' as any]: 'var(--font-dm-sans), sans-serif',
-        ['--font-serif' as any]: 'var(--font-outfit), sans-serif'
+        fontFamily: 'var(--font-sans), sans-serif',
+        ['--font-sans' as any]: 'var(--font-sans), sans-serif',
+        ['--font-serif' as any]: 'var(--font-sans), sans-serif',
+        ['--font-mono' as any]: 'var(--font-mono), monospace'
       }}
     >
       

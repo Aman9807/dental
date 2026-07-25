@@ -573,9 +573,9 @@ export default function AdminSettingsPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 75, damping: 18 }}
+      transition={{ duration: 0.12 }}
       className="perspective-stage space-y-7 font-sans max-w-6xl text-pretty"
     >
       
@@ -621,7 +621,7 @@ export default function AdminSettingsPage() {
                 <motion.div
                   layoutId="activeTabIndicator"
                   className="absolute inset-0 bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl -z-10 shadow-md border border-white/10"
-                  transition={{ type: "spring", stiffness: 120, damping: 22 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
                 />
               )}
               <Icon className={`w-4 h-4 transition-colors duration-200 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
@@ -638,10 +638,10 @@ export default function AdminSettingsPage() {
         {activeTab === 'security' && (
           <motion.div
             key="security"
-            initial={{ opacity: 0, y: 15, scale: 0.995 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 110, damping: 20 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Password Change */}
@@ -774,10 +774,10 @@ export default function AdminSettingsPage() {
         {activeTab === 'branches' && (
           <motion.div
             key="branches"
-            initial={{ opacity: 0, y: 15, scale: 0.995 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 110, damping: 20 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7"
           >
             {/* Branch Operating Hours */}
@@ -897,10 +897,10 @@ export default function AdminSettingsPage() {
         {activeTab === 'treatments' && (
           <motion.div
             key="treatments"
-            initial={{ opacity: 0, y: 15, scale: 0.995 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 110, damping: 20 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
             className="grid grid-cols-1 md:grid-cols-3 gap-7 text-pretty"
           >
             {/* Add Treatment */}
@@ -1006,10 +1006,10 @@ export default function AdminSettingsPage() {
         {activeTab === 'medicines' && (
           <motion.div
             key="medicines"
-            initial={{ opacity: 0, y: 15, scale: 0.995 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 110, damping: 20 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
             className="space-y-7 text-pretty"
           >
             {/* Branch Selector for Inventory */}
@@ -1039,7 +1039,7 @@ export default function AdminSettingsPage() {
                         <motion.div
                           layoutId="branchInventoryActive"
                           className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-teal-600 rounded-lg -z-10 shadow-sm"
-                          transition={{ type: "spring", stiffness: 120, damping: 22 }}
+                          transition={{ duration: 0.12, ease: "easeOut" }}
                         />
                       )}
                       {branch === 'hazara' ? 'Hazara Dental Clinic' : 'Family Dental Clinic'}
@@ -1241,10 +1241,10 @@ export default function AdminSettingsPage() {
         {activeTab === 'messaging' && (
           <motion.div
             key="messaging"
-            initial={{ opacity: 0, y: 15, scale: 0.995 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ type: "spring", stiffness: 110, damping: 20 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-7 text-pretty"
           >
             {/* Channel Selection Card */}

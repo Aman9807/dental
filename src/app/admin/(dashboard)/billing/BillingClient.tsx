@@ -397,10 +397,10 @@ export default function BillingClient({ initialAppointments, initialTreatments }
       <div className="absolute top-10 left-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none floating-3d -z-10" />
       <div className="absolute top-1/2 right-10 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none floating-3d -z-10" style={{ animationDelay: '3s' }} />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
+       <motion.div
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.12 }}
         className="space-y-8 max-w-6xl mx-auto"
       >
         
@@ -458,9 +458,9 @@ export default function BillingClient({ initialAppointments, initialTreatments }
         {checkoutSuccess ? (
           /* ═══ 3D SUCCESS RECEIPT STAGE ═══ */
           <motion.div 
-            initial={{ scale: 0.9, opacity: 0, rotateX: 10 }}
-            animate={{ scale: 1, opacity: 1, rotateX: 0 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.15 }}
             className="max-w-xl mx-auto glass-3d rounded-3xl p-8 shadow-2xl space-y-6 text-center preserve-3d border border-emerald-400/30"
           >
             <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20 floating-3d">

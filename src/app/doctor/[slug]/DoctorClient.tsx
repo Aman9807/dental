@@ -781,10 +781,10 @@ export default function DoctorClient({
       <header className="sticky top-0 z-40 w-full px-6 py-4 flex items-center justify-between border-b border-white/40 bg-white/60 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl flex items-center justify-center text-white shadow-[0_8px_16px_rgba(6,182,212,0.25)] border border-white/20 transform transition hover:scale-105">
-            <span className="font-['Poppins',_sans-serif] font-bold text-lg">D</span>
+            <span className="font-sans font-bold text-lg">D</span>
           </div>
           <div>
-            <h2 className="text-lg font-['Poppins',_sans-serif] font-bold leading-tight text-slate-800">Dr. {doctor.name}</h2>
+            <h2 className="text-lg font-sans font-bold leading-tight text-slate-800">Dr. {doctor.name}</h2>
             <p className="text-xs text-teal-600 font-medium uppercase tracking-widest">{doctor.branches?.name || 'Dentist Portal'}</p>
           </div>
         </div>
@@ -837,10 +837,10 @@ export default function DoctorClient({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.12 }}
               className="bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl p-6 sm:p-8 shadow-[0_20px_40px_rgba(0,0,0,0.04)] space-y-6"
             >
-              <h3 className="text-xl font-['Poppins',_sans-serif] font-bold text-slate-800 flex items-center gap-2">
+              <h3 className="text-xl font-sans font-bold text-slate-800 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-teal-500" />
                 Patient Appointments
               </h3>
@@ -872,8 +872,15 @@ export default function DoctorClient({
                       appointments.map(appt => (
                         <motion.tr variants={itemVariants} key={appt.id} className="hover:bg-white/60 transition-colors">
                           <td className="px-6 py-4">
-                            <p className="font-semibold text-slate-800 font-['Poppins',_sans-serif]">{appt.patients?.name}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">{appt.patients?.age} years old • {appt.patients?.mobile}</p>
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-sm">
+                                {appt.patients?.name.charAt(0)}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-slate-800 font-sans">{appt.patients?.name}</p>
+                                <span className="text-[10px] text-slate-400 font-medium">{appt.patients?.age} yrs · {appt.patients?.mobile}</span>
+                              </div>
+                            </div>
                           </td>
                           <td className="px-6 py-4">
                             <p className="font-medium text-slate-700">{appt.appointment_date}</p>
@@ -960,11 +967,11 @@ export default function DoctorClient({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.12 }}
               className="bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl p-8 shadow-[0_20px_40px_rgba(0,0,0,0.04)] max-w-2xl mx-auto space-y-8"
             >
               <div className="border-b border-slate-200/50 pb-4">
-                <h3 className="text-xl font-['Poppins',_sans-serif] font-bold text-slate-800 flex items-center gap-2">
+                <h3 className="text-xl font-sans font-bold text-slate-800 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-teal-500" />
                   Book Offline Patient
                 </h3>
@@ -1062,7 +1069,7 @@ export default function DoctorClient({
                 <button
                   type="submit"
                   disabled={bookingOffline}
-                  className="w-full py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl text-sm font-['Poppins',_sans-serif] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20 transition-all hover:-translate-y-1 disabled:opacity-70 disabled:hover:translate-y-0"
+                  className="w-full py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl text-sm font-sans font-semibold flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20 transition-all hover:-translate-y-1 disabled:opacity-70 disabled:hover:translate-y-0"
                 >
                   {bookingOffline && <RefreshCw className="w-4 h-4 animate-spin" />}
                   Confirm Booking
@@ -1078,7 +1085,7 @@ export default function DoctorClient({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.12 }}
               className="grid grid-cols-1 md:grid-cols-2 gap-8"
             >
               {/* Monthly Earnings Card */}
@@ -1086,21 +1093,21 @@ export default function DoctorClient({
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-400/10 rounded-full blur-3xl" />
                 
                 <div className="flex items-center justify-between border-b border-slate-200/50 pb-4 mb-6 z-10">
-                  <h3 className="text-lg font-['Poppins',_sans-serif] font-bold text-slate-800 flex items-center gap-2">
+                  <h3 className="text-lg font-sans font-bold text-slate-800 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-cyan-500" />
                     Monthly Payout
                   </h3>
                   <input
                     type="month"
                     value={selectedMonth}
-                    onChange={e => setSelectedMonth(e.target.value)}
-                    className="px-4 py-2 border border-slate-200 rounded-xl text-sm bg-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500 outline-none transition"
                   />
                 </div>
 
-                <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-100 p-6 rounded-2xl text-center shadow-inner mb-8 z-10">
+                <div className="text-center py-6 bg-slate-50/50 border border-slate-100 rounded-3xl mb-8 relative z-10">
                   <p className="text-xs text-slate-400 uppercase tracking-[0.2em] font-medium mb-2">Total Earning</p>
-                  <p className="text-4xl font-['Poppins',_sans-serif] font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500">
+                  <p className="text-4xl font-sans font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500">
                     INR {finances.finalPayout.toLocaleString()}
                   </p>
                 </div>
