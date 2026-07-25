@@ -209,6 +209,9 @@ export default function FinancesClient({
     return now.toISOString().split('T')[0]
   })
 
+  // Loading state for attendance buttons — stores key like "helperId-shift" or "doctorId"
+  const [loadingAttKey, setLoadingAttKey] = useState<string | null>(null)
+
   // Inputs for saving closing charges
   const [tempCharges, setTempCharges] = useState<{ [apptId: string]: { charged: string; cost: string } }>({})
   const [savingApptId, setSavingApptId] = useState<string | null>(null)
@@ -686,6 +689,9 @@ export default function FinancesClient({
 
   // Toggle Helper Attendance (Status toggle present/absent for specific date and shift)
   const handleToggleHelperAttendance = async (helperId: string, shift: number, targetDate: string, currentStatus: 'present' | 'absent') => {
+    const key = `${helperId}-${shift}`
+    if (loadingAttKey === key) return
+    setLoadingAttKey(key)
     const nextStatus: 'present' | 'absent' = currentStatus === 'present' ? 'absent' : 'present'
     try {
       const res = await updateHelperAttendance(helperId, targetDate, shift, nextStatus)
@@ -699,12 +705,17 @@ export default function FinancesClient({
       }
     } catch (err) {
       console.error(err)
+    } finally {
+      setLoadingAttKey(null)
     }
   }
 
   // Toggle Doctor Attendance (cycles: present -> absent -> half_day -> present for specific date)
   const handleToggleDoctorAttendance = async (doctorId: string, dateStr: string, currentStatus: 'present' | 'absent' | 'half_day') => {
-    const nextStatus: 'present' | 'absent' | 'half_day' = 
+    const key = `doc-${doctorId}`
+    if (loadingAttKey === key) return
+    setLoadingAttKey(key)
+    const nextStatus: 'present' | 'absent' | 'half_day' =
       currentStatus === 'present' ? 'absent' : currentStatus === 'absent' ? 'half_day' : 'present'
 
     try {
@@ -719,6 +730,8 @@ export default function FinancesClient({
       }
     } catch (err) {
       console.error(err)
+    } finally {
+      setLoadingAttKey(null)
     }
   }
 
@@ -1057,65 +1070,69 @@ export default function FinancesClient({
             </div>
           </div>
 
-          {/* DAILY QUICK LOGGER GRID */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* Helper Boys Daily Quick Logger */}
-            <div className="card-3d glass-3d p-5 rounded-2xl border border-white/70 space-y-4 shadow-md">
-              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <User2 className="w-4 h-4 text-cyan-600" />
-                  Helper Boys Daily Quick Logger ({attendanceDate})
-                </h4>
-                <span className="text-[10px] text-slate-400 font-medium">Shift Status</span>
+          {/* ══ CLAYMORPHISM DAILY QUICK LOGGER GRID ══ */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+
+            {/* ── Helper Boys Logger ── */}
+            <div className="clay" style={{ padding: 20, borderRadius: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: 12, marginBottom: 16 }}>
+                <div>
+                  <h4 style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.01em' }}>
+                    <User2 size={14} color="#0891b2" />
+                    Helper Boys Logger
+                  </h4>
+                  <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Tap to toggle Present ↔ Absent</p>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#0891b2', background: '#ecfeff', padding: '3px 8px', borderRadius: 8 }}>{attendanceDate}</span>
               </div>
 
-              <div className="divide-y divide-slate-100">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {getBranchFilteredHelpers().length === 0 ? (
-                  <p className="py-4 text-xs text-slate-400 text-center font-light">No helper boys assigned to this branch.</p>
+                  <p style={{ textAlign: 'center', color: '#cbd5e1', fontSize: 11, padding: '20px 0' }}>No helper boys assigned.</p>
                 ) : (
                   getBranchFilteredHelpers().map(helper => {
-                    const shift1Record = helperAttendance.find(
-                      a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 1
-                    )
-                    const shift2Record = helperAttendance.find(
-                      a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 2
-                    )
-
+                    const shift1Record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 1)
+                    const shift2Record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 2)
                     const isShift1Absent = shift1Record?.status === 'absent'
                     const isShift2Absent = shift2Record?.status === 'absent'
 
                     return (
-                      <div key={helper.id} className="py-3 flex items-center justify-between">
+                      <div
+                        key={helper.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          borderRadius: 14,
+                          background: '#f8fafc',
+                        }}
+                      >
                         <div>
-                          <p className="text-xs font-semibold text-slate-900">{helper.name}</p>
-                          <span className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
-                            {helper.sunday_enabled ? 'Works Sundays' : 'Mon-Sat Only'}
+                          <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{helper.name}</p>
+                          <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 500 }}>
+                            {helper.sunday_enabled ? 'Sun included' : 'Mon–Sat'}
                           </span>
                         </div>
-                        <div className="flex gap-2">
+                        <div style={{ display: 'flex', gap: 6 }}>
                           {helper.shift_1_enabled && (
                             <button
                               onClick={() => handleToggleHelperAttendance(helper.id, 1, attendanceDate, isShift1Absent ? 'absent' : 'present')}
-                              className={`px-3 py-1.5 text-[10px] font-bold rounded-xl border shadow-sm transition transform hover:scale-105 ${
-                                isShift1Absent 
-                                  ? 'bg-rose-500 text-white border-rose-600' 
-                                  : 'bg-emerald-500 text-white border-emerald-600'
-                              }`}
+                              disabled={loadingAttKey === `${helper.id}-1`}
+                              className={`att-btn ${loadingAttKey === `${helper.id}-1` ? 'att-btn-loading' : isShift1Absent ? 'att-btn-absent' : 'att-btn-present'}`}
+                              style={{ minWidth: 90, fontSize: 10 }}
                             >
-                              Shift 1: {isShift1Absent ? 'ABSENT' : 'PRESENT'}
+                              {loadingAttKey === `${helper.id}-1` ? '...' : isShift1Absent ? '❌ S1 ABS' : '✅ S1 PRES'}
                             </button>
                           )}
                           {helper.shift_2_enabled && (
                             <button
                               onClick={() => handleToggleHelperAttendance(helper.id, 2, attendanceDate, isShift2Absent ? 'absent' : 'present')}
-                              className={`px-3 py-1.5 text-[10px] font-bold rounded-xl border shadow-sm transition transform hover:scale-105 ${
-                                isShift2Absent 
-                                  ? 'bg-rose-500 text-white border-rose-600' 
-                                  : 'bg-emerald-500 text-white border-emerald-600'
-                              }`}
+                              disabled={loadingAttKey === `${helper.id}-2`}
+                              className={`att-btn ${loadingAttKey === `${helper.id}-2` ? 'att-btn-loading' : isShift2Absent ? 'att-btn-absent' : 'att-btn-present'}`}
+                              style={{ minWidth: 90, fontSize: 10 }}
                             >
-                              Shift 2: {isShift2Absent ? 'ABSENT' : 'PRESENT'}
+                              {loadingAttKey === `${helper.id}-2` ? '...' : isShift2Absent ? '❌ S2 ABS' : '✅ S2 PRES'}
                             </button>
                           )}
                         </div>
@@ -1126,43 +1143,73 @@ export default function FinancesClient({
               </div>
             </div>
 
-            {/* Doctors Daily Quick Logger */}
-            <div className="card-3d glass-3d p-5 rounded-2xl border border-white/70 space-y-4 shadow-md">
-              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <User2 className="w-4 h-4 text-emerald-600" />
-                  Doctor Daily Quick Logger ({attendanceDate})
-                </h4>
-                <span className="text-[10px] text-slate-400 font-medium">Daily Status</span>
+            {/* ── Doctors Logger ── */}
+            <div className="clay" style={{ padding: 20, borderRadius: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: 12, marginBottom: 16 }}>
+                <div>
+                  <h4 style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.01em' }}>
+                    <User2 size={14} color="#059669" />
+                    Doctor Logger
+                  </h4>
+                  <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Tap to cycle: Present → Absent → Half Day</p>
+                </div>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#059669', background: '#ecfdf5', padding: '2px 7px', borderRadius: 6 }}>✅ PRES</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e11d48', background: '#fff1f2', padding: '2px 7px', borderRadius: 6 }}>❌ ABS</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#d97706', background: '#fffbeb', padding: '2px 7px', borderRadius: 6 }}>🌓 HALF</span>
+                </div>
               </div>
 
-              <div className="divide-y divide-slate-100">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {getBranchFilteredDoctors().length === 0 ? (
-                  <p className="py-4 text-xs text-slate-400 text-center font-light">No doctors assigned to this branch.</p>
+                  <p style={{ textAlign: 'center', color: '#cbd5e1', fontSize: 11, padding: '20px 0' }}>No doctors assigned.</p>
                 ) : (
                   getBranchFilteredDoctors().map(doc => {
                     const attRecord = doctorAttendance.find(a => a.doctor_id === doc.id && a.date === attendanceDate)
                     const status = attRecord?.status || 'present'
+                    const isLoading = loadingAttKey === `doc-${doc.id}`
+
+                    const btnClass = isLoading
+                      ? 'att-btn att-btn-loading'
+                      : status === 'absent'
+                      ? 'att-btn att-btn-absent'
+                      : status === 'half_day'
+                      ? 'att-btn att-btn-halfday'
+                      : 'att-btn att-btn-present'
+
+                    const btnLabel = isLoading
+                      ? 'Saving...'
+                      : status === 'absent'
+                      ? '❌ ABSENT'
+                      : status === 'half_day'
+                      ? '🌓 HALF DAY'
+                      : '✅ PRESENT'
 
                     return (
-                      <div key={doc.id} className="py-3 flex items-center justify-between">
+                      <div
+                        key={doc.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          borderRadius: 14,
+                          background: status === 'absent' ? '#fff1f2' : status === 'half_day' ? '#fffbeb' : '#f0fdf4',
+                          transition: 'background 0.15s ease',
+                        }}
+                      >
                         <div>
-                          <p className="text-xs font-semibold text-slate-900">Dr. {doc.name}</p>
-                          <span className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
-                            {doc.compensation_type === 'percentage' ? `${doc.profit_percentage}% Profit Share` : `INR ${doc.fixed_salary} Salary`}
+                          <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Dr. {doc.name}</p>
+                          <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 500 }}>
+                            {doc.compensation_type === 'percentage' ? `${doc.profit_percentage}% share` : `₹${doc.fixed_salary} salary`}
                           </span>
                         </div>
                         <button
-                          onClick={() => handleToggleDoctorAttendance(doc.id, attendanceDate, status)}
-                          className={`px-3 py-1.5 text-[10px] font-bold rounded-xl border shadow-sm transition transform hover:scale-105 ${
-                            status === 'absent' 
-                              ? 'bg-rose-500 text-white border-rose-600' 
-                              : status === 'half_day'
-                              ? 'bg-amber-500 text-white border-amber-600'
-                              : 'bg-emerald-500 text-white border-emerald-600'
-                          }`}
+                          onClick={() => handleToggleDoctorAttendance(doc.id, attendanceDate, status as 'present' | 'absent' | 'half_day')}
+                          disabled={isLoading}
+                          className={btnClass}
                         >
-                          Status: {status.toUpperCase()}
+                          {btnLabel}
                         </button>
                       </div>
                     )

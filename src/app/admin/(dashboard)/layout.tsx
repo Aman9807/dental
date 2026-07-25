@@ -2,17 +2,20 @@ import React from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { JetBrains_Mono } from 'next/font/google'
-import { 
-  LayoutDashboard, Users, Settings, ShieldAlert, Sparkles, CircleDollarSign, Receipt, MessageSquare
-} from 'lucide-react'
-import LogoutButton from './LogoutButton'
-import DentalLogo from '@/components/DentalLogo'
+import { JetBrains_Mono, Inter } from 'next/font/google'
+import { Sparkles } from 'lucide-react'
+import AdminSidebar from './AdminSidebar'
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+})
 
 const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  display: "swap",
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
 })
 
 export default async function AdminDashboardLayout({
@@ -28,86 +31,86 @@ export default async function AdminDashboardLayout({
   }
 
   return (
-    <div 
-      className={`${jetbrainsMono.variable} flex bg-slate-50 min-h-screen`}
+    <div
+      className={`${inter.variable} ${jetbrainsMono.variable} flex min-h-screen`}
       style={{
-        fontFamily: 'var(--font-sans), sans-serif',
-        ['--font-sans' as any]: 'var(--font-sans), sans-serif',
-        ['--font-serif' as any]: 'var(--font-sans), sans-serif',
-        ['--font-mono' as any]: 'var(--font-mono), monospace'
+        background: '#f0f6ff',
+        fontFamily: 'var(--font-sans), Inter, system-ui, sans-serif',
       }}
     >
-      
-      {/* ═══ SIDEBAR ═══ */}
-      <aside className="w-64 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen">
-        <div>
-          {/* Logo */}
-          <div className="h-16 border-b border-white/5 px-6 flex items-center gap-3">
-            <DentalLogo size={32} />
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-white leading-tight">Clinic Admin</span>
-              <span className="text-[10px] text-slate-400 font-light uppercase tracking-[0.15em]">Control Panel</span>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="p-4 space-y-1 mt-2">
-            {[
-              { href: '/admin', icon: LayoutDashboard, label: 'Appointments' },
-              { href: '/admin/doctors', icon: Users, label: 'Manage Doctors' },
-              { href: '/admin/billing', icon: Receipt, label: 'Billing & Checkout' },
-              { href: '/admin/finances', icon: CircleDollarSign, label: 'Finances & Profits' },
-              { href: '/admin/messaging', icon: MessageSquare, label: 'Messaging & Campaigns' },
-              { href: '/admin/settings', icon: Settings, label: 'Settings' },
-            ].map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200 text-sm font-medium"
-              >
-                <item.icon className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors duration-200" />
-                <span className="group-hover:translate-x-0.5 transition-transform duration-200">{item.label}</span>
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-white/5">
-          <LogoutButton />
-          
-          <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2 text-[10px] text-slate-500 font-light">
-            <ShieldAlert className="w-3.5 h-3.5 text-slate-600" />
-            <span>Secure Admin Session</span>
-          </div>
-        </div>
-      </aside>
+      {/* ═══ SIDEBAR (Client Component for active-nav detection) ═══ */}
+      <AdminSidebar />
 
       {/* ═══ MAIN CONTENT ═══ */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50">
-        
-        {/* Header */}
-        <header className="h-16 glass border-b border-slate-200/60 px-8 flex items-center justify-between shrink-0 sticky top-0 z-40">
-          <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-slate-400" />
-            Control Console
-          </h2>
-          <div className="flex items-center gap-4">
-            <Link 
-              href="/adminstration"
-              className="text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors duration-200 link-underline"
+      <main
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          background: 'linear-gradient(160deg, #f0f6ff 0%, #f8fafc 50%, #f0fdf4 100%)',
+        }}
+      >
+        {/* Top header bar */}
+        <header
+          style={{
+            height: 68,
+            background: 'rgba(255,255,255,0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderBottom: '1px solid rgba(15,23,42,0.07)',
+            padding: '0 32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            position: 'sticky',
+            top: 0,
+            zIndex: 40,
+            boxShadow: '0 1px 0 rgba(15,23,42,0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sparkles size={14} style={{ color: '#94a3b8' }} />
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: '#0f172a',
+                letterSpacing: '-0.01em',
+              }}
             >
-              Visit Gateway Page →
-            </Link>
+              Control Console
+            </span>
           </div>
+          <Link
+            href="/adminstration"
+            style={{
+              fontSize: 12,
+              color: '#64748b',
+              fontWeight: 600,
+              textDecoration: 'none',
+              padding: '6px 14px',
+              borderRadius: 10,
+              background: 'rgba(15,23,42,0.04)',
+              transition: 'all 0.12s ease',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Visit Gateway →
+          </Link>
         </header>
 
-        {/* Content */}
-        <div className="flex-1 p-8 overflow-y-auto animate-fade-in">
+        {/* Page content */}
+        <div
+          style={{
+            flex: 1,
+            padding: '28px 32px',
+            overflowY: 'auto',
+          }}
+        >
           {children}
         </div>
       </main>
-
     </div>
   )
 }
