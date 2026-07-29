@@ -80,6 +80,13 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
   const [dbConfigured, setDbConfigured] = useState(true)
   const [step, setStep] = useState(1)
 
+  // Patient uniqueness / Family member flow state
+  const [existingPatientId, setExistingPatientId] = useState<string | null>(null)
+  const [isFamilyMember, setIsFamilyMember] = useState<boolean>(false)
+  const [familyPrimaryPatientName, setFamilyPrimaryPatientName] = useState<string>('')
+  const [showFamilyCheck, setShowFamilyCheck] = useState<boolean>(false)
+  const [checkingPatient, setCheckingPatient] = useState<boolean>(false)
+
   // Form inputs
   const [patientName, setPatientName] = useState('')
   const [patientAge, setPatientAge] = useState('')
@@ -89,6 +96,79 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
   const [selectedDoctorId, setSelectedDoctorId] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
+
+  // Input change handlers that reset conflict detection
+  const handleNameChange = (val: string) => {
+    setPatientName(val)
+    setExistingPatientId(null)
+    setIsFamilyMember(false)
+    setShowFamilyCheck(false)
+  }
+  const handleEmailChange = (val: string) => {
+    setPatientEmail(val)
+    setExistingPatientId(null)
+    setIsFamilyMember(false)
+    setShowFamilyCheck(false)
+  }
+  const handleMobileChange = (val: string) => {
+    setPatientMobile(val)
+    setExistingPatientId(null)
+    setIsFamilyMember(false)
+    setShowFamilyCheck(false)
+  }
+
+  // Pre-check patient registry before step 2
+  const handleNextStep1 = async () => {
+    if (!patientName.trim() || !patientAge || !patientMobile.trim() || !patientEmail.trim()) {
+      setError('Please complete all demographic fields.')
+      return
+    }
+
+    try {
+      setCheckingPatient(true)
+      setError(null)
+
+      const trimmedEmail = patientEmail.trim().toLowerCase()
+      const trimmedMobile = patientMobile.trim()
+
+      // Query database for patients with same email or mobile
+      const { data: matched, error: matchError } = await supabase
+        .from('patients')
+        .select('*')
+        .or(`email.eq.${trimmedEmail},mobile.eq.${trimmedMobile}`)
+
+      if (matchError) throw matchError
+
+      if (matched && matched.length > 0) {
+        // Check if any matched patient has the exact same name (case-insensitive)
+        const sameNamePatient = matched.find(
+          p => p.name.trim().toLowerCase() === patientName.trim().toLowerCase()
+        )
+
+        if (sameNamePatient) {
+          // Patient already exists, just reuse their ID
+          setExistingPatientId(sameNamePatient.id)
+          setIsFamilyMember(false)
+          setStep(2)
+        } else {
+          // Different name, same email/mobile. Show family member confirmation.
+          const primary = matched[0]
+          setFamilyPrimaryPatientName(primary.name)
+          setShowFamilyCheck(true)
+        }
+      } else {
+        // No match, new patient
+        setExistingPatientId(null)
+        setIsFamilyMember(false)
+        setStep(2)
+      }
+    } catch (err: any) {
+      console.error('Error checking patient:', err)
+      setError('Error checking patient registry. Please try again.')
+    } finally {
+      setCheckingPatient(false)
+    }
+  }
 
   // 1. Initial Load
   useEffect(() => {
@@ -200,23 +280,13 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
       setSubmitting(true)
       setError(null)
 
-      const { data: existingPatient, error: getPatientError } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('email', patientEmail.trim().toLowerCase())
-        .ilike('name', patientName.trim())
-        .maybeSingle()
-
-      if (getPatientError) throw getPatientError
-
       let patientId = ''
 
-      if (existingPatient) {
-        patientId = existingPatient.id
+      if (existingPatientId) {
+        patientId = existingPatientId
         const { error: updateError } = await supabase
           .from('patients')
           .update({
-            name: patientName,
             mobile: patientMobile,
             age: parseInt(patientAge)
           })
@@ -224,12 +294,20 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         
         if (updateError) throw updateError
       } else {
+        // Apply email plus-addressing if they are a family member
+        let dbEmail = patientEmail.trim().toLowerCase()
+        if (isFamilyMember) {
+          const [prefix, domain] = dbEmail.split('@')
+          const cleanName = patientName.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+          dbEmail = `${prefix}+${cleanName}@${domain}`
+        }
+
         const { data: newPatient, error: insertError } = await supabase
           .from('patients')
           .insert({
-            name: patientName,
-            email: patientEmail.trim().toLowerCase(),
-            mobile: patientMobile,
+            name: patientName.trim(),
+            email: dbEmail,
+            mobile: patientMobile.trim(),
             age: parseInt(patientAge)
           })
           .select('id')
@@ -369,7 +447,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         )}
 
         {/* ═══ STEP 1: Patient Info ═══ */}
-        {step === 1 && (
+        {step === 1 && !showFamilyCheck && (
           <div className="space-y-6 animate-fade-in-up">
             <h3 className="text-lg font-serif text-slate-800 font-normal border-b border-slate-100 pb-2">
               1. Patient Demographics
@@ -385,7 +463,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
                     required
                     placeholder="John Doe"
                     value={patientName}
-                    onChange={e => setPatientName(e.target.value)}
+                    onChange={e => handleNameChange(e.target.value)}
                     className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
                   />
                 </div>
@@ -414,7 +492,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
                     required
                     placeholder="+1 (555) 000-0000"
                     value={patientMobile}
-                    onChange={e => setPatientMobile(e.target.value)}
+                    onChange={e => handleMobileChange(e.target.value)}
                     className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
                   />
                 </div>
@@ -429,7 +507,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
                     required
                     placeholder="patient@example.com"
                     value={patientEmail}
-                    onChange={e => setPatientEmail(e.target.value)}
+                    onChange={e => handleEmailChange(e.target.value)}
                     className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
                   />
                 </div>
@@ -439,17 +517,67 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
             <div className="flex justify-end pt-4">
               <button
                 type="button"
-                onClick={() => {
-                  if (patientName && patientAge && patientMobile && patientEmail) {
-                    setStep(2)
-                    setError(null)
-                  } else {
-                    setError('Please complete all demographic fields.')
-                  }
-                }}
-                className={`px-7 py-3 text-sm font-semibold text-white rounded-xl transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 btn-shimmer ${theme.accentBg}`}
+                disabled={checkingPatient}
+                onClick={handleNextStep1}
+                className={`px-7 py-3 text-sm font-semibold text-white rounded-xl transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 btn-shimmer ${theme.accentBg} disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                Choose Doctor & Date <ChevronRight className="w-4 h-4" />
+                {checkingPatient ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Checking Registry...
+                  </>
+                ) : (
+                  <>
+                    Choose Doctor & Date <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ STEP 1: Family Member Conflict Verification Screen ═══ */}
+        {step === 1 && showFamilyCheck && (
+          <div className="space-y-6 animate-scale-in text-center py-6 px-4">
+            <div className={`w-16 h-16 rounded-2xl ${theme.accentLightBg} flex items-center justify-center mx-auto mb-4 animate-bounce`}>
+              <User className={`w-8 h-8 ${theme.accentText}`} />
+            </div>
+            <h3 className="text-xl font-serif text-slate-900 font-normal">
+              Family Member Verification
+            </h3>
+            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-left space-y-3 max-w-md mx-auto">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                An account with this email or mobile number is already registered under the name:
+              </p>
+              <p className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <CheckCircle className={`w-5 h-5 ${theme.accentText}`} />
+                {familyPrimaryPatientName}
+              </p>
+              <p className="text-sm text-slate-500 font-light leading-relaxed">
+                Are you a family member of this patient? If yes, we will link your profile using a shared contact record.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFamilyMember(true)
+                  setShowFamilyCheck(false)
+                  setStep(2)
+                }}
+                className={`w-full sm:w-auto px-8 py-3 text-sm font-semibold text-white rounded-xl transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 ${theme.accentBg}`}
+              >
+                Yes, I am a family member
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFamilyCheck(false)
+                  setIsFamilyMember(false)
+                }}
+                className="w-full sm:w-auto px-6 py-3 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all duration-200"
+              >
+                No, edit my contact details
               </button>
             </div>
           </div>
