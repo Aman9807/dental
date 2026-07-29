@@ -430,25 +430,10 @@ export async function sendPatientReport(formData: FormData) {
         finalPatientId = existingPatient.id
         finalPatient = existingPatient
       } else {
-        // Check if this email is already registered to another patient (for a family member)
-        const { data: emailTaken } = await adminDb
-          .from('patients')
-          .select('id')
-          .eq('email', targetEmail)
-          .maybeSingle()
-
-        let finalEmail = targetEmail
-        if (emailTaken) {
-          // Bypassing unique constraint via plus-addressing: prefix+cleanname@domain
-          const [prefix, domain] = targetEmail.split('@')
-          const cleanName = appt.patients.name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
-          finalEmail = `${prefix}+${cleanName}@${domain}`
-        }
-
-        // Update current patient's email
+        // Update current patient's email (unique constraint has been dropped in db)
         const { data: updatedPat, error: emailErr } = await adminDb
           .from('patients')
-          .update({ email: finalEmail })
+          .update({ email: targetEmail })
           .eq('id', patientId)
           .select()
           .single()
@@ -718,26 +703,12 @@ export async function bookOfflineAppointment(formData: FormData) {
         
       if (patientUpdateErr) throw patientUpdateErr
     } else {
-      // Name is different. Check if the email already exists in the system (family member)
-      const { data: matchedByEmail } = await adminDb
-        .from('patients')
-        .select('*')
-        .eq('email', trimmedEmail)
-        .maybeSingle()
-
-      let finalEmail = trimmedEmail
-      if (matchedByEmail) {
-        // Bypass unique constraint using plus-addressing: prefix+cleanname@domain
-        const [prefix, domain] = trimmedEmail.split('@')
-        const cleanName = trimmedName.toLowerCase().replace(/[^a-z0-9]/g, '')
-        finalEmail = `${prefix}+${cleanName}@${domain}`
-      }
-
+      // Create new patient with original email (unique constraint is dropped in db)
       const { data: newPatient, error: patientInsertErr } = await adminDb
         .from('patients')
         .insert({
           name: trimmedName,
-          email: finalEmail,
+          email: trimmedEmail,
           mobile: trimmedMobile,
           age: patientAge
         })

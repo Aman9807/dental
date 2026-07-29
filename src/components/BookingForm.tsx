@@ -294,13 +294,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         
         if (updateError) throw updateError
       } else {
-        // Apply email plus-addressing if they are a family member
         let dbEmail = patientEmail.trim().toLowerCase()
-        if (isFamilyMember) {
-          const [prefix, domain] = dbEmail.split('@')
-          const cleanName = patientName.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
-          dbEmail = `${prefix}+${cleanName}@${domain}`
-        }
 
         const { data: newPatient, error: insertError } = await supabase
           .from('patients')
