@@ -204,14 +204,18 @@ export default function MobileCapturePage() {
     }
   }
 
-  // Real Camera Barcode scanner mount using html5-qrcode
   useEffect(() => {
-    let html5QrcodeScanner: any;
+    let html5QrcodeScanner: any = null;
+    let isMounted = true;
+
     if (cameraScanActive) {
       import('html5-qrcode').then((module) => {
+        if (!isMounted) return;
         const Html5Qrcode = module.Html5Qrcode;
-        html5QrcodeScanner = new Html5Qrcode("reader");
-        html5QrcodeScanner.start(
+        const scanner = new Html5Qrcode("reader");
+        html5QrcodeScanner = scanner;
+
+        scanner.start(
           { facingMode: "environment" },
           {
             fps: 15,
@@ -222,8 +226,10 @@ export default function MobileCapturePage() {
             }
           },
           (decodedText: string) => {
-            handleBarcodeChange(decodedText);
-            setCameraScanActive(false);
+            if (isMounted) {
+              handleBarcodeChange(decodedText);
+              setCameraScanActive(false);
+            }
           },
           () => {
             // ignore scan failure noise logs
@@ -237,6 +243,7 @@ export default function MobileCapturePage() {
     }
 
     return () => {
+      isMounted = false;
       if (html5QrcodeScanner) {
         try {
           if (html5QrcodeScanner.isScanning) {
