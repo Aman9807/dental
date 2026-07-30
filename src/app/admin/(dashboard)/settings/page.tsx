@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   changeAdminPassword, updateBranchHours, addTimeSlot, 
   deleteTimeSlot, updateCameraPasscode, addTreatment, 
-  updateTreatmentPrice, getAllMedicines, saveMedicineStock 
+  updateTreatmentPrice, getAllMedicines, saveMedicineStock,
+  updateBranchCaptureMedicine
 } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { getMessagingSettings, saveMessagingSettings, MessagingSettings } from '@/lib/messaging'
@@ -103,6 +104,7 @@ export default function AdminSettingsPage() {
   const [newMedTabletsPerPatch, setNewMedTabletsPerPatch] = useState('10')
   const [newMedPatchPrice, setNewMedPatchPrice] = useState('')
   const [newMedCostPrice, setNewMedCostPrice] = useState('')
+  const [newMedMrp, setNewMedMrp] = useState('')
   const [newMedQty, setNewMedQty] = useState('10')
   const [addingMed, setAddingMed] = useState(false)
 
@@ -114,7 +116,9 @@ export default function AdminSettingsPage() {
   const [addStockQty, setAddStockQty] = useState('10')
   const [addStockPrice, setAddStockPrice] = useState('')
   const [addStockCost, setAddStockCost] = useState('')
+  const [addStockMrp, setAddStockMrp] = useState('')
   const [savingStock, setSavingStock] = useState(false)
+  const [savingCaptureSettings, setSavingCaptureSettings] = useState(false)
 
   const fetchTimeSlots = async () => {
     setLoadingSlots(true)
@@ -252,6 +256,7 @@ export default function AdminSettingsPage() {
         expiryDate: newMedExpiry || new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
         patchPrice: Number(newMedPatchPrice),
         costPrice: Number(newMedCostPrice),
+        mrp: Number(newMedMrp),
         tabletsPerPatch: Number(newMedTabletsPerPatch),
         branchSlug: selectedInventoryBranch
       })
@@ -264,6 +269,7 @@ export default function AdminSettingsPage() {
         setNewMedExpiry('')
         setNewMedPatchPrice('')
         setNewMedCostPrice('')
+        setNewMedMrp('')
         await fetchMedicines(selectedInventoryBranch)
       } else {
         alert(res.error || 'Failed to register medicine stock')
@@ -281,6 +287,7 @@ export default function AdminSettingsPage() {
     const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
     const price = activeBatch ? Number(activeBatch.price) : 0
     const cost = activeBatch ? Number(activeBatch.cost_price || 0) : 0
+    const mrp = activeBatch ? Number(activeBatch.mrp || 0) : 0
     const tabletsPerPatch = Number(med.tablets_per_patch || 10)
 
     setAddStockBatch(activeBatch?.batch_number || 'GEN-BATCH')
@@ -288,6 +295,7 @@ export default function AdminSettingsPage() {
     setAddStockQty('10')
     setAddStockPrice(price ? String(price * tabletsPerPatch) : '')
     setAddStockCost(cost ? String(cost * tabletsPerPatch) : '')
+    setAddStockMrp(mrp ? String(mrp * tabletsPerPatch) : '')
     setShowAddStockModal(true)
   }
 
@@ -303,6 +311,7 @@ export default function AdminSettingsPage() {
         expiryDate: addStockExpiry || new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
         patchPrice: Number(addStockPrice),
         costPrice: Number(addStockCost),
+        mrp: Number(addStockMrp),
         tabletsPerPatch: Number(selectedStockMed.tablets_per_patch || 10),
         branchSlug: selectedInventoryBranch
       })
@@ -355,20 +364,25 @@ export default function AdminSettingsPage() {
     }
   }
 
-  const handleToggleCaptureMedicine = async (branchId: string, currentVal: boolean) => {
-    setUpdatingCaptureId(branchId)
+  const handleToggleCaptureMedicine = (branchId: string) => {
+    setBranches(prev => prev.map(b => b.id === branchId ? { ...b, allow_capture_medicine: !b.allow_capture_medicine } : b))
+  }
+
+  const handleSaveCaptureSettings = async () => {
+    setSavingCaptureSettings(true)
     try {
-      const { error } = await supabase
-        .from('branches')
-        .update({ allow_capture_medicine: !currentVal })
-        .eq('id', branchId)
-      if (error) throw error
-      setBranches(prev => prev.map(b => b.id === branchId ? { ...b, allow_capture_medicine: !currentVal } : b))
+      for (const branch of branches) {
+        const res = await updateBranchCaptureMedicine(branch.id, !!branch.allow_capture_medicine)
+        if (!res.success) {
+          throw new Error(res.error || `Failed to save setting for ${branch.name}`)
+        }
+      }
+      alert('Capture permissions updated successfully!')
     } catch (err: any) {
       console.error(err)
       alert(err.message || 'Failed to update capture settings.')
     } finally {
-      setUpdatingCaptureId(null)
+      setSavingCaptureSettings(false)
     }
   }
 
@@ -943,13 +957,21 @@ export default function AdminSettingsPage() {
                         <input
                           type="checkbox"
                           checked={!!branch.allow_capture_medicine}
-                          disabled={updatingCaptureId === branch.id}
-                          onChange={() => handleToggleCaptureMedicine(branch.id, !!branch.allow_capture_medicine)}
+                          onChange={() => handleToggleCaptureMedicine(branch.id)}
                           className="w-4 h-4 rounded text-cyan-600 focus:ring-cyan-500 cursor-pointer"
                         />
                       </div>
                     </div>
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={handleSaveCaptureSettings}
+                    disabled={savingCaptureSettings}
+                    className="w-full mt-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-md transition h-10 flex items-center justify-center cursor-pointer disabled:opacity-50"
+                  >
+                    {savingCaptureSettings ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : 'Update Changes'}
+                  </button>
                 </div>
               </div>
 
@@ -1188,14 +1210,18 @@ export default function AdminSettingsPage() {
                         <input type="number" required value={newMedQty} onChange={e => setNewMedQty(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Price / Strip</label>
-                        <input type="number" required placeholder="120" value={newMedPatchPrice} onChange={e => setNewMedPatchPrice(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Price/Strip</label>
+                        <input type="number" required placeholder="120" value={newMedPatchPrice} onChange={e => setNewMedPatchPrice(e.target.value)} className="w-full px-2.5 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-850 shadow-sm focus:outline-none" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Cost / Strip</label>
-                        <input type="number" required placeholder="80" value={newMedCostPrice} onChange={e => setNewMedCostPrice(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Cost/Strip</label>
+                        <input type="number" required placeholder="80" value={newMedCostPrice} onChange={e => setNewMedCostPrice(e.target.value)} className="w-full px-2.5 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-850 shadow-sm focus:outline-none" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">MRP/Strip</label>
+                        <input type="number" required placeholder="150" value={newMedMrp} onChange={e => setNewMedMrp(e.target.value)} className="w-full px-2.5 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-850 shadow-sm focus:outline-none" />
                       </div>
                     </div>
                     <motion.button 
@@ -1505,21 +1531,35 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Strips Quantity</label>
-                <input 
-                  type="number" 
-                  required 
-                  min="1"
-                  value={addStockQty} 
-                  onChange={e => setAddStockQty(e.target.value)} 
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm focus:outline-none focus:border-cyan-500" 
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Strips Quantity</label>
+                  <input 
+                    type="number" 
+                    required 
+                    min="1"
+                    value={addStockQty} 
+                    onChange={e => setAddStockQty(e.target.value)} 
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm focus:outline-none focus:border-cyan-500" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">MRP / Strip (INR)</label>
+                  <input 
+                    type="number" 
+                    required 
+                    min="0"
+                    placeholder="150" 
+                    value={addStockMrp} 
+                    onChange={e => setAddStockMrp(e.target.value)} 
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm focus:outline-none focus:border-cyan-500" 
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Price / Strip (INR)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Selling Price / Strip (INR)</label>
                   <input 
                     type="number" 
                     required 

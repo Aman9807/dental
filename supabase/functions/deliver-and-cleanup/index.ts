@@ -528,7 +528,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       delivery: { email: emailStatus, whatsapp: whatsappStatus },
-      cleanup: { filesPurged: filesToDelete.length, recordsCleared: true }
+      cleanup: { filesPurged: 0, recordsCleared: false }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

@@ -35,6 +35,9 @@ export async function logoutAdmin() {
 async function saveProfileImage(file: File): Promise<string> {
   const adminDb = getAdminSupabase()
   try {
+    if (!file || typeof file.arrayBuffer !== 'function') {
+      throw new Error('No valid file was received by the server.')
+    }
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
@@ -316,6 +319,24 @@ export async function updateCameraPasscode(branchId: string, passcode: string) {
   } catch (err: any) {
     console.error('Error updating camera passcode:', err)
     return { success: false, error: err.message || 'Failed to update passcode.' }
+  }
+}
+
+// Action: Update branch-specific capture medicine setting
+export async function updateBranchCaptureMedicine(branchId: string, allowCaptureMedicine: boolean) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data, error } = await adminDb
+      .from('branches')
+      .update({ allow_capture_medicine: allowCaptureMedicine })
+      .eq('id', branchId)
+      .select()
+
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error updating capture settings:', err)
+    return { success: false, error: err.message || 'Failed to update capture settings.' }
   }
 }
 
@@ -968,6 +989,9 @@ export async function searchMedicines(query: string, branchSlug?: string) {
     try {
       await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
     } catch (e) {}
+    try {
+      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN mrp DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
+    } catch (e) {}
 
     const searchQuery = `%${query.trim().toLowerCase()}%`
     const rawQuery = query.trim().toLowerCase()
@@ -998,7 +1022,7 @@ export async function searchMedicines(query: string, branchSlug?: string) {
     // For each medicine, get its active batches sorted by oldest expiry date (FIFO)
     for (const medicine of medicines) {
       let batchSql = `
-        SELECT id, batch_number, expiry_date, price, stock
+        SELECT id, batch_number, expiry_date, price, cost_price, mrp, stock
         FROM medicine_batches
         WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE()
         ORDER BY expiry_date ASC
@@ -1007,7 +1031,7 @@ export async function searchMedicines(query: string, branchSlug?: string) {
 
       if (branchSlug) {
         batchSql = `
-          SELECT id, batch_number, expiry_date, price, stock
+          SELECT id, batch_number, expiry_date, price, cost_price, mrp, stock
           FROM medicine_batches
           WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() AND branch_slug = ?
           ORDER BY expiry_date ASC
@@ -1106,6 +1130,7 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
   expiryDate: string // YYYY-MM-DD
   patchPrice: number // Price of 1 patch
   costPrice?: number // Cost price of 1 patch
+  mrp?: number // Maximum retail price of 1 patch
   tabletsPerPatch: number // Tablets in 1 patch
   branchSlug?: string // Branch slug ('hazara' or 'family')
 }) {
@@ -1119,6 +1144,9 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
     } catch (e) {}
     try {
       await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
+    } catch (e) {}
+    try {
+      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN mrp DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
     } catch (e) {}
 
     const branchSlug = details.branchSlug || 'hazara'
@@ -1166,6 +1194,7 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
     const totalTablets = Number(quantityPatches) * tabletsPerPatch
     const singleTabletPrice = Number(details.patchPrice) / tabletsPerPatch
     const singleTabletCost = Number(details.costPrice || 0) / tabletsPerPatch
+    const singleTabletMrp = Number(details.mrp || 0) / tabletsPerPatch
 
     // 2. Insert or update stock in medicine_batches for the specific branch
     const batches = await queryTiDB(
@@ -1174,18 +1203,18 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
     )
 
     if (batches.length > 0) {
-      // Update existing batch stock and price
+      // Update existing batch stock, price, cost price, and mrp
       const newStock = Number(batches[0].stock) + totalTablets
       await queryTiDB(
-        'UPDATE medicine_batches SET stock = ?, price = ?, cost_price = ?, expiry_date = ? WHERE id = ?',
-        [newStock, singleTabletPrice, singleTabletCost, details.expiryDate, batches[0].id]
+        'UPDATE medicine_batches SET stock = ?, price = ?, cost_price = ?, mrp = ?, expiry_date = ? WHERE id = ?',
+        [newStock, singleTabletPrice, singleTabletCost, singleTabletMrp, details.expiryDate, batches[0].id]
       )
     } else {
       // Insert new batch
       const batchId = randomUUID()
       await queryTiDB(
-        'INSERT INTO medicine_batches (id, medicine_id, batch_number, expiry_date, price, cost_price, stock, branch_slug) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [batchId, medicineId, details.batchNumber, details.expiryDate, singleTabletPrice, singleTabletCost, totalTablets, branchSlug]
+        'INSERT INTO medicine_batches (id, medicine_id, batch_number, expiry_date, price, cost_price, mrp, stock, branch_slug) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [batchId, medicineId, details.batchNumber, details.expiryDate, singleTabletPrice, singleTabletCost, singleTabletMrp, totalTablets, branchSlug]
       )
     }
 
@@ -1209,6 +1238,9 @@ export async function getAllMedicines(branchSlug: string = 'hazara') {
     try {
       await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
     } catch (e) {}
+    try {
+      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN mrp DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
+    } catch (e) {}
 
     const sql = `
       SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
@@ -1220,7 +1252,7 @@ export async function getAllMedicines(branchSlug: string = 'hazara') {
     const medicines = await queryTiDB(sql, [branchSlug])
     for (const medicine of medicines) {
       const batchSql = `
-        SELECT id, batch_number, expiry_date, price, cost_price, stock, branch_slug
+        SELECT id, batch_number, expiry_date, price, cost_price, mrp, stock, branch_slug
         FROM medicine_batches
         WHERE medicine_id = ? AND stock > 0 AND branch_slug = ?
         ORDER BY expiry_date ASC

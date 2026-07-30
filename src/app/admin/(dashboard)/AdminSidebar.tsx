@@ -49,10 +49,11 @@ export default function AdminSidebar() {
   const sidebarWidth = mounted ? (isCollapsed ? 80 : 256) : 256
 
   return (
-    <aside
+    <motion.aside
+      animate={{ width: isCollapsed ? 80 : 256 }}
+      transition={{ type: 'spring', stiffness: 120, damping: 20 }}
       style={{
-        width: sidebarWidth,
-        background: 'linear-gradient(170deg, #0a0f1d 0%, #111827 100%)',
+        background: 'linear-gradient(170deg, #0c1a17 0%, #152d28 100%)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -61,7 +62,6 @@ export default function AdminSidebar() {
         top: 0,
         height: '100vh',
         overflow: 'hidden',
-        transition: 'width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
         borderRight: '1px solid rgba(255,255,255,0.05)',
       }}
     >
@@ -73,7 +73,7 @@ export default function AdminSidebar() {
           right: -60,
           width: 180,
           height: 180,
-          background: 'radial-gradient(circle, rgba(8,145,178,0.1) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%)',
           borderRadius: '50%',
           pointerEvents: 'none',
         }}
@@ -97,46 +97,60 @@ export default function AdminSidebar() {
               style={{
                 width: 38,
                 height: 38,
-                background: 'linear-gradient(135deg, #0891b2, #0d9488)',
+                background: 'linear-gradient(135deg, #10b981, #0d9488)',
                 borderRadius: 12,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 14px rgba(8,145,178,0.4)',
+                boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
                 flexShrink: 0,
               }}
             >
               <DentalLogo size={22} />
             </div>
-            {!isCollapsed && (
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', lineHeight: 1.2 }}>
-                  Clinic Admin
-                </div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                  Control Panel
-                </div>
-              </div>
-            )}
+            <AnimatePresence initial={false} mode="wait">
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10, width: 0 }}
+                  animate={{ opacity: 1, x: 0, width: 'auto' }}
+                  exit={{ opacity: 0, x: -10, width: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', lineHeight: 1.2 }}>
+                    Clinic Admin
+                  </div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                    Control Panel
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           
-          {!isCollapsed && (
-            <button
-              onClick={handleToggleCollapse}
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: 'none',
-                color: 'rgba(255,255,255,0.4)',
-                borderRadius: '8px',
-                padding: '4px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-              className="hover:bg-white/10 hover:text-white"
-            >
-              <ChevronLeft size={15} />
-            </button>
-          )}
+          <AnimatePresence initial={false}>
+            {!isCollapsed && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                onClick={handleToggleCollapse}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.4)',
+                  borderRadius: '8px',
+                  padding: '4px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                className="hover:bg-white/10 hover:text-white"
+              >
+                <ChevronLeft size={15} />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Collapsed Expand Trigger */}
@@ -245,25 +259,43 @@ export default function AdminSidebar() {
                   </div>
 
                   {/* Label (High contrast text color fix) */}
-                  {!isCollapsed && (
-                    <span
-                      style={{
-                        fontSize: 12.5,
-                        fontWeight: active ? 700 : 500,
-                        color: active ? '#0f172a' : 'rgba(255,255,255,0.45)',
-                        flex: 1,
-                        zIndex: 1,
-                        letterSpacing: active ? '-0.01em' : '0',
-                        transition: 'color 0.12s ease',
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  )}
+                  {/* Label (High contrast text color fix) */}
+                  <AnimatePresence initial={false}>
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.2 }}
+                        style={{
+                          fontSize: 12.5,
+                          fontWeight: active ? 700 : 500,
+                          color: active ? '#0f172a' : 'rgba(255,255,255,0.45)',
+                          flex: 1,
+                          zIndex: 1,
+                          letterSpacing: active ? '-0.01em' : '0',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
 
-                  {!isCollapsed && active && (
-                    <ChevronRight size={12} style={{ color: item.color, zIndex: 1, opacity: 0.7 }} />
-                  )}
+                  <AnimatePresence initial={false}>
+                    {!isCollapsed && active && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 0.7, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.15 }}
+                        style={{ zIndex: 1 }}
+                      >
+                        <ChevronRight size={12} style={{ color: item.color }} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               </Link>
             )
@@ -298,12 +330,36 @@ export default function AdminSidebar() {
             {theme === 'dark' ? (
               <>
                 <Sun size={15} style={{ color: '#fbbf24' }} />
-                {!isCollapsed && <span>Light Mode</span>}
+                <AnimatePresence initial={false}>
+                  {!isCollapsed && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}
+                    >
+                      Light Mode
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </>
             ) : (
               <>
                 <Moon size={15} style={{ color: '#a5f3fc' }} />
-                {!isCollapsed && <span>Dark Mode</span>}
+                <AnimatePresence initial={false}>
+                  {!isCollapsed && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}
+                    >
+                      Dark Mode
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </>
             )}
           </button>
@@ -322,27 +378,34 @@ export default function AdminSidebar() {
           }}
         >
           <LogoutButton isCollapsed={isCollapsed} />
-          {!isCollapsed && (
-            <div
-              style={{
-                marginTop: 12,
-                paddingTop: 12,
-                borderTop: '1px solid rgba(255,255,255,0.04)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                width: '100%',
-                justifyContent: 'center',
-              }}
-            >
-              <ShieldAlert size={12} style={{ color: 'rgba(255,255,255,0.2)' }} />
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontWeight: 500 }}>
-                Secure Admin Session
-              </span>
-            </div>
-          )}
+          <AnimatePresence initial={false}>
+            {!isCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  marginTop: 12,
+                  paddingTop: 12,
+                  borderTop: '1px solid rgba(255,255,255,0.04)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  width: '100%',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                }}
+              >
+                <ShieldAlert size={12} style={{ color: 'rgba(255,255,255,0.2)' }} />
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  Secure Admin Session
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
-    </aside>
+    </motion.aside>
   )
 }

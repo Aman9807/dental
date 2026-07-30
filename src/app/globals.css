@@ -51,14 +51,14 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 .dark {
-  --background: #080c14;
-  --foreground: #f8fafc;
-  --card: #121826;
-  --card-foreground: #f1f5f9;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --border: #1f293d;
-  --ring: #06b6d4;
+  --background: #0c1916;
+  --foreground: #ffffff;
+  --card: #142824;
+  --card-foreground: #d2f4ee;
+  --muted: #1a3832;
+  --muted-foreground: #8aa9a3;
+  --border: #20453e;
+  --ring: #10b981;
   
   /* Reset some default backgrounds and inputs for dark mode */
   color-scheme: dark;

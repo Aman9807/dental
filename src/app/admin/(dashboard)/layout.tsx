@@ -32,7 +32,7 @@ export default async function AdminDashboardLayout({
 
   return (
     <div
-      className={`${inter.variable} ${jetbrainsMono.variable} flex min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#080c14] dark:text-slate-100`}
+      className={`${inter.variable} ${jetbrainsMono.variable} flex min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[var(--background)] dark:text-slate-100`}
       style={{
         fontFamily: 'var(--font-sans), Inter, system-ui, sans-serif',
       }}
@@ -42,7 +42,7 @@ export default async function AdminDashboardLayout({
 
       {/* ═══ MAIN CONTENT ═══ */}
       <main
-        className="bg-gradient-to-br from-[#f0f6ff] via-[#f8fafc] to-[#f0fdf4] dark:from-[#080c14] dark:via-[#0d1424] dark:to-[#071926] transition-colors duration-300"
+        className="bg-gradient-to-br from-[#f0f6ff] via-[#f8fafc] to-[#f0fdf4] dark:from-[var(--background)] dark:via-[#0c1f1b] dark:to-[#091b17] transition-colors duration-300"
         style={{
           flex: 1,
           display: 'flex',
@@ -52,7 +52,7 @@ export default async function AdminDashboardLayout({
       >
         {/* Top header bar */}
         <header
-          className="bg-white/85 border-b border-slate-200/60 dark:bg-[#121826]/85 dark:border-slate-800/40 transition-colors duration-300"
+          className="bg-white/85 border-b border-slate-200/60 dark:bg-[var(--card)]/85 dark:border-slate-800/40 transition-colors duration-300"
           style={{
             height: 68,
             backdropFilter: 'blur(20px)',

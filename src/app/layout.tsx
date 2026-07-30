@@ -42,7 +42,7 @@ export default function RootLayout({
       lang="en"
       className={`${poppins.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-800 font-sans transition-colors duration-300 dark:bg-[#080c14] dark:text-slate-100">
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-800 font-sans transition-colors duration-300 dark:bg-[var(--background)] dark:text-slate-100">
         <ThemeProvider>
           {children}
         </ThemeProvider>
