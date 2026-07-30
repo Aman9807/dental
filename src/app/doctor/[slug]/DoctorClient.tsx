@@ -82,10 +82,25 @@ interface ExtraExpense {
 
 interface BranchAppointment {
   id: string
-  amount_charged: number
-  treatment_cost: number
   appointment_date: string
   branch_id: string
+  invoices?: {
+    id: string
+    total: number
+    subtotal: number
+    discount_percentage: number
+    treatment_discount_percentage: number
+    medicine_discount_percentage: number
+    invoice_items?: {
+      id: string
+      item_type: string
+      custom_name: string | null
+      quantity: number
+      unit_price: number
+      unit_cost: number
+      total_price: number
+    }[]
+  }[]
 }
 
 interface Appointment {
@@ -250,6 +265,15 @@ export default function DoctorClient({
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
+  
+  const [doctorRule, setDoctorRule] = useState<'present_days_only' | 'full_month'>('present_days_only')
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedRule = localStorage.getItem('doctor_profit_share_rule') || 'present_days_only'
+      setDoctorRule(savedRule as any)
+    }
+  }, [])
 
   // Load IP and poll for mobile capture
   useEffect(() => {
@@ -675,6 +699,52 @@ export default function DoctorClient({
     }
   }
 
+  // Compute profits and revenue breakdown from appointment invoices
+  const getAppointmentFinances = (appt: any) => {
+    const invoice = appt.invoices?.[0]
+    if (!invoice) return null
+
+    const treatmentDiscountMultiplier = 1 - (invoice.treatment_discount_percentage || 0) / 100
+    const medicineDiscountMultiplier = 1 - (invoice.medicine_discount_percentage || 0) / 100
+
+    let treatmentRevenue = 0
+    let treatmentCost = 0
+    let medicineRevenue = 0
+    let medicineCost = 0
+
+    if (invoice.invoice_items) {
+      invoice.invoice_items.forEach((item: any) => {
+        const price = Number(item.unit_price || 0) * Number(item.quantity || 1)
+        const cost = Number(item.unit_cost || 0) * Number(item.quantity || 1)
+        const isMedicine = item.item_type === 'medicine' || (item.custom_name && /medicine|tab|capsule|syrup|strip/i.test(item.custom_name))
+        if (isMedicine) {
+          medicineRevenue += price
+          medicineCost += cost
+        } else {
+          treatmentRevenue += price
+          treatmentCost += cost
+        }
+      })
+    }
+
+    const netTreatmentRevenue = treatmentRevenue * treatmentDiscountMultiplier
+    const netMedicineRevenue = medicineRevenue * medicineDiscountMultiplier
+
+    const treatmentProfit = netTreatmentRevenue - treatmentCost
+    const medicineProfit = netMedicineRevenue - medicineCost
+
+    return {
+      netTreatmentRevenue,
+      treatmentCost,
+      treatmentProfit,
+      netMedicineRevenue,
+      medicineCost,
+      medicineProfit,
+      totalProfit: treatmentProfit + medicineProfit,
+      totalPaid: invoice.total
+    }
+  }
+
   // Calculate Doctor's Payout & Attendance Details for selectedMonth
   const getDoctorFinances = () => {
     const [yearStr, monthStr] = selectedMonth.split('-')
@@ -714,9 +784,24 @@ export default function DoctorClient({
         return apptMonthStr === selectedMonth
       })
 
-      const totalRevenue = branchAppts.reduce((sum, a) => sum + (a.amount_charged || 0), 0)
-      const totalTreatmentCost = branchAppts.reduce((sum, a) => sum + (a.treatment_cost || 0), 0)
-      const treatmentProfit = totalRevenue - totalTreatmentCost
+      let totalRevenue = 0
+      let totalTreatmentCost = 0
+      let totalMedicineCost = 0
+      let totalTreatmentProfit = 0
+      let totalMedicineProfit = 0
+
+      branchAppts.forEach(appt => {
+        const finances = getAppointmentFinances(appt)
+        if (finances) {
+          totalRevenue += finances.totalPaid
+          totalTreatmentCost += finances.treatmentCost
+          totalMedicineCost += finances.medicineCost
+          totalTreatmentProfit += finances.treatmentProfit
+          totalMedicineProfit += finances.medicineProfit
+        }
+      })
+
+      const treatmentProfit = totalTreatmentProfit + totalMedicineProfit
 
       // Helper salaries for branch
       const branchHelpersPay = helperBoys.reduce((sum, helper) => {
@@ -744,14 +829,24 @@ export default function DoctorClient({
         return expMonthStr === selectedMonth
       }).reduce((sum, e) => sum + e.amount, 0)
 
-      const branchProfit = treatmentProfit - branchHelpersPay - electricity - extras
+      let branchProfit = treatmentProfit - branchHelpersPay - electricity - extras
+      const target = doctor.profit_sharing_target || 'both'
+      if (target === 'treatment') {
+        branchProfit = totalTreatmentProfit - branchHelpersPay - electricity - extras
+      } else if (target === 'medicine') {
+        branchProfit = totalMedicineProfit - branchHelpersPay - electricity - extras
+      }
+
       if (branchProfit > 0) {
-        finalPayout = branchProfit * (doctor.profit_percentage / 100)
+        const fullPayout = branchProfit * (doctor.profit_percentage / 100)
+        finalPayout = doctorRule === 'present_days_only' && workingDays > 0
+          ? fullPayout * (workedDays / workingDays)
+          : fullPayout
       }
 
       calculations = {
         totalRevenue,
-        totalTreatmentCost,
+        totalTreatmentCost: totalTreatmentCost + totalMedicineCost,
         treatmentProfit,
         branchHelpersPay,
         electricity,

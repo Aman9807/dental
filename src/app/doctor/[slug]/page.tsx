@@ -114,7 +114,30 @@ export default async function DoctorPortalPage({ params }: DoctorPageProps) {
   // All appointments for this doctor's branch (to calculate branch profit for percentage commission)
   const { data: branchAppointments } = await adminDb
     .from('appointments')
-    .select('id, amount_charged, treatment_cost, appointment_date, branch_id')
+    .select(`
+      id,
+      appointment_date,
+      appointment_time,
+      status,
+      branch_id,
+      invoices (
+        id,
+        total,
+        subtotal,
+        discount_percentage,
+        treatment_discount_percentage,
+        medicine_discount_percentage,
+        invoice_items (
+          id,
+          item_type,
+          custom_name,
+          quantity,
+          unit_price,
+          unit_cost,
+          total_price
+        )
+      )
+    `)
     .eq('branch_id', doctor.branch_id)
 
   const formattedDoctor = {
