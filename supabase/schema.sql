@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS public.helper_attendance (
     helper_boy_id UUID REFERENCES public.helper_boys(id) ON DELETE CASCADE NOT NULL,
     date DATE NOT NULL,
     shift INTEGER NOT NULL CHECK (shift IN (1, 2)),
-    status TEXT NOT NULL CHECK (status IN ('present', 'absent')),
+    status TEXT NOT NULL CHECK (status IN ('present', 'absent', 'half_day')),
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
     UNIQUE (helper_boy_id, date, shift)
 );
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS public.doctor_attendance (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     doctor_id UUID REFERENCES public.doctors(id) ON DELETE CASCADE NOT NULL,
     date DATE NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('present', 'absent')),
+    status TEXT NOT NULL CHECK (status IN ('present', 'absent', 'half_day')),
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
     UNIQUE (doctor_id, date)
 );

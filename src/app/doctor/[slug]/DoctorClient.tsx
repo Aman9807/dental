@@ -1179,12 +1179,13 @@ export default function DoctorClient({
                             const isFuture = dateStr > todayStr
 
                             const attRecord = doctorAttendance.find(a => a.date === dateStr)
-                            const status = attRecord?.status || 'present'
+                            const status = attRecord?.status
 
                             let bgClass = 'bg-emerald-500 text-white font-bold'
                             if (isFuture) bgClass = 'bg-slate-100 text-slate-350 border border-slate-200/60'
                             else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold'
                             else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold'
+                            else if (!status) bgClass = 'bg-slate-200 text-slate-505 border border-dashed border-slate-300 font-bold'
 
                             return (
                               <div
@@ -1193,7 +1194,7 @@ export default function DoctorClient({
                               >
                                 <span className="font-semibold text-xs">{dayNum}</span>
                                 <span className="text-[6.5px] uppercase opacity-90 font-mono tracking-tighter">
-                                  {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : 'PRES'}
+                                  {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : status === 'present' ? 'PRES' : 'UNMRK'}
                                 </span>
                               </div>
                             )

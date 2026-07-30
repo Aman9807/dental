@@ -221,19 +221,25 @@ export default function FinancesClient({
       if (helper.shift_1_enabled) {
         const key = `helper-${helper.id}-1`
         const rec = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 1)
-        initial[key] = (rec?.status as 'present' | 'absent' | 'half_day') || 'present'
+        if (rec) {
+          initial[key] = rec.status as 'present' | 'absent' | 'half_day'
+        }
       }
       if (helper.shift_2_enabled) {
         const key = `helper-${helper.id}-2`
         const rec = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === attendanceDate && a.shift === 2)
-        initial[key] = (rec?.status as 'present' | 'absent' | 'half_day') || 'present'
+        if (rec) {
+          initial[key] = rec.status as 'present' | 'absent' | 'half_day'
+        }
       }
     })
     
     getBranchFilteredDoctors().forEach(doc => {
       const key = `doc-${doc.id}`
       const rec = doctorAttendance.find(a => a.doctor_id === doc.id && a.date === attendanceDate)
-      initial[key] = (rec?.status as 'present' | 'absent' | 'half_day') || 'present'
+      if (rec) {
+        initial[key] = rec.status as 'present' | 'absent' | 'half_day'
+      }
     })
     
     setPendingAttendance(initial)
@@ -750,27 +756,125 @@ export default function FinancesClient({
   const handleSaveAllAttendance = async () => {
     setIsSavingAttendance(true)
     try {
+      // 1. Check if any active staff members are unmarked on the SELECTED attendanceDate itself
+      const unmarkedStaff: string[] = []
+      getBranchFilteredDoctors().forEach(doc => {
+        if (!pendingAttendance[`doc-${doc.id}`]) {
+          unmarkedStaff.push(`Dr. ${doc.name}`)
+        }
+      })
+      getBranchFilteredHelpers().forEach(helper => {
+        if (helper.shift_1_enabled && !pendingAttendance[`helper-${helper.id}-1`]) {
+          unmarkedStaff.push(`${helper.name} (Shift 1)`)
+        }
+        if (helper.shift_2_enabled && !pendingAttendance[`helper-${helper.id}-2`]) {
+          unmarkedStaff.push(`${helper.name} (Shift 2)`)
+        }
+      })
+      
+      if (unmarkedStaff.length > 0) {
+        const proceed = window.confirm(
+          `The following staff members have unmarked attendance for ${attendanceDate}:\n${unmarkedStaff.map(s => `- ${s}`).join('\n')}\n\nDo you want to save anyway? (Unmarked staff will not have attendance records generated)`
+        )
+        if (!proceed) {
+          setIsSavingAttendance(false)
+          return
+        }
+      }
+
+      // 2. Check for unmarked attendance in past days of the current selected month
+      const todayStr = new Date().toISOString().split('T')[0]
+      const unmarkedPastDates: string[] = []
+      const targetDateLimit = attendanceDate < todayStr ? attendanceDate : todayStr
+      
+      // Check last 5 past days of this month before the limit date
+      for (let d = 1; d <= 5; d++) {
+        const checkDate = new Date(new Date(targetDateLimit).getTime() - d * 24 * 60 * 60 * 1000)
+        const checkDateStr = checkDate.toISOString().split('T')[0]
+        
+        // Ensure the check date falls within the selected month (e.g. '2026-07')
+        const checkDateMonthStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}`
+        if (checkDateMonthStr !== selectedMonth) continue
+        
+        let hasUnmarked = false
+        
+        // Check active doctors for this past day
+        const activeDocs = getBranchFilteredDoctors()
+        for (const doc of activeDocs) {
+          const rec = doctorAttendance.find(a => a.doctor_id === doc.id && a.date === checkDateStr)
+          if (!rec) {
+            hasUnmarked = true
+            break
+          }
+        }
+        
+        if (!hasUnmarked) {
+          // Check active helpers for this past day
+          const activeHelpers = getBranchFilteredHelpers()
+          for (const helper of activeHelpers) {
+            if (helper.shift_1_enabled) {
+              const rec = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === checkDateStr && a.shift === 1)
+              if (!rec) {
+                hasUnmarked = true
+                break
+              }
+            }
+            if (helper.shift_2_enabled) {
+              const rec = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === checkDateStr && a.shift === 2)
+              if (!rec) {
+                hasUnmarked = true
+                break
+              }
+            }
+          }
+        }
+        
+        if (hasUnmarked) {
+          unmarkedPastDates.push(checkDateStr)
+        }
+      }
+      
+      if (unmarkedPastDates.length > 0) {
+        // Sort descending so the most recent unmarked past day is first
+        unmarkedPastDates.sort((a, b) => b.localeCompare(a))
+        const mostRecent = unmarkedPastDates[0]
+        const proceed = window.confirm(
+          `Attention: You have unmarked attendance for past days in this month: ${unmarkedPastDates.join(', ')}.\n\nWould you like to switch to ${mostRecent} first to log it?`
+        )
+        if (proceed) {
+          setAttendanceDate(mostRecent)
+          setIsSavingAttendance(false)
+          return
+        }
+      }
+
       const promises: Promise<any>[] = []
       
       const helpersToUpdate: { id: string; shift: number; status: 'present' | 'absent' | 'half_day' }[] = []
       getBranchFilteredHelpers().forEach(helper => {
         if (helper.shift_1_enabled) {
           const key = `helper-${helper.id}-1`
-          const status = pendingAttendance[key] || 'present'
-          helpersToUpdate.push({ id: helper.id, shift: 1, status })
+          const status = pendingAttendance[key]
+          if (status) {
+            helpersToUpdate.push({ id: helper.id, shift: 1, status })
+          }
         }
         if (helper.shift_2_enabled) {
           const key = `helper-${helper.id}-2`
-          const status = pendingAttendance[key] || 'present'
-          helpersToUpdate.push({ id: helper.id, shift: 2, status })
+          const status = pendingAttendance[key]
+          if (status) {
+            helpersToUpdate.push({ id: helper.id, shift: 2, status })
+          }
         }
       })
       
       const doctorsToUpdate: { id: string; status: 'present' | 'absent' | 'half_day' }[] = []
       getBranchFilteredDoctors().forEach(doc => {
         const key = `doc-${doc.id}`
-        const status = pendingAttendance[key] || 'present'
-        doctorsToUpdate.push({ id: doc.id, status })
+        const status = pendingAttendance[key]
+        if (status) {
+          doctorsToUpdate.push({ id: doc.id, status })
+        }
       })
 
       // Run all upserts in parallel
@@ -1170,8 +1274,8 @@ export default function FinancesClient({
                   getBranchFilteredHelpers().map(helper => {
                     const key1 = `helper-${helper.id}-1`
                     const key2 = `helper-${helper.id}-2`
-                    const status1 = pendingAttendance[key1] || 'present'
-                    const status2 = pendingAttendance[key2] || 'present'
+                    const status1 = pendingAttendance[key1]
+                    const status2 = pendingAttendance[key2]
 
                     return (
                       <div key={helper.id} className="py-4 space-y-3">
@@ -1262,7 +1366,7 @@ export default function FinancesClient({
                 ) : (
                   getBranchFilteredDoctors().map(doc => {
                     const key = `doc-${doc.id}`
-                    const status = pendingAttendance[key] || 'present'
+                    const status = pendingAttendance[key]
 
                     return (
                       <div key={doc.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1363,12 +1467,13 @@ export default function FinancesClient({
                           const isFuture = dateStr > todayStr
                           
                           const attRecord = doctorAttendance.find(a => a.doctor_id === doc.id && a.date === dateStr)
-                          const status = attRecord?.status || 'present'
+                          const status = attRecord?.status
 
                           let bgClass = 'bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm'
                           if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                           else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
                           else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm'
+                          else if (!status) bgClass = 'bg-slate-200 text-slate-500 border border-dashed border-slate-350 font-bold hover:bg-slate-300 shadow-sm'
 
                           return (
                             <div
@@ -1383,7 +1488,7 @@ export default function FinancesClient({
                             >
                               <span className="font-semibold">{dayNum}</span>
                               <span className="text-[6px] uppercase leading-none opacity-90 font-mono">
-                                {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : 'PRES'}
+                                {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : status === 'present' ? 'PRES' : 'UNMRK'}
                               </span>
                             </div>
                           )
@@ -1439,12 +1544,13 @@ export default function FinancesClient({
                                 const isFuture = dateStr > todayStr
 
                                 const record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === dateStr && a.shift === 1)
-                                const status = record?.status || 'present'
+                                const status = record?.status
 
                                 let bgClass = 'bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm'
                                 if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                                 else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
                                 else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm'
+                                else if (!status) bgClass = 'bg-slate-200 text-slate-500 border border-dashed border-slate-350 font-bold hover:bg-slate-300 shadow-sm'
 
                                 return (
                                   <div
@@ -1459,7 +1565,7 @@ export default function FinancesClient({
                                   >
                                     <span className="font-semibold">{dayNum}</span>
                                     <span className="text-[6px] uppercase leading-none opacity-90 font-mono">
-                                      {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : 'PRES'}
+                                      {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : status === 'present' ? 'PRES' : 'UNMRK'}
                                     </span>
                                   </div>
                                 )
@@ -1485,12 +1591,13 @@ export default function FinancesClient({
                                 const isFuture = dateStr > todayStr
 
                                 const record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === dateStr && a.shift === 2)
-                                const status = record?.status || 'present'
+                                const status = record?.status
 
                                 let bgClass = 'bg-teal-600 text-white font-bold hover:bg-teal-700 shadow-sm'
                                 if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                                 else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
                                 else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm'
+                                else if (!status) bgClass = 'bg-slate-200 text-slate-500 border border-dashed border-slate-350 font-bold hover:bg-slate-300 shadow-sm'
 
                                 return (
                                   <div
@@ -1505,7 +1612,7 @@ export default function FinancesClient({
                                   >
                                     <span className="font-semibold">{dayNum}</span>
                                     <span className="text-[6px] uppercase leading-none opacity-90 font-mono">
-                                      {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : 'PRES'}
+                                      {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : status === 'present' ? 'PRES' : 'UNMRK'}
                                     </span>
                                   </div>
                                 )
