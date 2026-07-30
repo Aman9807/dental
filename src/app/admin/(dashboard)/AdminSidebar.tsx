@@ -51,7 +51,7 @@ export default function AdminSidebar() {
   return (
     <motion.aside
       animate={{ width: isCollapsed ? 80 : 256 }}
-      transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+      transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
       style={{
         background: 'linear-gradient(170deg, #0c1a17 0%, #152d28 100%)',
         display: 'flex',
@@ -111,10 +111,10 @@ export default function AdminSidebar() {
             <AnimatePresence initial={false} mode="wait">
               {!isCollapsed && (
                 <motion.div
-                  initial={{ opacity: 0, x: -10, width: 0 }}
-                  animate={{ opacity: 1, x: 0, width: 'auto' }}
-                  exit={{ opacity: 0, x: -10, width: 0 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                   style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
                 >
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', lineHeight: 1.2 }}>
@@ -258,15 +258,13 @@ export default function AdminSidebar() {
                     />
                   </div>
 
-                  {/* Label (High contrast text color fix) */}
-                  {/* Label (High contrast text color fix) */}
                   <AnimatePresence initial={false}>
                     {!isCollapsed && (
                       <motion.span
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: 'auto' }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.2 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
                         style={{
                           fontSize: 12.5,
                           fontWeight: active ? 700 : 500,
@@ -333,10 +331,10 @@ export default function AdminSidebar() {
                 <AnimatePresence initial={false}>
                   {!isCollapsed && (
                     <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.2 }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
                       style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}
                     >
                       Light Mode
@@ -350,10 +348,10 @@ export default function AdminSidebar() {
                 <AnimatePresence initial={false}>
                   {!isCollapsed && (
                     <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.2 }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
                       style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}
                     >
                       Dark Mode
@@ -381,10 +379,10 @@ export default function AdminSidebar() {
           <AnimatePresence initial={false}>
             {!isCollapsed && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
                 style={{
                   marginTop: 12,
                   paddingTop: 12,

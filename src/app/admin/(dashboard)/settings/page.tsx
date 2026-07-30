@@ -663,7 +663,7 @@ export default function AdminSettingsPage() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.12 }}
-      className="perspective-stage space-y-7 font-sans max-w-6xl text-pretty"
+      className="perspective-stage space-y-7 font-sans w-full text-pretty"
     >
       
       {/* ════ SECTION 1: HEADER & TITLE ════ */}
