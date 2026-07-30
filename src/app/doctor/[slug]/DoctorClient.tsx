@@ -1331,7 +1331,7 @@ export default function DoctorClient({
                     <div className="space-y-4">
                       {/* Search Medicines */}
                       <div className="space-y-1 relative" ref={dropdownRef}>
-                        <label className="block text-[11px] font-semibold text-slate-500">Search & Add Medicines (TiDB Cloud)</label>
+                        <label className="block text-[11px] font-semibold text-slate-500">Search & Add Medicines</label>
                         <div className="relative">
                           <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
                           <input

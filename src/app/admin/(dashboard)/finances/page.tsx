@@ -37,7 +37,7 @@ export default async function AdminFinancesPage() {
         apptRes
       ] = await Promise.all([
         adminDb.from('branches').select('id, name, slug'),
-        adminDb.from('doctors').select('id, name, slug, compensation_type, fixed_salary, profit_percentage, branch_id').order('name'),
+        adminDb.from('doctors').select('id, name, slug, compensation_type, fixed_salary, profit_percentage, profit_sharing_target, branch_id').order('name'),
         adminDb.from('helper_boys').select('id, name, shift_1_rate, shift_2_rate, shift_1_enabled, shift_2_enabled, sunday_enabled, branch_id').order('name'),
         adminDb.from('helper_attendance').select('helper_boy_id, date, shift, status'),
         adminDb.from('doctor_attendance').select('doctor_id, date, status'),

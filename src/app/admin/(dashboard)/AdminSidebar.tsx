@@ -1,15 +1,17 @@
 'use client'
 
+import React, { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Settings, ShieldAlert,
   Sparkles, CircleDollarSign, Receipt, MessageSquare,
-  ChevronRight
+  ChevronRight, ChevronLeft, Sun, Moon
 } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 import DentalLogo from '@/components/DentalLogo'
+import { useTheme } from '@/components/ThemeContext'
 
 const NAV_ITEMS = [
   { href: '/admin',           icon: LayoutDashboard, label: 'Appointments',         color: '#0891b2', bg: '#ecfeff' },
@@ -22,17 +24,35 @@ const NAV_ITEMS = [
 
 export default function AdminSidebar() {
   const pathname = usePathname()
+  const { theme, toggleTheme } = useTheme()
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('admin_sidebar_collapsed') === 'true'
+    setIsCollapsed(saved)
+    setMounted(true)
+  }, [])
 
   function isActive(href: string) {
     if (href === '/admin') return pathname === '/admin'
     return pathname.startsWith(href)
   }
 
+  const handleToggleCollapse = () => {
+    const nextState = !isCollapsed
+    setIsCollapsed(nextState)
+    localStorage.setItem('admin_sidebar_collapsed', String(nextState))
+  }
+
+  // To prevent layout shift on first mount
+  const sidebarWidth = mounted ? (isCollapsed ? 80 : 256) : 256
+
   return (
     <aside
       style={{
-        width: 256,
-        background: 'linear-gradient(170deg, #0f172a 0%, #1e293b 100%)',
+        width: sidebarWidth,
+        background: 'linear-gradient(170deg, #0a0f1d 0%, #111827 100%)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -41,6 +61,8 @@ export default function AdminSidebar() {
         top: 0,
         height: '100vh',
         overflow: 'hidden',
+        transition: 'width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        borderRight: '1px solid rgba(255,255,255,0.05)',
       }}
     >
       {/* Background decoration */}
@@ -51,19 +73,7 @@ export default function AdminSidebar() {
           right: -60,
           width: 180,
           height: 180,
-          background: 'radial-gradient(circle, rgba(8,145,178,0.15) 0%, transparent 70%)',
-          borderRadius: '50%',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 60,
-          left: -40,
-          width: 140,
-          height: 140,
-          background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(8,145,178,0.1) 0%, transparent 70%)',
           borderRadius: '50%',
           pointerEvents: 'none',
         }}
@@ -75,36 +85,80 @@ export default function AdminSidebar() {
           style={{
             height: 68,
             borderBottom: '1px solid rgba(255,255,255,0.06)',
-            padding: '0 20px',
+            padding: isCollapsed ? '0 10px' : '0 20px',
             display: 'flex',
             alignItems: 'center',
+            justifyContent: isCollapsed ? 'center' : 'space-between',
             gap: 12,
           }}
         >
-          <div
-            style={{
-              width: 38,
-              height: 38,
-              background: 'linear-gradient(135deg, #0891b2, #0d9488)',
-              borderRadius: 12,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(8,145,178,0.4)',
-              flexShrink: 0,
-            }}
-          >
-            <DentalLogo size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', lineHeight: 1.2 }}>
-              Clinic Admin
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                background: 'linear-gradient(135deg, #0891b2, #0d9488)',
+                borderRadius: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 14px rgba(8,145,178,0.4)',
+                flexShrink: 0,
+              }}
+            >
+              <DentalLogo size={22} />
             </div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-              Control Panel
-            </div>
+            {!isCollapsed && (
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', lineHeight: 1.2 }}>
+                  Clinic Admin
+                </div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                  Control Panel
+                </div>
+              </div>
+            )}
           </div>
+          
+          {!isCollapsed && (
+            <button
+              onClick={handleToggleCollapse}
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: 'none',
+                color: 'rgba(255,255,255,0.4)',
+                borderRadius: '8px',
+                padding: '4px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              className="hover:bg-white/10 hover:text-white"
+            >
+              <ChevronLeft size={15} />
+            </button>
+          )}
         </div>
+
+        {/* Collapsed Expand Trigger */}
+        {isCollapsed && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
+            <button
+              onClick={handleToggleCollapse}
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: 'none',
+                color: 'rgba(255,255,255,0.4)',
+                borderRadius: '8px',
+                padding: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              className="hover:bg-white/10 hover:text-white"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav style={{ padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -113,20 +167,22 @@ export default function AdminSidebar() {
             return (
               <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
                 <motion.div
-                  whileHover={{ x: 3 }}
+                  whileHover={{ x: isCollapsed ? 0 : 3 }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ duration: 0.12, ease: 'easeOut' }}
                   style={{
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 12px',
+                    justifyContent: isCollapsed ? 'center' : 'flex-start',
+                    gap: isCollapsed ? 0 : 10,
+                    padding: isCollapsed ? '10px 0' : '10px 12px',
                     borderRadius: 14,
                     cursor: 'pointer',
                     background: active ? item.bg : 'transparent',
                     transition: 'background 0.12s ease',
                   }}
+                  title={isCollapsed ? item.label : undefined}
                 >
                   {/* Active sliding background */}
                   {active && (
@@ -188,22 +244,24 @@ export default function AdminSidebar() {
                     />
                   </div>
 
-                  {/* Label */}
-                  <span
-                    style={{
-                      fontSize: 12.5,
-                      fontWeight: active ? 700 : 500,
-                      color: active ? '#ffffff' : 'rgba(255,255,255,0.45)',
-                      flex: 1,
-                      zIndex: 1,
-                      letterSpacing: active ? '-0.01em' : '0',
-                      transition: 'color 0.12s ease',
-                    }}
-                  >
-                    {item.label}
-                  </span>
+                  {/* Label (High contrast text color fix) */}
+                  {!isCollapsed && (
+                    <span
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: active ? 700 : 500,
+                        color: active ? '#0f172a' : 'rgba(255,255,255,0.45)',
+                        flex: 1,
+                        zIndex: 1,
+                        letterSpacing: active ? '-0.01em' : '0',
+                        transition: 'color 0.12s ease',
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  )}
 
-                  {active && (
+                  {!isCollapsed && active && (
                     <ChevronRight size={12} style={{ color: item.color, zIndex: 1, opacity: 0.7 }} />
                   )}
                 </motion.div>
@@ -213,30 +271,76 @@ export default function AdminSidebar() {
         </nav>
       </div>
 
-      {/* Footer */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          padding: '12px 10px 16px',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-        }}
-      >
-        <LogoutButton />
+      <div>
+        {/* Theme Toggle Button */}
+        <div style={{ padding: isCollapsed ? '0 10px' : '0 10px', marginBottom: 8 }}>
+          <button
+            onClick={toggleTheme}
+            style={{
+              width: '100%',
+              background: 'rgba(255,255,255,0.05)',
+              border: 'none',
+              color: 'rgba(255,255,255,0.7)',
+              borderRadius: 14,
+              padding: isCollapsed ? '10px 0' : '10px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isCollapsed ? 'center' : 'flex-start',
+              gap: 10,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+              transition: 'all 0.2s',
+            }}
+            className="hover:bg-white/10 hover:text-white"
+            title={isCollapsed ? 'Toggle Theme' : undefined}
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun size={15} style={{ color: '#fbbf24' }} />
+                {!isCollapsed && <span>Light Mode</span>}
+              </>
+            ) : (
+              <>
+                <Moon size={15} style={{ color: '#a5f3fc' }} />
+                {!isCollapsed && <span>Dark Mode</span>}
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Footer */}
         <div
           style={{
-            marginTop: 12,
-            paddingTop: 12,
-            borderTop: '1px solid rgba(255,255,255,0.04)',
+            position: 'relative',
+            zIndex: 1,
+            padding: isCollapsed ? '12px 0 16px' : '12px 10px 16px',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            gap: 6,
           }}
         >
-          <ShieldAlert size={12} style={{ color: 'rgba(255,255,255,0.2)' }} />
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontWeight: 500 }}>
-            Secure Admin Session
-          </span>
+          <LogoutButton isCollapsed={isCollapsed} />
+          {!isCollapsed && (
+            <div
+              style={{
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: '1px solid rgba(255,255,255,0.04)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                width: '100%',
+                justifyContent: 'center',
+              }}
+            >
+              <ShieldAlert size={12} style={{ color: 'rgba(255,255,255,0.2)' }} />
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontWeight: 500 }}>
+                Secure Admin Session
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </aside>

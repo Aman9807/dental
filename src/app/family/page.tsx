@@ -252,7 +252,7 @@ export default async function FamilyHome() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="glass border-t border-slate-200/40 py-10 text-center">
-        <p className="text-xs text-slate-400 font-light">© 2026 Family Dental Clinic. All rights reserved. Gentle Care for Everyone.</p>
+        <p className="text-xs text-slate-400 font-light">© 2026 Dental Clinics. Private Clinical Portal. Developed by Flynx.site developer Khan Tafazzul</p>
       </footer>
     </div>
   )

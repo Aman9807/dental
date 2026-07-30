@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { logoutAdmin } from '@/app/admin/actions'
 import { LogOut, Loader2 } from 'lucide-react'
 
-export default function LogoutButton() {
+export default function LogoutButton({ isCollapsed }: { isCollapsed?: boolean }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -26,14 +26,17 @@ export default function LogoutButton() {
     <button
       onClick={handleLogout}
       disabled={loading}
-      className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-rose-400 hover:text-rose-300 hover:bg-white/5 transition-all duration-200 text-sm font-medium focus:outline-none group"
+      className={`flex items-center gap-3 py-3 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-white/5 transition-all duration-200 text-sm font-medium focus:outline-none group ${
+        isCollapsed ? 'px-2 w-10 justify-center' : 'px-4 w-full'
+      }`}
+      title={isCollapsed ? 'Log Out' : undefined}
     >
       {loading ? (
         <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
       ) : (
         <LogOut className="w-4 h-4 text-rose-400" />
       )}
-      <span>{loading ? 'Logging out...' : 'Log Out'}</span>
+      {!isCollapsed && <span>{loading ? 'Logging out...' : 'Log Out'}</span>}
     </button>
   )
 }

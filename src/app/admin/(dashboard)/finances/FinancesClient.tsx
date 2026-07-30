@@ -30,6 +30,7 @@ interface Doctor {
   compensation_type: 'fixed' | 'percentage'
   fixed_salary: number
   profit_percentage: number
+  profit_sharing_target?: string
   branch_id: string
 }
 
@@ -509,7 +510,15 @@ export default function FinancesClient({
       } else {
         // Percentage based on branch net profit
         let bProfit = branchNetProfitBeforeDoctors
-        if (selectedBranch === 'all') {
+        
+        if (selectedBranch !== 'all') {
+          const target = d.profit_sharing_target || 'both'
+          if (target === 'treatment') {
+            bProfit = totalTreatmentProfit - helperSalariesTotal - electricityTotal - extraExpensesTotal
+          } else if (target === 'medicine') {
+            bProfit = totalMedicineProfit - helperSalariesTotal - electricityTotal - extraExpensesTotal
+          }
+        } else {
           // If viewing all, base it on the doctor's specific branch
           const docBranchBill = electricityExpenses.find(e => e.branch_id === d.branch_id && e.month_year === selectedMonth)?.electricity_bill || 0
           const docBranchHelpers = helperBoysList.filter(h => h.branch_id === d.branch_id)
@@ -526,17 +535,22 @@ export default function FinancesClient({
             return apptMonthStr === selectedMonth && appt.branches?.id === d.branch_id
           })
           
-          let docBranchRev = 0
-          let docBranchCost = 0
+          let docBranchProfit = 0
           docBranchAppts.forEach(appt => {
             const finances = getAppointmentFinances(appt)
             if (finances) {
-              docBranchRev += finances.totalPaid
-              docBranchCost += finances.treatmentCost + finances.medicineCost
+              const target = d.profit_sharing_target || 'both'
+              if (target === 'treatment') {
+                docBranchProfit += finances.treatmentProfit
+              } else if (target === 'medicine') {
+                docBranchProfit += finances.medicineProfit
+              } else {
+                docBranchProfit += finances.treatmentProfit + finances.medicineProfit
+              }
             }
           })
 
-          bProfit = (docBranchRev - docBranchCost) - docBranchHelpersPay - docBranchBill - docBranchExtras
+          bProfit = docBranchProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
         }
         
         if (bProfit > 0) {

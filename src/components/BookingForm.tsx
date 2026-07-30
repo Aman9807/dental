@@ -376,7 +376,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         <AlertCircle className={`w-12 h-12 ${theme.accentText} mx-auto mb-4`} />
         <h3 className="text-xl font-serif text-slate-800 mb-2">Clinic Service Pending Configuration</h3>
         <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-          The Supabase database has not been fully connected yet. The administrator must add the Supabase URL and keys in the <code className="px-1.5 py-0.5 bg-slate-100 rounded text-xs">.env.local</code> configuration file.
+          The database has not been fully connected yet. The administrator must add the database URL and keys in the <code className="px-1.5 py-0.5 bg-slate-100 rounded text-xs">.env.local</code> configuration file.
         </p>
         <div className="p-4 bg-slate-50 rounded-xl text-left border border-slate-100">
           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Required environment parameters:</h4>

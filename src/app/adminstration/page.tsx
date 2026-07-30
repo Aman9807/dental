@@ -153,7 +153,7 @@ export default async function AdministrationDirectoryPage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900/60 py-8 bg-slate-950/40 text-center relative z-10">
-        <p className="text-[10px] text-slate-500 font-light">© 2026 Dental Clinics. Restricted administrative directory portal.</p>
+        <p className="text-[10px] text-slate-500 font-light">© 2026 Dental Clinics. Private Clinical Portal. Developed by Flynx.site developer Khan Tafazzul</p>
       </footer>
 
     </div>

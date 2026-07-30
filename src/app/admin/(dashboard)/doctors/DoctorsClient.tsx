@@ -20,6 +20,7 @@ interface Doctor {
   compensation_type?: string | null
   fixed_salary?: number | null
   profit_percentage?: number | null
+  profit_sharing_target?: string | null
   password?: string | null
   slug?: string | null
 }
@@ -53,6 +54,7 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
   const [compensationType, setCompensationType] = useState('fixed')
   const [fixedSalary, setFixedSalary] = useState('0')
   const [profitPercentage, setProfitPercentage] = useState('0')
+  const [profitSharingTarget, setProfitSharingTarget] = useState('both')
   const [password, setPassword] = useState('doctor123')
   const [slug, setSlug] = useState('')
   
@@ -72,6 +74,7 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     setCompensationType('fixed')
     setFixedSalary('0')
     setProfitPercentage('0')
+    setProfitSharingTarget('both')
     setPassword('doctor123')
     setSlug('')
     setError(null)
@@ -90,6 +93,7 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     setCompensationType(doc.compensation_type || 'fixed')
     setFixedSalary(String(doc.fixed_salary || '0'))
     setProfitPercentage(String(doc.profit_percentage || '0'))
+    setProfitSharingTarget(doc.profit_sharing_target || 'both')
     setPassword(doc.password || 'doctor123')
     setSlug(doc.slug || '')
     setError(null)
@@ -124,6 +128,7 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     formData.append('compensation_type', compensationType)
     formData.append('fixed_salary', fixedSalary)
     formData.append('profit_percentage', profitPercentage)
+    formData.append('profit_sharing_target', profitSharingTarget)
     formData.append('password', password)
     formData.append('slug', slug.trim().toLowerCase())
     if (imageFile) {
@@ -426,19 +431,33 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
                     />
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    <label className="block text-xs font-medium text-slate-500">Branch Profit Share (%)</label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      value={profitPercentage}
-                      onChange={e => setProfitPercentage(e.target.value)}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    />
-                  </div>
+                  <>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-500">Branch Profit Share (%)</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={profitPercentage}
+                        onChange={e => setProfitPercentage(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-500">Profit Sharing Target</label>
+                      <select
+                        value={profitSharingTarget}
+                        onChange={e => setProfitSharingTarget(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                      >
+                        <option value="both">Both Treatment & Medicine Profit</option>
+                        <option value="treatment">Treatment Profit Only</option>
+                        <option value="medicine">Medicine Profit Only</option>
+                      </select>
+                    </div>
+                  </>
                 )}
 
                 <div className="space-y-1">

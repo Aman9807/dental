@@ -12,6 +12,7 @@ export default function MobileCapturePage() {
   const [isValidated, setIsValidated] = useState(false)
   const [validating, setValidating] = useState(false)
   const [passcodeError, setPasscodeError] = useState<string | null>(null)
+  const [allowCaptureMedicine, setAllowCaptureMedicine] = useState(false)
 
   // Appointment states
   const [appointments, setAppointments] = useState<any[]>([])
@@ -248,10 +249,17 @@ export default function MobileCapturePage() {
     };
   }, [cameraScanActive]);
 
+  // Fallback to prescription mode if barcode mode is not allowed
+  useEffect(() => {
+    if (isValidated && mode === 'barcode' && !allowCaptureMedicine) {
+      setMode('prescription')
+    }
+  }, [isValidated, mode, allowCaptureMedicine])
+
   // Fetch branches on mount
   useEffect(() => {
     async function loadBranches() {
-      const { data } = await supabase.from('branches').select('id, name, slug')
+      const { data } = await supabase.from('branches').select('id, name, slug, allow_capture_medicine')
       setBranches(data || [])
       
       const searchParams = new URLSearchParams(window.location.search)
@@ -261,8 +269,10 @@ export default function MobileCapturePage() {
         const found = data.find(b => b.slug === branchParam)
         if (found) {
           setSelectedBranchSlug(found.slug)
+          setAllowCaptureMedicine(!!found.allow_capture_medicine)
         } else {
           setSelectedBranchSlug(data[0].slug)
+          setAllowCaptureMedicine(!!data[0].allow_capture_medicine)
         }
       }
     }
@@ -417,6 +427,8 @@ export default function MobileCapturePage() {
       const res = await validateCameraPasscode(selectedBranchSlug, passcode)
       if (res.success) {
         setIsValidated(true)
+        const found = branches.find(b => b.slug === selectedBranchSlug)
+        setAllowCaptureMedicine(!!found?.allow_capture_medicine)
         await fetchAppointments(selectedBranchSlug)
       } else {
         setPasscodeError(res.error || 'Invalid passcode credentials')
@@ -551,7 +563,12 @@ export default function MobileCapturePage() {
                 <label className="block text-xs font-medium text-slate-500">Select Branch</label>
                 <select
                   value={selectedBranchSlug}
-                  onChange={e => setSelectedBranchSlug(e.target.value)}
+                  onChange={e => {
+                    const slug = e.target.value
+                    setSelectedBranchSlug(slug)
+                    const found = branches.find(b => b.slug === slug)
+                    setAllowCaptureMedicine(!!found?.allow_capture_medicine)
+                  }}
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-cyan-600"
                 >
                   {branches.map(b => (
@@ -633,17 +650,19 @@ export default function MobileCapturePage() {
               >
                 Capture Prescription
               </button>
-              <button
-                type="button"
-                onClick={() => setMode('barcode')}
-                className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition-all duration-300 ${
-                  mode === 'barcode'
-                    ? 'bg-white text-cyan-700 shadow-sm border border-slate-200/10'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Scan Medicine Barcode
-              </button>
+              {allowCaptureMedicine && (
+                <button
+                  type="button"
+                  onClick={() => setMode('barcode')}
+                  className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition-all duration-300 ${
+                    mode === 'barcode'
+                      ? 'bg-white text-cyan-700 shadow-sm border border-slate-200/10'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Scan Medicine Barcode
+                </button>
+              )}
             </div>
 
             {/* Mode 1: Capture Prescription */}
@@ -814,7 +833,7 @@ export default function MobileCapturePage() {
               </>
             )}
 
-            {/* Mode 2: Scan Medicine Barcode (TiDB Cloud inventory) */}
+            {/* Mode 2: Scan Medicine Barcode (System inventory) */}
             {mode === 'barcode' && (
               <div className="space-y-6 animate-fade-in">
                 {stockSuccess && (
@@ -822,7 +841,7 @@ export default function MobileCapturePage() {
                     <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                     <h4 className="text-xs font-bold mt-1">Stock Registered Successfully!</h4>
                     <p className="text-[10px] text-emerald-700/80 font-light leading-relaxed">
-                      The medicine inventory has been updated in TiDB Cloud. You can scan/receive another item or toggle back to prescriptions.
+                      The medicine inventory has been updated in the system. You can scan/receive another item or toggle back to prescriptions.
                     </p>
                     <button
                       onClick={() => setStockSuccess(false)}
@@ -1075,7 +1094,7 @@ export default function MobileCapturePage() {
                           className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-2xl font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-cyan-600/10 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {registeringStock && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                          Register Medicine Stock (TiDB)
+                          Register Medicine Stock
                         </button>
                       </div>
                         </div>
@@ -1091,7 +1110,7 @@ export default function MobileCapturePage() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="py-6 text-center border-t border-slate-200/40 text-[10px] text-slate-400 font-light mt-6">
-        <p>© 2026 Dental Clinics. Private Clinical Portal.</p>
+        <p>© 2026 Dental Clinics. Private Clinical Portal. Developed by Flynx.site developer Khan Tafazzul</p>
       </footer>
     </div>
   )

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.branches (
     slug TEXT UNIQUE NOT NULL,
     working_hours TEXT,
     camera_passcode TEXT DEFAULT '1234',
+    allow_capture_medicine BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS public.doctors (
     compensation_type TEXT DEFAULT 'fixed' CHECK (compensation_type IN ('fixed', 'percentage')),
     fixed_salary NUMERIC DEFAULT 0,
     profit_percentage NUMERIC DEFAULT 0,
+    profit_sharing_target TEXT DEFAULT 'both' CHECK (profit_sharing_target IN ('treatment', 'medicine', 'both')),
     slug TEXT UNIQUE,
     password TEXT DEFAULT 'doctor123',
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL

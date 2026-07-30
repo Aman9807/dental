@@ -53,6 +53,8 @@ interface BillingItem {
   maxStock?: number // For medicine stock bounds
   unitType?: 'strips' | 'tablets'
   tabletsPerPatch?: number
+  batchId?: string
+  batchNumber?: string
 }
 
 interface BillingClientProps {
@@ -87,6 +89,9 @@ export default function BillingClient({ initialAppointments, initialTreatments }
   const [checkingOut, setCheckingOut] = useState(false)
   const [checkoutSuccess, setCheckoutSuccess] = useState(false)
   const [successInfo, setSuccessInfo] = useState<any>(null)
+
+  // Selected medicine for batch selector prompt
+  const [batchSelectMed, setBatchSelectMed] = useState<any | null>(null)
 
   // Add new medicine modal & form states
   const [showAddMedModal, setShowAddMedModal] = useState(false)
@@ -164,39 +169,89 @@ export default function BillingClient({ initialAppointments, initialTreatments }
     }
   }
 
+  const addMedicineItemWithBatch = (med: any, batch: any) => {
+    // Check if there is already a billing item with this specific batch!
+    const existingIndex = billingItems.findIndex(item => item.type === 'medicine' && item.id === med.id && item.batchId === batch.id)
+    if (existingIndex !== -1) {
+      const updated = [...billingItems]
+      const newQty = updated[existingIndex].quantity + 1
+      const maxStock = Number(batch.stock)
+      const tabsPerPatch = Number(med.tablets_per_patch || 10)
+      const newQtyTablets = updated[existingIndex].unitType === 'strips' ? newQty * tabsPerPatch : newQty
+      if (newQtyTablets <= maxStock) {
+        updated[existingIndex].quantity = newQty
+        setBillingItems(updated)
+      } else {
+        alert(`Cannot add more. Only ${maxStock} tablets available in this batch.`)
+      }
+    } else {
+      const price = Number(batch.price) // price per tablet
+      const tabsPerPatch = Number(med.tablets_per_patch || 10)
+      const newItem: BillingItem = {
+        key: `med_${med.id}_${batch.id}_${Date.now()}`,
+        type: 'medicine',
+        id: med.id,
+        name: `${med.name} (Batch: ${batch.batch_number})`,
+        quantity: 1,
+        price: price,
+        maxStock: Number(batch.stock),
+        unitType: 'strips',
+        tabletsPerPatch: tabsPerPatch,
+        batchId: batch.id,
+        batchNumber: batch.batch_number
+      }
+      setBillingItems([...billingItems, newItem])
+    }
+    setBatchSelectMed(null)
+    setMedQuery('')
+    setShowMedDropdown(false)
+  }
+
   // Add Medicine Item
   const addMedicineItem = (med: any) => {
     const stock = Number(med.stock)
     if (stock <= 0) return
 
-    const existingIndex = billingItems.findIndex(item => item.type === 'medicine' && item.id === med.id)
-    if (existingIndex !== -1) {
-      const updated = [...billingItems]
-      const newQty = updated[existingIndex].quantity + 1
-      if (newQty <= stock) {
-        updated[existingIndex].quantity = newQty
-        setBillingItems(updated)
-      } else {
-        alert(`Cannot add more. Only ${stock} units available in stock.`)
-      }
-    } else {
-      const price = med.batches && med.batches.length > 0 ? Number(med.batches[0].price) : Number(med.price)
-      const tabsPerPatch = Number(med.tablets_per_patch || 10)
-      const newItem: BillingItem = {
-        key: `med_${med.id}_${Date.now()}`,
-        type: 'medicine',
-        id: med.id,
-        name: med.name,
-        quantity: 1, // Default 1 strip
-        price: price,
-        maxStock: stock,
-        unitType: 'strips',
-        tabletsPerPatch: tabsPerPatch
-      }
-      setBillingItems([...billingItems, newItem])
+    // If there are multiple batches (2 or more), prompt for selection
+    if (med.batches && med.batches.length >= 2) {
+      setBatchSelectMed(med)
+      setShowMedDropdown(false)
+      return
     }
-    setMedQuery('')
-    setShowMedDropdown(false)
+
+    const batch = med.batches?.[0]
+    if (batch) {
+      addMedicineItemWithBatch(med, batch)
+    } else {
+      const existingIndex = billingItems.findIndex(item => item.type === 'medicine' && item.id === med.id)
+      if (existingIndex !== -1) {
+        const updated = [...billingItems]
+        const newQty = updated[existingIndex].quantity + 1
+        if (newQty <= stock) {
+          updated[existingIndex].quantity = newQty
+          setBillingItems(updated)
+        } else {
+          alert(`Cannot add more. Only ${stock} units available in stock.`)
+        }
+      } else {
+        const price = Number(med.price || 0)
+        const tabsPerPatch = Number(med.tablets_per_patch || 10)
+        const newItem: BillingItem = {
+          key: `med_${med.id}_${Date.now()}`,
+          type: 'medicine',
+          id: med.id,
+          name: med.name,
+          quantity: 1,
+          price: price,
+          maxStock: stock,
+          unitType: 'strips',
+          tabletsPerPatch: tabsPerPatch
+        }
+        setBillingItems([...billingItems, newItem])
+      }
+      setMedQuery('')
+      setShowMedDropdown(false)
+    }
   }
 
   // Add Treatment Item (Fixed Price)
@@ -324,8 +379,8 @@ export default function BillingClient({ initialAppointments, initialTreatments }
   // Register new medicine stock directly from the billing screen
   const handleRegisterNewMed = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newMedBarcode || !newMedName || !newMedPatchPrice || !newMedCostPrice) {
-      alert('Please fill out all required fields.')
+    if (!newMedName || !newMedPatchPrice || !newMedCostPrice) {
+      alert('Please fill out all required fields (Name, Price, Cost).')
       return
     }
     setSavingNewMed(true)
@@ -433,50 +488,49 @@ export default function BillingClient({ initialAppointments, initialTreatments }
         className="space-y-8 max-w-6xl mx-auto"
       >
         
-        {/* ═══ 3D SPATIAL HEADER DECK ═══ */}
-        <div className="glass-3d rounded-3xl p-6 md:p-8 relative overflow-hidden preserve-3d shadow-2xl border border-white/80">
-          {/* Subtle 3D grid line */}
+        {/* ═══ CLAYMORPHISM HEADER DECK ═══ */}
+        <div className="clay dark:clay-dark rounded-3xl p-6 md:p-8 relative overflow-hidden preserve-3d border border-slate-200/50 dark:border-slate-800/40">
           <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-teal-500/5 to-transparent pointer-events-none" />
           
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <DentalLogo size={34} />
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-400/30 rounded-full text-cyan-700 text-xs font-semibold uppercase tracking-widest">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-450/30 rounded-full text-cyan-705 dark:text-cyan-400 text-xs font-semibold uppercase tracking-widest">
                   <Sparkles className="w-3.5 h-3.5 animate-pulse text-cyan-600" />
-                  3D Spatial Billing Terminal
+                  Billing & Invoicing Terminal
                 </span>
               </div>
-              <h1 className="text-3xl md:text-4xl font-serif text-slate-900 font-normal tracking-tight leading-tight">
+              <h1 className="text-3xl md:text-4xl font-serif text-slate-900 dark:text-white font-normal tracking-tight leading-tight">
                 Unified Checkout & Invoicing
               </h1>
-              <p className="text-sm text-slate-500 font-light leading-relaxed max-w-xl">
-                Seamlessly compile medicine inventory from TiDB Cloud and clinical procedure fees into a scannable 3D invoice record.
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-light leading-relaxed max-w-xl">
+                Seamlessly compile medicine inventory and clinical procedure fees into a clean invoice record.
               </p>
             </div>
 
-            {/* 3D Metric Badges */}
+            {/* Metric Badges */}
             <div className="grid grid-cols-3 gap-4">
               {/* Badge 1 */}
-              <div className="card-3d glass-3d rounded-2xl p-4 text-center border border-white/60 shadow-sm min-w-[110px] hover:scale-105 transition-transform duration-300">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Active Patient</span>
-                <span className="text-sm font-bold text-slate-800 truncate block max-w-[120px] mx-auto">
+              <div className="clay dark:clay-dark rounded-2xl p-4 text-center border border-slate-200/50 dark:border-slate-800/40 shadow-sm min-w-[110px] hover:scale-105 transition-transform duration-300">
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block mb-1">Active Patient</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-250 truncate block max-w-[120px] mx-auto">
                   {selectedAppt ? selectedAppt.patients?.name : 'None'}
                 </span>
               </div>
 
               {/* Badge 2 */}
-              <div className="card-3d glass-3d rounded-2xl p-4 text-center border border-white/60 shadow-sm min-w-[110px] hover:scale-105 transition-transform duration-300">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Cart Items</span>
-                <span className="text-sm font-bold text-cyan-700 block tabular-nums">
+              <div className="clay dark:clay-dark rounded-2xl p-4 text-center border border-slate-200/50 dark:border-slate-800/40 shadow-sm min-w-[110px] hover:scale-105 transition-transform duration-300">
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block mb-1">Cart Items</span>
+                <span className="text-sm font-bold text-cyan-700 dark:text-cyan-400 block tabular-nums">
                   {billingItems.length}
                 </span>
               </div>
 
               {/* Badge 3 */}
-              <div className="card-3d glass-3d rounded-2xl p-4 text-center border border-cyan-200/60 bg-gradient-to-br from-cyan-50 to-teal-50 shadow-sm min-w-[110px] hover:scale-105 transition-transform duration-300">
-                <span className="text-[10px] text-cyan-700 font-semibold uppercase tracking-wider block mb-1">Grand Total</span>
-                <span className="text-sm font-mono font-bold text-cyan-850 block tabular-nums">
+              <div className="clay dark:clay-dark rounded-2xl p-4 text-center border border-cyan-200/50 bg-gradient-to-br from-cyan-50/50 to-teal-50/50 dark:from-cyan-950/20 dark:to-teal-950/20 shadow-sm min-w-[110px] hover:scale-105 transition-transform duration-300">
+                <span className="text-[10px] text-cyan-700 dark:text-cyan-400 font-semibold uppercase tracking-wider block mb-1">Grand Total</span>
+                <span className="text-sm font-mono font-bold text-cyan-850 dark:text-cyan-300 block tabular-nums">
                   Rs. {grandTotal.toFixed(0)}
                 </span>
               </div>
@@ -490,52 +544,52 @@ export default function BillingClient({ initialAppointments, initialTreatments }
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.15 }}
-            className="max-w-xl mx-auto glass-3d rounded-3xl p-8 shadow-2xl space-y-6 text-center preserve-3d border border-emerald-400/30"
+            className="max-w-xl mx-auto clay dark:clay-dark rounded-3xl p-8 shadow-2xl space-y-6 text-center border border-emerald-400/20"
           >
             <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20 floating-3d">
               <CheckCircle className="w-10 h-10" />
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-2xl font-serif text-slate-900">Invoice Created & Attached!</h3>
-              <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+              <h3 className="text-2xl font-serif text-slate-900 dark:text-white">Invoice Created & Attached!</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-md mx-auto">
                 The bill has been compiled and safely recorded in the patient file.
               </p>
             </div>
 
-            <div className="p-4 bg-amber-500/10 border border-amber-400/30 text-amber-900 text-xs rounded-2xl text-left flex items-start gap-3">
+            <div className="p-4 bg-amber-500/10 border border-amber-400/20 text-amber-900 dark:text-amber-300 text-xs rounded-2xl text-left flex items-start gap-3">
               <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <strong className="font-semibold block">Email Dispatch Deferred:</strong>
-                <span className="text-[11px] text-amber-800 leading-normal block">
+                <span className="text-[11px] text-amber-800 dark:text-amber-400 leading-normal block">
                   To send this invoice alongside the digital prescription & X-Ray in a unified PDF package, open the <strong>Reports Modal</strong> on the <strong>Appointments Dashboard</strong>.
                 </span>
               </div>
             </div>
 
-            {/* 3D Digital Receipt Card */}
-            <div className="card-3d glass-3d-dark rounded-2xl p-5 text-left text-xs font-mono space-y-2 text-slate-200 shadow-2xl border border-white/10">
-              <div className="flex justify-between border-b border-white/10 pb-2 mb-2 font-sans text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+            {/* Digital Receipt Card */}
+            <div className="clay dark:clay-dark rounded-2xl p-5 text-left text-xs font-mono space-y-2 text-slate-800 dark:text-slate-200 shadow-2xl border border-slate-250/30 dark:border-slate-800/40">
+              <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/50 pb-2 mb-2 font-sans text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-wider font-semibold">
                 <span>Invoice Verification</span>
-                <span className="text-emerald-400">ACTIVE RECORD</span>
+                <span className="text-emerald-500 dark:text-emerald-400 font-bold">ACTIVE RECORD</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Patient Name:</span>
-                <span className="font-semibold text-white">{successInfo?.patientName}</span>
+                <span className="text-slate-400 dark:text-slate-500">Patient Name:</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{successInfo?.patientName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Invoice Code:</span>
-                <span className="font-bold text-cyan-400">{successInfo?.invoiceId?.substring(0, 10).toUpperCase()}</span>
+                <span className="text-slate-400 dark:text-slate-500">Invoice Code:</span>
+                <span className="font-bold text-cyan-600 dark:text-cyan-400">{successInfo?.invoiceId?.substring(0, 10).toUpperCase()}</span>
               </div>
-              <div className="flex justify-between pt-1 border-t border-white/10 text-sm">
-                <span className="text-slate-300">Total Billed:</span>
-                <span className="font-bold text-emerald-400 tabular-nums">Rs. {successInfo?.total?.toFixed(2)}</span>
+              <div className="flex justify-between pt-1 border-t border-slate-100 dark:border-slate-800/50 text-sm">
+                <span className="text-slate-500 dark:text-slate-450">Total Billed:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">Rs. {successInfo?.total?.toFixed(2)}</span>
               </div>
             </div>
 
             {/* Countdown bar */}
-            <div className="p-4 bg-cyan-500/10 border border-cyan-400/30 text-cyan-800 text-xs rounded-2xl flex items-center justify-between">
-              <span className="font-medium text-slate-700">Auto-redirecting to Appointments in <strong className="tabular-nums">{redirectCountdown}s</strong>...</span>
+            <div className="p-4 bg-cyan-500/10 border border-cyan-400/20 text-cyan-800 dark:text-cyan-300 text-xs rounded-2xl flex items-center justify-between">
+              <span className="font-medium text-slate-700 dark:text-slate-300">Auto-redirecting to Appointments in <strong className="tabular-nums">{redirectCountdown}s</strong>...</span>
               <button
                 onClick={() => {
                   const invoiceParam = successInfo?.invoiceId ? `&openInvoiceId=${successInfo.invoiceId}` : ''
@@ -549,21 +603,21 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
             <button
               onClick={() => setCheckoutSuccess(false)}
-              className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition shadow-sm h-11 flex items-center justify-center cursor-pointer"
+              className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-slate-800/50 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-2xl transition shadow-sm h-11 flex items-center justify-center cursor-pointer"
             >
               + Create Another Invoice
             </button>
           </motion.div>
         ) : (
-          /* ═══ MAIN 3D BILLING STAGE ═══ */
+          /* ═══ MAIN BILLING STAGE ═══ */
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             
             {/* LEFT 2 COLUMNS: SELECTIONS, CATALOG & CART */}
             <div className="lg:col-span-2 space-y-6">
               
               {/* CARD 1: PATIENT SELECTION */}
-              <div className="card-3d glass-3d p-6 rounded-3xl space-y-4 shadow-xl border border-white/70">
-                <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-200/60 pb-3">
+              <div className="clay dark:clay-dark p-6 rounded-3xl space-y-4 border border-slate-200/50 dark:border-slate-800/40">
+                <h3 className="text-base font-semibold text-slate-850 dark:text-slate-200 flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800/30 pb-3">
                   <div className="w-7 h-7 rounded-xl bg-cyan-500/10 text-cyan-600 flex items-center justify-center font-bold text-xs">1</div>
                   <User className="w-4.5 h-4.5 text-cyan-600" />
                   Select Patient Appointment
@@ -573,19 +627,19 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                   <select
                     value={selectedApptId}
                     onChange={e => setSelectedApptId(e.target.value)}
-                    className="w-full px-4 py-3.5 border border-slate-200 rounded-2xl text-sm bg-white text-slate-850 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all shadow-sm h-12"
+                    className="w-full px-4 py-3.5 border border-slate-200 dark:border-slate-800/60 rounded-2xl text-sm bg-white dark:bg-[#121826] text-slate-800 dark:text-white focus:outline-none focus:border-cyan-500 transition-all shadow-sm h-12"
                   >
-                    <option value="">-- Select active patient appointment to begin billing --</option>
+                    <option value="" className="dark:bg-[#121826]">-- Select active patient appointment to begin billing --</option>
                     {appointments
                       .filter(a => a.status !== 'completed' && a.status !== 'cancelled')
                       .map(appt => (
-                        <option key={appt.id} value={appt.id}>
+                        <option key={appt.id} value={appt.id} className="dark:bg-[#121826]">
                           {appt.patients?.name} — {appt.branches?.name} ({appt.appointment_date} @ {appt.appointment_time.substring(0, 5)})
                         </option>
                       ))}
                   </select>
 
-                  {/* Patient Metadata 3D Accordion */}
+                  {/* Patient Metadata Accordion */}
                   <AnimatePresence>
                     {selectedAppt && (
                       <motion.div 
@@ -595,11 +649,11 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                         transition={{ type: "spring", stiffness: 350, damping: 30 }}
                         className="overflow-hidden"
                       >
-                        <div className="p-5 bg-gradient-to-br from-slate-950 to-slate-900 text-white rounded-2xl text-sm space-y-4 shadow-xl border border-white/5 relative overflow-hidden mt-2">
+                        <div className="p-5 bg-gradient-to-br from-slate-950 to-slate-900 dark:from-[#172033] dark:to-[#0f1524] text-white rounded-2xl text-sm space-y-4 shadow-xl border border-white/5 relative overflow-hidden mt-2">
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Patient</span>
-                              <strong className="text-base font-serif font-normal text-cyan-300 leading-tight">{selectedAppt.patients?.name}</strong>
+                              <strong className="text-base font-serif font-normal text-cyan-350 leading-tight">{selectedAppt.patients?.name}</strong>
                             </div>
                             <div>
                               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Assigned Doctor</span>
@@ -640,8 +694,8 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
               {/* CARD 2: MEDICINE & CLINICAL PROCEDURE CATALOG */}
               {selectedApptId && (
-                <div className="card-3d glass-3d p-6 rounded-3xl space-y-5 shadow-xl border border-white/70">
-                  <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-200/60 pb-3">
+                <div className="clay dark:clay-dark p-6 rounded-3xl space-y-5 border border-slate-200/50 dark:border-slate-800/40">
+                  <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800/30 pb-3">
                     <div className="w-7 h-7 rounded-xl bg-cyan-500/10 text-cyan-600 flex items-center justify-center font-bold text-xs">2</div>
                     <Activity className="w-4.5 h-4.5 text-cyan-600" />
                     Add Medicines & Procedures
@@ -649,16 +703,16 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
                   {/* Autocomplete Medicine Search */}
                   <div className="space-y-2 relative" ref={dropdownRef}>
-                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">Search Medicine Inventory (TiDB Cloud)</label>
+                    <label className="block text-xs font-bold text-slate-650 dark:text-slate-350 uppercase tracking-wider">Search Medicine Inventory</label>
                     <div className="relative">
-                      <Search className="w-4.5 h-4.5 absolute left-4 top-3.5 text-slate-450" />
+                      <Search className="w-4.5 h-4.5 absolute left-4 top-3.5 text-slate-400 dark:text-slate-500" />
                       <input
                         type="text"
                         placeholder="Type medicine name, generic ingredient, or scan barcode..."
                         value={medQuery}
                         onChange={e => handleMedSearch(e.target.value)}
                         onFocus={() => setShowMedDropdown(medResults.length > 0)}
-                        className="w-full pl-11 pr-4 py-3.5 border border-slate-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition shadow-sm h-12"
+                        className="w-full pl-11 pr-4 py-3.5 border border-slate-200 dark:border-slate-800/60 rounded-2xl text-sm bg-white dark:bg-[#121826] text-slate-800 dark:text-white focus:outline-none focus:border-cyan-500 transition shadow-sm h-12"
                       />
                       {searchingMeds && (
                         <Loader2 className="w-4.5 h-4.5 animate-spin absolute right-4 top-3.5 text-cyan-600" />
@@ -672,10 +726,10 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 5 }}
-                          className="absolute left-0 right-0 top-full mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl z-40 max-h-60 overflow-y-auto divide-y divide-slate-100"
+                          className="absolute left-0 right-0 top-full mt-2 bg-white/95 dark:bg-[#121826]/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800/60 rounded-2xl shadow-2xl z-40 max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50"
                         >
                           {medResults.length === 0 ? (
-                            <div className="p-4 text-sm text-slate-400 text-center font-light">No matching medicines found.</div>
+                            <div className="p-4 text-sm text-slate-450 dark:text-slate-500 text-center font-light">No matching medicines found.</div>
                           ) : (
                             medResults.map(med => {
                               const stock = Number(med.stock)
@@ -690,25 +744,25 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                                 <div
                                   key={med.id}
                                   onClick={() => !isOutOfStock && addMedicineItem(med)}
-                                  className={`flex justify-between items-center px-4 py-3.5 hover:bg-cyan-50/50 transition-colors text-sm cursor-pointer ${
+                                  className={`flex justify-between items-center px-4 py-3.5 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/20 transition-colors text-sm cursor-pointer ${
                                     isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''
                                   }`}
                                 >
                                   <div>
-                                    <p className="font-semibold text-slate-900">{med.name} <span className="text-xs text-slate-400 font-normal">({tabsPerPatch} tabs/strip)</span></p>
-                                    <p className="text-xs text-slate-400 font-light">Generic: {med.generic_name || 'N/A'}</p>
+                                    <p className="font-semibold text-slate-905 dark:text-white">{med.name} <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">({tabsPerPatch} tabs/strip)</span></p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 font-light">Generic: {med.generic_name || 'N/A'}</p>
                                   </div>
                                   <div className="flex items-center gap-3">
                                     {isOutOfStock ? (
-                                      <span className="px-2.5 py-0.5 bg-rose-50 text-rose-700 text-[10px] rounded-full border border-rose-200 font-bold uppercase tracking-wider">
+                                      <span className="px-2.5 py-0.5 bg-rose-50 text-rose-700 dark:bg-rose-950/20 dark:text-rose-455 text-[10px] rounded-full border border-rose-200 dark:border-rose-900 font-bold uppercase tracking-wider">
                                         Out of Stock
                                       </span>
                                     ) : (
-                                      <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] rounded-full border border-emerald-200 font-medium tabular-nums">
+                                      <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 text-[10px] rounded-full border border-emerald-200 dark:border-emerald-900 font-medium tabular-nums">
                                         Stock: {stock} tabs ({stripsStock} strips {remTabsStock > 0 ? `+ ${remTabsStock} tabs` : ''})
                                       </span>
                                     )}
-                                    <span className="font-mono font-bold text-slate-800 tabular-nums">Rs. {displayPrice.toFixed(2)}/tab</span>
+                                    <span className="font-mono font-bold text-slate-800 dark:text-slate-350 tabular-nums">Rs. {displayPrice.toFixed(2)}/tab</span>
                                   </div>
                                 </div>
                               )
@@ -719,7 +773,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                     </AnimatePresence>
 
                     <div className="flex justify-between items-center pt-1 px-1">
-                      <span className="text-xs text-slate-400 font-light">Medicine not found in list?</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500 font-light">Medicine not found in list?</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -727,7 +781,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                           setNewMedName(medQuery)
                           setShowAddMedModal(true)
                         }}
-                        className="text-xs font-bold text-cyan-600 hover:text-cyan-700 transition cursor-pointer"
+                        className="text-xs font-bold text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition cursor-pointer"
                       >
                         + Register New Stock Batch
                       </button>
@@ -735,19 +789,19 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                   </div>
 
                   {/* Procedures & Custom Rows */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200/60 pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200/60 dark:border-slate-800/30 pt-4">
                     {/* Fixed Clinical Procedure Dropdown */}
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">Clinical Procedures</label>
+                      <label className="block text-xs font-bold text-slate-650 dark:text-slate-350 uppercase tracking-wider">Clinical Procedures</label>
                       <div className="flex gap-2">
                         <select
                            value={selectedTreatmentId}
                            onChange={e => setSelectedTreatmentId(e.target.value)}
-                           className="flex-1 px-3.5 py-3 border border-slate-200 rounded-2xl text-sm bg-white text-slate-850 focus:outline-none focus:border-cyan-500 shadow-sm h-12"
+                           className="flex-1 px-3.5 py-3 border border-slate-200 dark:border-slate-800/60 rounded-2xl text-sm bg-white dark:bg-[#121826] text-slate-800 dark:text-white focus:outline-none focus:border-cyan-500 shadow-sm h-12"
                         >
-                          <option value="">-- Choose procedure --</option>
+                          <option value="" className="dark:bg-[#121826]">-- Choose procedure --</option>
                           {treatments.map(t => (
-                            <option key={t.id} value={t.id}>{t.name} (Rs. {t.price})</option>
+                            <option key={t.id} value={t.id} className="dark:bg-[#121826]">{t.name} (Rs. {t.price})</option>
                           ))}
                         </select>
                         <button
@@ -767,7 +821,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                         <button
                           type="button"
                           onClick={handleAddCustom}
-                          className="w-full h-12 border border-dashed border-cyan-300/80 bg-cyan-50/30 hover:bg-cyan-50 rounded-2xl text-xs font-bold text-cyan-705 transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 duration-150"
+                          className="w-full h-12 border border-dashed border-cyan-300/80 bg-cyan-50/30 dark:bg-cyan-950/20 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 border-cyan-200 dark:border-cyan-800/40 rounded-2xl text-xs font-bold text-cyan-750 dark:text-cyan-400 transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 duration-150"
                         >
                           <Sparkles className="w-4 h-4 text-cyan-600 animate-pulse" />
                           + Custom Procedure
@@ -775,7 +829,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                         <button
                           type="button"
                           onClick={handleAddCustomMedicine}
-                          className="w-full h-12 border border-dashed border-teal-300/80 bg-teal-50/30 hover:bg-teal-50 rounded-2xl text-xs font-bold text-teal-705 transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 duration-150"
+                          className="w-full h-12 border border-dashed border-teal-300/80 bg-teal-50/30 dark:bg-teal-950/20 hover:bg-teal-50 dark:hover:bg-teal-950/40 border-teal-200 dark:border-teal-800/40 rounded-2xl text-xs font-bold text-teal-750 dark:text-teal-400 transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 duration-150"
                         >
                           <Barcode className="w-4 h-4 text-teal-600" />
                           + Custom Medicine
@@ -786,17 +840,17 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                 </div>
               )}
 
-              {/* CARD 3: COMPILED 3D CART ITEMS */}
+              {/* CARD 3: COMPILED CART ITEMS */}
               {selectedApptId && billingItems.length > 0 && (
-                <div className="card-3d glass-3d rounded-3xl shadow-xl border border-white/70 overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-200/60 bg-gradient-to-r from-slate-50 to-cyan-50/40 flex justify-between items-center">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                <div className="clay dark:clay-dark rounded-3xl border border-slate-200/50 dark:border-slate-800/40 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/40 bg-gradient-to-r from-slate-50 to-cyan-50/40 dark:from-[#151f33] dark:to-cyan-950/10 flex justify-between items-center">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-800 dark:text-slate-200 flex items-center gap-2">
                       <ShoppingCart className="w-4.5 h-4.5 text-cyan-600" />
                       Compiled Invoice Items
                     </h4>
                     <button
                       onClick={() => setBillingItems([])}
-                      className="text-xs text-rose-600 hover:text-rose-800 font-bold underline cursor-pointer"
+                      className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 font-bold underline cursor-pointer"
                     >
                       Clear All
                     </button>
@@ -812,7 +866,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, x: -50 }}
                           transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                          className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm hover:bg-cyan-50/20 transition-colors border-b border-slate-100"
+                          className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm hover:bg-cyan-50/20 dark:hover:bg-cyan-950/10 transition-colors border-b border-slate-100 dark:border-slate-800/40"
                         >
                           <div className="space-y-0.5 md:max-w-xs flex-1">
                             <div className="flex items-center gap-2">
@@ -824,13 +878,13 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                                   type="text"
                                   value={item.name}
                                   onChange={e => updateItem(item.key, 'name', e.target.value)}
-                                  className="px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-semibold text-slate-900 bg-white text-sm"
+                                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 font-semibold text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm"
                                 />
                               ) : (
-                                <strong className="font-semibold text-slate-900">{item.name}</strong>
+                                <strong className="font-semibold text-slate-900 dark:text-white">{item.name}</strong>
                               )}
                             </div>
-                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold capitalize">Category: {item.type}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold capitalize">Category: {item.type}</p>
                           </div>
 
                           <div className="flex items-center gap-4">
@@ -838,20 +892,20 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                             <div className="w-24">
                               {item.type === 'custom' || (item.type === 'medicine' && !item.id) ? (
                                 <div className="relative">
-                                  <span className="absolute left-2.5 top-2 text-slate-400 font-light text-xs">Rs.</span>
+                                  <span className="absolute left-2.5 top-2 text-slate-400 dark:text-slate-500 font-light text-xs">Rs.</span>
                                   <input
                                     type="number"
                                     value={item.price}
                                     onChange={e => updateItem(item.key, 'price', e.target.value)}
-                                    className="w-full pl-7 pr-2 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-mono font-bold tabular-nums bg-white text-sm"
+                                    className="w-full pl-7 pr-2 py-1.5 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 font-mono font-bold tabular-nums bg-white dark:bg-[#121826] text-slate-900 dark:text-white text-sm"
                                   />
                                 </div>
                               ) : (
-                                <span className="font-mono font-bold text-slate-700 tabular-nums">
+                                <span className="font-mono font-bold text-slate-700 dark:text-slate-350 tabular-nums">
                                   Rs. {item.type === 'medicine' && item.unitType === 'strips'
                                     ? (item.price * (item.tabletsPerPatch || 10)).toFixed(2)
                                     : item.price.toFixed(2)}
-                                  <span className="text-[10px] text-slate-400 font-normal">
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
                                     {item.type === 'medicine' ? (item.unitType === 'strips' ? '/strip' : '/tab') : ''}
                                   </span>
                                 </span>
@@ -866,23 +920,23 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                                   step="any"
                                   value={item.quantity}
                                   onChange={e => updateItem(item.key, 'quantity', e.target.value)}
-                                  className="w-16 px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 text-center font-mono font-bold tabular-nums text-slate-900 bg-white text-sm h-9"
+                                  className="w-16 px-2.5 py-1.5 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 text-center font-mono font-bold tabular-nums text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-9"
                                 />
                                 <select
                                   value={item.unitType || 'strips'}
                                   onChange={e => updateItem(item.key, 'unitType', e.target.value)}
-                                  className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs bg-white font-medium text-slate-700 focus:outline-none h-9"
+                                  className="px-2 py-1.5 border border-slate-200 dark:border-slate-800/60 rounded-xl text-xs bg-white dark:bg-[#121826] font-medium text-slate-750 dark:text-slate-250 focus:outline-none h-9"
                                 >
-                                  <option value="strips">Strips ({item.tabletsPerPatch || 10} tabs)</option>
-                                  <option value="tablets">Tablets</option>
+                                  <option value="strips" className="dark:bg-[#121826]">Strips ({item.tabletsPerPatch || 10} tabs)</option>
+                                  <option value="tablets" className="dark:bg-[#121826]">Tablets</option>
                                 </select>
                               </div>
                             ) : (
-                              <span className="text-slate-400 text-xs font-bold font-mono px-3 uppercase tracking-wider tabular-nums">Qty: 1</span>
+                              <span className="text-slate-400 dark:text-slate-550 text-xs font-bold font-mono px-3 uppercase tracking-wider tabular-nums">Qty: 1</span>
                             )}
 
                             {/* Line total */}
-                            <div className="w-24 text-right font-mono font-bold text-slate-905 tabular-nums">
+                            <div className="w-24 text-right font-mono font-bold text-slate-900 dark:text-white tabular-nums">
                               Rs. {(item.price * getItemEffectiveQty(item)).toFixed(2)}
                             </div>
 
@@ -890,7 +944,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                             <button
                               type="button"
                               onClick={() => removeItem(item.key)}
-                              className="p-3 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50/80 active:scale-95 transition-all duration-200 flex items-center justify-center h-10 w-10 shrink-0 cursor-pointer"
+                              className="p-3 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50/20 active:scale-95 transition-all duration-200 flex items-center justify-center h-10 w-10 shrink-0 cursor-pointer"
                               aria-label="Remove item"
                             >
                               <Trash2 className="w-4.5 h-4.5" />
@@ -904,30 +958,30 @@ export default function BillingClient({ initialAppointments, initialTreatments }
               )}
             </div>
 
-            {/* RIGHT COLUMN: 3D SPATIAL RECEIPT CARD & CHECKOUT SUMMARY */}
+            {/* RIGHT COLUMN: CLAYMORPHISM RECEIPT CARD & CHECKOUT SUMMARY */}
             <div className="lg:col-span-1 space-y-6">
-              <div className="card-3d glass-3d p-6 rounded-3xl shadow-2xl border border-white/85 space-y-6 sticky top-6 preserve-3d hover:shadow-cyan-500/5 transition-all duration-300">
-                <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
-                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 uppercase tracking-wider">
+              <div className="clay dark:clay-dark p-6 rounded-3xl border border-slate-200/50 dark:border-slate-800/40 space-y-6 sticky top-6 preserve-3d hover:shadow-cyan-500/5 transition-all duration-300">
+                <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/40 pb-3">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-wider">
                     <Receipt className="w-4.5 h-4.5 text-cyan-600" />
                     Checkout Summary
                   </h3>
-                  <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 text-[10px] font-bold rounded-full uppercase tracking-wider">
                     Live Total
                   </span>
                 </div>
 
-                <div className="space-y-4 text-sm text-slate-650">
+                <div className="space-y-4 text-sm text-slate-650 dark:text-slate-350">
                   <div className="flex justify-between items-center py-1">
                     <span className="font-light">Subtotal:</span>
-                    <span className="font-mono font-bold text-slate-900 text-sm tabular-nums">Rs. {subtotal.toFixed(2)}</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white text-sm tabular-nums">Rs. {subtotal.toFixed(2)}</span>
                   </div>
 
                   {/* Discounts sliders / inputs */}
-                  <div className="space-y-4 border-t border-dashed border-slate-200/80 pt-4">
+                  <div className="space-y-4 border-t border-dashed border-slate-200/80 dark:border-slate-800/40 pt-4">
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold flex items-center gap-1.5 text-xs text-slate-700 uppercase tracking-wider">
-                        <Percent className="w-4 h-4 text-teal-650" />
+                      <span className="font-semibold flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        <Percent className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                         Treatment Disc %
                       </span>
                       <input
@@ -938,13 +992,13 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                         placeholder="0"
                         value={treatmentDiscountPercent || ''}
                         onChange={e => setTreatmentDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                        className="w-20 px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-teal-500 text-center font-mono font-bold tabular-nums text-slate-900 bg-white text-sm h-9"
+                        className="w-20 px-2.5 py-1.5 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-teal-500 text-center font-mono font-bold tabular-nums text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-9"
                       />
                     </div>
 
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold flex items-center gap-1.5 text-xs text-slate-700 uppercase tracking-wider">
-                        <Percent className="w-4 h-4 text-cyan-655" />
+                      <span className="font-semibold flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        <Percent className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                         Medicine Disc %
                       </span>
                       <input
@@ -955,14 +1009,14 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                         placeholder="0"
                         value={medicineDiscountPercent || ''}
                         onChange={e => setMedicineDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                        className="w-20 px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 text-center font-mono font-bold tabular-nums text-slate-900 bg-white text-sm h-9"
+                        className="w-20 px-2.5 py-1.5 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 text-center font-mono font-bold tabular-nums text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-9"
                       />
                     </div>
                   </div>
 
                   {/* Total Discounts readout */}
                   {discountAmount > 0 && (
-                    <div className="space-y-1.5 text-rose-600 border-t border-dashed border-rose-100 pt-3.5 text-xs">
+                    <div className="space-y-1.5 text-rose-600 border-t border-dashed border-rose-100 dark:border-rose-900/40 pt-3.5 text-xs">
                       {treatmentDiscountPercent > 0 && (
                         <div className="flex justify-between font-light">
                           <span>Treatment Discount ({treatmentDiscountPercent}%):</span>
@@ -975,7 +1029,7 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                           <span className="font-mono font-bold tabular-nums">- Rs. {medicineDiscountAmount.toFixed(2)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between font-bold border-t border-rose-250 pt-1.5 text-sm">
+                      <div className="flex justify-between font-bold border-t border-rose-250 dark:border-rose-900/50 pt-1.5 text-sm">
                         <span>Total Savings:</span>
                         <span className="font-mono font-black tabular-nums">- Rs. {discountAmount.toFixed(2)}</span>
                       </div>
@@ -983,19 +1037,19 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                   )}
 
                   {/* Grand Total Highlight Box */}
-                  <div className="p-5 bg-gradient-to-br from-slate-950 to-slate-850 rounded-2xl text-white flex justify-between items-center shadow-xl border border-white/10 relative overflow-hidden preserve-3d">
+                  <div className="p-5 bg-gradient-to-br from-slate-900 to-slate-950 dark:from-[#172033] dark:to-[#0f1524] rounded-2xl text-white flex justify-between items-center shadow-xl border border-white/10 dark:border-slate-800/30 relative overflow-hidden preserve-3d">
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-transparent pointer-events-none" />
-                    <span className="text-xs uppercase font-semibold tracking-wider text-slate-350">Grand Total:</span>
-                    <span className="font-mono text-2xl font-black tabular-nums text-cyan-300 drop-shadow-md">Rs. {grandTotal.toFixed(2)}</span>
+                    <span className="text-xs uppercase font-semibold tracking-wider text-slate-300 dark:text-slate-400">Grand Total:</span>
+                    <span className="font-mono text-2xl font-black tabular-nums text-cyan-300 dark:text-cyan-400 drop-shadow-md">Rs. {grandTotal.toFixed(2)}</span>
                   </div>
                 </div>
 
                 {/* Information banner */}
-                <div className="p-3.5 bg-cyan-550/10 border border-cyan-400/20 rounded-2xl text-xs text-cyan-850 leading-relaxed flex items-start gap-2.5">
+                <div className="p-3.5 bg-cyan-500/10 border border-cyan-450/20 rounded-2xl text-xs text-cyan-800 dark:text-cyan-300 leading-relaxed flex items-start gap-2.5">
                   <AlertCircle className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="font-semibold block mb-0.5">3D Storage Pipeline</strong>
-                    <span className="font-light text-slate-600 text-xs">
+                    <strong className="font-semibold block mb-0.5">Storage Pipeline</strong>
+                    <span className="font-light text-slate-600 dark:text-slate-400 text-xs">
                       Creating the invoice writes financial records to database and generates digital PDF statements.
                     </span>
                   </div>
@@ -1025,25 +1079,25 @@ export default function BillingClient({ initialAppointments, initialTreatments }
           </div>
         )}
 
-        {/* ═══ 3D REGISTER NEW MEDICINE MODAL ═══ */}
+        {/* REGISTER NEW MEDICINE MODAL */}
         <AnimatePresence>
           {showAddMedModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-md">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9, rotateX: 10 }}
                 animate={{ opacity: 1, scale: 1, rotateX: 0 }}
                 exit={{ opacity: 0, scale: 0.9, rotateX: -10 }}
-                className="glass-3d rounded-3xl p-7 max-w-md w-full shadow-2xl space-y-4 border border-white/60 text-slate-900 preserve-3d"
+                className="clay dark:clay-dark rounded-3xl p-7 max-w-md w-full shadow-2xl space-y-4 border border-slate-200/50 dark:border-slate-800/40 text-slate-900 dark:text-white"
               >
-                <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 uppercase tracking-wider">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800/50">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-wider">
                     <Barcode className="w-4.5 h-4.5 text-cyan-600" />
                     Register Medicine
                   </h3>
                   <button 
                     type="button" 
                     onClick={() => setShowAddMedModal(false)}
-                    className="text-slate-400 hover:text-slate-700 text-sm font-bold px-2 py-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                    className="text-slate-400 hover:text-slate-700 dark:hover:text-white text-sm font-bold px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
                   >
                     ✕
                   </button>
@@ -1051,107 +1105,106 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
                 <form onSubmit={handleRegisterNewMed} className="space-y-4 text-sm">
                   <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Barcode (GTIN) *</label>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-widest">Barcode (GTIN) - Optional</label>
                     <input
                       type="text"
-                      required
                       placeholder="e.g. 8901117210103"
                       value={newMedBarcode}
                       onChange={e => setNewMedBarcode(e.target.value)}
-                      className="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 bg-white text-sm h-11"
+                      className="w-full px-3.5 py-3 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-11"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Medicine Name *</label>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Medicine Name *</label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. Amoxicillin 500mg"
                       value={newMedName}
                       onChange={e => setNewMedName(e.target.value)}
-                      className="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 text-slate-900 bg-white text-sm h-11"
+                      className="w-full px-3.5 py-3 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-11"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Generic Name</label>
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Generic Name</label>
                       <input
                         type="text"
                         placeholder="e.g. Amoxicillin"
                         value={newMedGeneric}
                         onChange={e => setNewMedGeneric(e.target.value)}
-                        className="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 text-slate-900 bg-white text-sm h-11"
+                        className="w-full px-3.5 py-3 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-11"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Batch Code *</label>
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Batch Code *</label>
                       <input
                         type="text"
                         required
                         placeholder="AMX2026"
                         value={newMedBatch}
                         onChange={e => setNewMedBatch(e.target.value)}
-                        className="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 bg-white text-sm h-11"
+                        className="w-full px-3.5 py-3 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-11"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Expiry Date *</label>
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Expiry Date *</label>
                       <input
                         type="date"
                         required
                         value={newMedExpiry}
                         onChange={e => setNewMedExpiry(e.target.value)}
-                        className="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 text-slate-900 bg-white text-sm h-11"
+                        className="w-full px-3.5 py-3 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-11"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tabs per Strip *</label>
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tabs per Strip *</label>
                       <input
                         type="number"
                         required
                         value={newMedTabletsPerPatch}
                         onChange={e => setNewMedTabletsPerPatch(e.target.value)}
-                        className="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 bg-white text-sm h-11"
+                        className="w-full px-3.5 py-3 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-11"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Price/Strip *</label>
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Price/Strip *</label>
                       <input
                         type="number"
                         required
                         placeholder="120"
                         value={newMedPatchPrice}
                         onChange={e => setNewMedPatchPrice(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 bg-white text-sm h-11"
+                        className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-11"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cost/Strip *</label>
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Cost/Strip *</label>
                       <input
                         type="number"
                         required
                         placeholder="80"
                         value={newMedCostPrice}
                         onChange={e => setNewMedCostPrice(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 bg-white text-sm h-11"
+                        className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-11"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Qty Strips *</label>
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Qty Strips *</label>
                       <input
                         type="number"
                         required
                         value={newMedQty}
                         onChange={e => setNewMedQty(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 bg-white text-sm h-11"
+                        className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800/60 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-slate-900 dark:text-white bg-white dark:bg-[#121826] text-sm h-11"
                       />
                     </div>
                   </div>
@@ -1165,6 +1218,67 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                     Save Stock to Inventory
                   </button>
                 </form>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Batch Selection Modal */}
+          {batchSelectMed && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-md">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, rotateX: 10 }}
+                animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+                exit={{ opacity: 0, scale: 0.9, rotateX: -10 }}
+                className="clay dark:clay-dark rounded-3xl p-7 max-w-md w-full shadow-2xl space-y-4 border border-slate-200/50 dark:border-slate-800/40 text-slate-900 dark:text-white"
+              >
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800/50">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-wider">
+                    <Layers className="w-4.5 h-4.5 text-cyan-600" />
+                    Select Stock Batch
+                  </h3>
+                  <button 
+                    type="button" 
+                    onClick={() => setBatchSelectMed(null)}
+                    className="text-slate-400 hover:text-slate-700 dark:hover:text-white text-sm font-bold px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-light leading-relaxed">
+                    Medicine <strong className="text-slate-800 dark:text-slate-200 font-bold">{batchSelectMed.name}</strong> has multiple active batches in stock. Please select which batch you want to issue to the patient:
+                  </p>
+
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                    {batchSelectMed.batches?.map((batch: any) => {
+                      const tabletsPerPatch = Number(batchSelectMed.tablets_per_patch || 10)
+                      const stripsStock = Math.floor(Number(batch.stock) / tabletsPerPatch)
+                      const remTabsStock = Number(batch.stock) % tabletsPerPatch
+                      const pricePerStrip = Number(batch.price) * tabletsPerPatch
+
+                      return (
+                        <button
+                          key={batch.id}
+                          type="button"
+                          onClick={() => addMedicineItemWithBatch(batchSelectMed, batch)}
+                          className="w-full text-left p-3.5 border border-slate-200 dark:border-slate-800/60 bg-white dark:bg-[#121826] hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl flex flex-col justify-between gap-1.5 transition-all duration-150 shadow-sm cursor-pointer border-l-4 border-l-cyan-500 text-slate-900 dark:text-white"
+                        >
+                          <div className="flex justify-between w-full items-center">
+                            <span className="font-mono font-bold text-slate-900 dark:text-white text-xs">Batch: {batch.batch_number}</span>
+                            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-450 text-xs">Rs. {pricePerStrip.toFixed(0)}/strip</span>
+                          </div>
+                          <div className="flex justify-between w-full items-center text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                            <span>Expires: {batch.expiry_date ? String(batch.expiry_date).split('T')[0] : 'N/A'}</span>
+                            <span className="text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-800/40">
+                              Stock: {batch.stock} tabs ({stripsStock} strips)
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </motion.div>
             </div>
           )}

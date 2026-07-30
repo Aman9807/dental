@@ -96,6 +96,7 @@ export async function addDoctor(formData: FormData) {
   const compensationType = (formData.get('compensation_type') as string) || 'fixed'
   const fixedSalary = parseFloat(formData.get('fixed_salary') as string || '0')
   const profitPercentage = parseFloat(formData.get('profit_percentage') as string || '0')
+  const profitSharingTarget = (formData.get('profit_sharing_target') as string) || 'both'
   const password = (formData.get('password') as string) || 'doctor123'
   const slug = (formData.get('slug') as string) || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
@@ -116,6 +117,7 @@ export async function addDoctor(formData: FormData) {
         compensation_type: compensationType,
         fixed_salary: fixedSalary,
         profit_percentage: profitPercentage,
+        profit_sharing_target: profitSharingTarget,
         password,
         slug
       })
@@ -143,6 +145,7 @@ export async function updateDoctor(formData: FormData) {
   const compensationType = (formData.get('compensation_type') as string) || 'fixed'
   const fixedSalary = parseFloat(formData.get('fixed_salary') as string || '0')
   const profitPercentage = parseFloat(formData.get('profit_percentage') as string || '0')
+  const profitSharingTarget = (formData.get('profit_sharing_target') as string) || 'both'
   const password = (formData.get('password') as string) || 'doctor123'
   const slug = (formData.get('slug') as string) || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
@@ -163,6 +166,7 @@ export async function updateDoctor(formData: FormData) {
         compensation_type: compensationType,
         fixed_salary: fixedSalary,
         profit_percentage: profitPercentage,
+        profit_sharing_target: profitSharingTarget,
         password,
         slug
       })
@@ -1119,9 +1123,26 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
 
     const branchSlug = details.branchSlug || 'hazara'
 
-    // 1. Look up if medicine exists by barcode
+    // 1. Look up if medicine exists by barcode or name (for optional barcode support)
+    let barcodeToUse = barcode?.trim()
     let medicineId: string
-    const medicines = await queryTiDB('SELECT id FROM medicines WHERE barcode = ?', [barcode])
+    let medicines = []
+
+    if (barcodeToUse) {
+      medicines = await queryTiDB('SELECT id FROM medicines WHERE barcode = ?', [barcodeToUse])
+    } else {
+      const existingByName = await queryTiDB(
+        'SELECT id, barcode FROM medicines WHERE LOWER(name) = ?',
+        [details.name.trim().toLowerCase()]
+      )
+      if (existingByName.length > 0) {
+        medicineId = existingByName[0].id
+        barcodeToUse = existingByName[0].barcode
+        medicines = [{ id: medicineId }]
+      } else {
+        barcodeToUse = `AUTO-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+      }
+    }
     
     const tabletsPerPatch = Number(details.tabletsPerPatch || 1)
     
@@ -1137,7 +1158,7 @@ export async function saveMedicineStock(barcode: string, quantityPatches: number
       medicineId = randomUUID()
       await queryTiDB(
         'INSERT INTO medicines (id, name, generic_name, barcode, tablets_per_patch) VALUES (?, ?, ?, ?, ?)',
-        [medicineId, details.name, details.genericName || null, barcode, tabletsPerPatch]
+        [medicineId, details.name, details.genericName || null, barcodeToUse, tabletsPerPatch]
       )
     }
 
@@ -1296,11 +1317,19 @@ export async function createInvoice(
         const medicineId = item.id
         let remainingQtyToDeduct = item.quantity
 
-        // Query active batches for this medicine in TiDB for this specific branch, sorted by expiry_date (FIFO)
-        const batches = await queryTiDB(
-          'SELECT id, stock, cost_price FROM medicine_batches WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() AND branch_slug = ? ORDER BY expiry_date ASC',
-          [medicineId, branchSlug]
-        )
+        // Query active batches for this medicine in TiDB (specific selected batch or FIFO)
+        let batches;
+        if (item.batchId) {
+          batches = await queryTiDB(
+            'SELECT id, stock, cost_price FROM medicine_batches WHERE id = ?',
+            [item.batchId]
+          )
+        } else {
+          batches = await queryTiDB(
+            'SELECT id, stock, cost_price FROM medicine_batches WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() AND branch_slug = ? ORDER BY expiry_date ASC',
+            [medicineId, branchSlug]
+          )
+        }
 
         const batchCost = batches.length > 0 ? Number(batches[0].cost_price || 0) : 0
 

@@ -67,6 +67,7 @@ export default function AdminSettingsPage() {
   const [editingPasscodeId, setEditingPasscodeId] = useState<string | null>(null)
   const [tempPasscode, setTempPasscode] = useState('')
   const [updatingPasscodeId, setUpdatingPasscodeId] = useState<string | null>(null)
+  const [updatingCaptureId, setUpdatingCaptureId] = useState<string | null>(null)
 
   // Time slots management states
   const [timeSlots, setTimeSlots] = useState<any[]>([])
@@ -104,6 +105,16 @@ export default function AdminSettingsPage() {
   const [newMedCostPrice, setNewMedCostPrice] = useState('')
   const [newMedQty, setNewMedQty] = useState('10')
   const [addingMed, setAddingMed] = useState(false)
+
+  // Quick Add Stock states
+  const [showAddStockModal, setShowAddStockModal] = useState(false)
+  const [selectedStockMed, setSelectedStockMed] = useState<any | null>(null)
+  const [addStockBatch, setAddStockBatch] = useState('GEN-BATCH')
+  const [addStockExpiry, setAddStockExpiry] = useState('')
+  const [addStockQty, setAddStockQty] = useState('10')
+  const [addStockPrice, setAddStockPrice] = useState('')
+  const [addStockCost, setAddStockCost] = useState('')
+  const [savingStock, setSavingStock] = useState(false)
 
   const fetchTimeSlots = async () => {
     setLoadingSlots(true)
@@ -163,7 +174,7 @@ export default function AdminSettingsPage() {
     try {
       const { data, error } = await supabase
         .from('branches')
-        .select('id, name, slug, working_hours, camera_passcode')
+        .select('id, name, slug, working_hours, camera_passcode, allow_capture_medicine')
         .order('name')
       if (error) throw error
       setBranches(data || [])
@@ -231,7 +242,7 @@ export default function AdminSettingsPage() {
 
   const handleCreateMedicine = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newMedBarcode || !newMedName || !newMedPatchPrice || !newMedCostPrice) return
+    if (!newMedName || !newMedPatchPrice || !newMedCostPrice) return
     setAddingMed(true)
     try {
       const res = await saveMedicineStock(newMedBarcode, Number(newMedQty), {
@@ -262,6 +273,51 @@ export default function AdminSettingsPage() {
       alert(err.message || 'An error occurred')
     } finally {
       setAddingMed(false)
+    }
+  }
+
+  const handleOpenAddStock = (med: any) => {
+    setSelectedStockMed(med)
+    const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
+    const price = activeBatch ? Number(activeBatch.price) : 0
+    const cost = activeBatch ? Number(activeBatch.cost_price || 0) : 0
+    const tabletsPerPatch = Number(med.tablets_per_patch || 10)
+
+    setAddStockBatch(activeBatch?.batch_number || 'GEN-BATCH')
+    setAddStockExpiry(activeBatch ? formatExpiry(activeBatch.expiry_date) : '')
+    setAddStockQty('10')
+    setAddStockPrice(price ? String(price * tabletsPerPatch) : '')
+    setAddStockCost(cost ? String(cost * tabletsPerPatch) : '')
+    setShowAddStockModal(true)
+  }
+
+  const handleAddStockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedStockMed) return
+    setSavingStock(true)
+    try {
+      const res = await saveMedicineStock(selectedStockMed.barcode || '', Number(addStockQty), {
+        name: selectedStockMed.name,
+        genericName: selectedStockMed.generic_name || undefined,
+        batchNumber: addStockBatch,
+        expiryDate: addStockExpiry || new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
+        patchPrice: Number(addStockPrice),
+        costPrice: Number(addStockCost),
+        tabletsPerPatch: Number(selectedStockMed.tablets_per_patch || 10),
+        branchSlug: selectedInventoryBranch
+      })
+
+      if (res.success) {
+        setShowAddStockModal(false)
+        await fetchMedicines(selectedInventoryBranch)
+      } else {
+        alert(res.error || 'Failed to add stock')
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'An error occurred')
+    } finally {
+      setSavingStock(false)
     }
   }
 
@@ -296,6 +352,23 @@ export default function AdminSettingsPage() {
       console.error(err)
     } finally {
       setUpdatingPasscodeId(null)
+    }
+  }
+
+  const handleToggleCaptureMedicine = async (branchId: string, currentVal: boolean) => {
+    setUpdatingCaptureId(branchId)
+    try {
+      const { error } = await supabase
+        .from('branches')
+        .update({ allow_capture_medicine: !currentVal })
+        .eq('id', branchId)
+      if (error) throw error
+      setBranches(prev => prev.map(b => b.id === branchId ? { ...b, allow_capture_medicine: !currentVal } : b))
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'Failed to update capture settings.')
+    } finally {
+      setUpdatingCaptureId(null)
     }
   }
 
@@ -855,6 +928,31 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
+              {/* Mobile Capture Portal Settings */}
+              <div className="clay p-6 border border-slate-200/60 space-y-4">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
+                  <Video className="w-4 h-4 text-cyan-600" />
+                  Mobile Capture Stock Permissions
+                </h3>
+                <div className="space-y-3">
+                  {branches.map(branch => (
+                    <div key={branch.id} className="p-3.5 bg-white/80 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
+                      <span className="text-xs font-bold text-slate-800">{branch.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-400 font-medium">Allow Add Med Scan</span>
+                        <input
+                          type="checkbox"
+                          checked={!!branch.allow_capture_medicine}
+                          disabled={updatingCaptureId === branch.id}
+                          onChange={() => handleToggleCaptureMedicine(branch.id, !!branch.allow_capture_medicine)}
+                          className="w-4 h-4 rounded text-cyan-600 focus:ring-cyan-500 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Patient Booking Time Slots */}
               <div className="clay p-6 border border-slate-200/60 space-y-4">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200/60">
@@ -1059,8 +1157,8 @@ export default function AdminSettingsPage() {
                   </h3>
                   <form onSubmit={handleCreateMedicine} className="space-y-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Barcode (GTIN)</label>
-                      <input type="text" required placeholder="e.g. 8901117210103" value={newMedBarcode} onChange={e => setNewMedBarcode(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Barcode (GTIN) - Optional</label>
+                      <input type="text" placeholder="e.g. 8901117210103" value={newMedBarcode} onChange={e => setNewMedBarcode(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Medicine Name</label>
@@ -1190,11 +1288,12 @@ export default function AdminSettingsPage() {
                             <th className="p-3.5 font-mono">Strip Price</th>
                             <th className="p-3.5 font-mono">Strip Cost</th>
                             <th className="p-3.5">Expiry Date</th>
+                            <th className="p-3.5 text-right">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {medicines.length === 0 ? (
-                            <tr><td colSpan={5} className="p-6 text-slate-400 text-center font-light">No medicines registered in database for this branch.</td></tr>
+                            <tr><td colSpan={6} className="p-6 text-slate-400 text-center font-light">No medicines registered in database for this branch.</td></tr>
                           ) : (
                             medicines.map(med => {
                               const activeBatch = med.batches?.find((b: any) => Number(b.stock) > 0) || med.batches?.[0]
@@ -1223,6 +1322,15 @@ export default function AdminSettingsPage() {
                                   <td className="p-3.5 font-mono tabular-nums font-bold text-emerald-600">INR {(price * tabsPerPatch).toFixed(2)}</td>
                                   <td className="p-3.5 font-mono tabular-nums font-medium text-slate-500">INR {(cost * tabsPerPatch).toFixed(2)}</td>
                                   <td className="p-3.5 text-slate-600 font-mono tabular-nums">{expiry}</td>
+                                  <td className="p-3.5 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenAddStock(med)}
+                                      className="px-2.5 py-1.5 text-[10px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-xl transition cursor-pointer"
+                                    >
+                                      Add Stock
+                                    </button>
+                                  </td>
                                 </tr>
                               )
                             })
@@ -1355,6 +1463,108 @@ export default function AdminSettingsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Quick Add Stock Modal */}
+      {showAddStockModal && selectedStockMed && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Pill className="w-4 h-4 text-cyan-600 animate-pulse" />
+                Add Stock: {selectedStockMed.name}
+              </h3>
+              <button 
+                onClick={() => setShowAddStockModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddStockSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Batch No.</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={addStockBatch} 
+                    onChange={e => setAddStockBatch(e.target.value)} 
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm focus:outline-none focus:border-cyan-500" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Expiry Date</label>
+                  <input 
+                    type="date" 
+                    required 
+                    value={addStockExpiry} 
+                    onChange={e => setAddStockExpiry(e.target.value)} 
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 font-semibold shadow-sm focus:outline-none focus:border-cyan-500" 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Strips Quantity</label>
+                <input 
+                  type="number" 
+                  required 
+                  min="1"
+                  value={addStockQty} 
+                  onChange={e => setAddStockQty(e.target.value)} 
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm focus:outline-none focus:border-cyan-500" 
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Price / Strip (INR)</label>
+                  <input 
+                    type="number" 
+                    required 
+                    min="0"
+                    placeholder="120" 
+                    value={addStockPrice} 
+                    onChange={e => setAddStockPrice(e.target.value)} 
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm focus:outline-none focus:border-cyan-500" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Cost / Strip (INR)</label>
+                  <input 
+                    type="number" 
+                    required 
+                    min="0"
+                    placeholder="80" 
+                    value={addStockCost} 
+                    onChange={e => setAddStockCost(e.target.value)} 
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-mono font-bold text-slate-800 shadow-sm focus:outline-none focus:border-cyan-500" 
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStockModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition animate-in fade-in"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingStock}
+                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition flex items-center gap-1.5"
+                >
+                  {savingStock && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Save Stock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </motion.div>
   )

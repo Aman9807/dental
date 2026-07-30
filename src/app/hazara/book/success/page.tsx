@@ -53,7 +53,7 @@ export default function HazaraSuccessPage() {
 
       {/* Footer */}
       <footer className="glass border-t border-slate-200/40 py-8 text-center text-xs text-slate-400 font-light relative z-10">
-        <p>© 2026 Hazara Dental Clinic. All rights reserved.</p>
+        <p>© 2026 Dental Clinics. Private Clinical Portal. Developed by Flynx.site developer Khan Tafazzul</p>
       </footer>
     </div>
   )
