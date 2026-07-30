@@ -18,14 +18,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Read preference on client mount
     const savedTheme = localStorage.getItem('theme') as Theme | null
-    if (savedTheme === 'dark' || savedTheme === 'light') {
-      setTheme(savedTheme)
-    } else {
-      // Fallback to system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      setTheme(prefersDark ? 'dark' : 'light')
-    }
-    setMounted(true)
+    const targetTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    
+    const timer = setTimeout(() => {
+      setTheme(targetTheme)
+      setMounted(true)
+    }, 0)
+    
+    return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {
