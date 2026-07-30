@@ -581,6 +581,8 @@ export default function FinancesClient({
       totalCharged: Math.round(totalCharged),
       totalTreatmentCost: Math.round(totalTreatmentCost + totalMedicineCost),
       treatmentProfit: Math.round(treatmentProfit),
+      totalTreatmentProfit: Math.round(totalTreatmentProfit),
+      totalMedicineProfit: Math.round(totalMedicineProfit),
       helperSalariesTotal: Math.round(helperSalariesTotal),
       electricityTotal: Math.round(electricityTotal),
       extraExpensesTotal: Math.round(extraExpensesTotal),
@@ -1829,17 +1831,32 @@ export default function FinancesClient({
                           return apptMonthStr === selectedMonth && appt.branches?.id === doc.branch_id
                         })
                         
-                        let docBranchRev = 0
-                        let docBranchCost = 0
+                        let docBranchTProfit = 0
+                        let docBranchMProfit = 0
                         docBranchAppts.forEach(appt => {
                           const finances = getAppointmentFinances(appt)
                           if (finances) {
-                            docBranchRev += finances.totalPaid
-                            docBranchCost += finances.treatmentCost + finances.medicineCost
+                            docBranchTProfit += finances.treatmentProfit
+                            docBranchMProfit += finances.medicineProfit
                           }
                         })
                         
-                        bProfit = (docBranchRev - docBranchCost) - docBranchHelpersPay - docBranchBill - docBranchExtras
+                        const target = doc.profit_sharing_target || 'both'
+                        if (target === 'treatment') {
+                          bProfit = docBranchTProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
+                        } else if (target === 'medicine') {
+                          bProfit = docBranchMProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
+                        } else {
+                          bProfit = (docBranchTProfit + docBranchMProfit) - docBranchHelpersPay - docBranchBill - docBranchExtras
+                        }
+                      } else {
+                        // Apply target logic if single branch selected
+                        const target = doc.profit_sharing_target || 'both'
+                        if (target === 'treatment') {
+                          bProfit = totals.totalTreatmentProfit - totals.helperSalariesTotal - totals.electricityTotal - totals.extraExpensesTotal
+                        } else if (target === 'medicine') {
+                          bProfit = totals.totalMedicineProfit - totals.helperSalariesTotal - totals.electricityTotal - totals.extraExpensesTotal
+                        }
                       }
                       
                       if (bProfit > 0) {

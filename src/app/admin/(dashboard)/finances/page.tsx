@@ -78,7 +78,12 @@ export default async function AdminFinancesPage() {
       doctorAttendance = doctorAttRes.data || []
       electricityExpenses = elecRes.data || []
       extraExpenses = extraRes.data || []
-      appointments = apptRes.data || []
+      appointments = (apptRes.data || []).map(appt => ({
+        ...appt,
+        patients: Array.isArray(appt.patients) ? appt.patients[0] : appt.patients,
+        branches: Array.isArray(appt.branches) ? appt.branches[0] : appt.branches,
+        doctors: Array.isArray(appt.doctors) ? appt.doctors[0] : appt.doctors
+      }))
     }
   } catch (error) {
     console.error('Error loading finances data:', error)
