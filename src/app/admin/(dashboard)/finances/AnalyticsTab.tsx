@@ -238,7 +238,7 @@ export default function AnalyticsTab({
             }).reduce((sum, e) => sum + e.amount, 0)
             
             const docBranchAppts = dataMap[key].appts.filter((appt: any) => {
-              return appt.branch_id === d.branch_id
+              return appt.branches?.id === d.branch_id
             })
             
             let docBranchTProfit = 0
