@@ -20,6 +20,7 @@ interface AnalyticsTabProps {
   doctors: any[]
   doctorAttendance: any[]
   selectedBranch: string
+  branches: any[]
 }
 
 function getAppointmentFinances(appt: any) {
@@ -76,8 +77,22 @@ const Custom3DTooltip = ({ active, payload, label, prefix = 'Rs. ' }: any) => {
   return null
 }
 
+// Utility to count working days in a month
+function getWorkingDaysInMonth(year: number, month: number, includeSundays: boolean) {
+  let count = 0
+  const date = new Date(year, month - 1, 1)
+  while (date.getMonth() === month - 1) {
+    const dayOfWeek = date.getDay()
+    if (dayOfWeek !== 0 || includeSundays) {
+      count++
+    }
+    date.setDate(date.getDate() + 1)
+  }
+  return count
+}
+
 export default function AnalyticsTab({
-  appointments, electricityExpenses, helperBoys, helperAttendance, extraExpenses, doctors, doctorAttendance, selectedBranch
+  appointments, electricityExpenses, helperBoys, helperAttendance, extraExpenses, doctors, doctorAttendance, selectedBranch, branches
 }: AnalyticsTabProps) {
 
   // Aggregate Data by Month
@@ -120,8 +135,164 @@ export default function AnalyticsTab({
 
     electricityExpenses.forEach(elec => {
       if (dataMap[elec.month_year]) {
-        dataMap[elec.month_year].expenses += Math.round(elec.electricity_bill || 0)
+        if (selectedBranch === 'all' || (branches.find(b => b.id === elec.branch_id)?.slug === selectedBranch)) {
+          dataMap[elec.month_year].expenses += Math.round(elec.electricity_bill || 0)
+        }
       }
+    })
+
+    // Compute helper salaries and doctor payouts for each month key to match totals cards
+    Object.keys(dataMap).forEach(key => {
+      const [yearStr, monthStr] = key.split('-')
+      const year = parseInt(yearStr, 10)
+      const month = parseInt(monthStr, 10)
+
+      // 1. Helper Salaries
+      const branchHelpers = helperBoys.filter(h => {
+        if (selectedBranch === 'all') return true
+        const branchSlug = branches.find(b => b.id === h.branch_id)?.slug
+        return branchSlug === selectedBranch
+      })
+
+      const helperSalariesTotal = branchHelpers.reduce((sum, h) => {
+        const hWorkingDays = getWorkingDaysInMonth(year, month, h.sunday_enabled)
+        const hAbsences = helperAttendance.filter(a => {
+          if (a.helper_boy_id !== h.id || a.status !== 'absent') return false
+          const absDate = new Date(a.date)
+          const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
+          return absMonthStr === key
+        })
+        const shift1Abs = hAbsences.filter(a => a.shift === 1).length
+        const shift2Abs = hAbsences.filter(a => a.shift === 2).length
+        const shift1Worked = h.shift_1_enabled ? Math.max(0, hWorkingDays - shift1Abs) : 0
+        const shift2Worked = h.shift_2_enabled ? Math.max(0, hWorkingDays - shift2Abs) : 0
+        return sum + (shift1Worked * h.shift_1_rate) + (shift2Worked * h.shift_2_rate)
+      }, 0)
+
+      // 2. Doctor Payroll
+      const activeDocs = doctors.filter(d => {
+        if (selectedBranch === 'all') return true
+        const branchSlug = branches.find(b => b.id === d.branch_id)?.slug
+        return branchSlug === selectedBranch
+      })
+
+      // Get branch profit before doctor percentage payouts
+      const branchTProfit = dataMap[key].revenue
+      const branchExtras = extraExpenses.filter(ex => {
+        const d = new Date(ex.expense_date)
+        const expMonthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        if (expMonthStr !== key) return false
+        if (selectedBranch === 'all') return true
+        const branchSlug = branches.find(b => b.id === ex.branch_id)?.slug
+        return branchSlug === selectedBranch
+      }).reduce((sum, ex) => sum + (ex.amount || 0), 0)
+
+      const branchElec = electricityExpenses.filter(e => {
+        if (e.month_year !== key) return false
+        if (selectedBranch === 'all') return true
+        const branchSlug = branches.find(b => b.id === e.branch_id)?.slug
+        return branchSlug === selectedBranch
+      }).reduce((sum, e) => sum + (e.electricity_bill || 0), 0)
+
+      const branchNetProfitBeforeDoctors = branchTProfit - helperSalariesTotal - branchElec - branchExtras
+
+      let doctorFixedSalariesTotal = 0
+      let doctorPercentagePayoutsTotal = 0
+
+      activeDocs.forEach(d => {
+        if (d.compensation_type === 'fixed') {
+          const docWorkingDays = getWorkingDaysInMonth(year, month, false)
+          const absencesCount = doctorAttendance.filter(a => {
+            if (a.doctor_id !== d.id || a.status !== 'absent') return false
+            const absDate = new Date(a.date)
+            const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
+            return absMonthStr === key
+          }).length
+          
+          const docWorked = Math.max(0, docWorkingDays - absencesCount)
+          const dailyRate = d.fixed_salary / docWorkingDays
+          doctorFixedSalariesTotal += docWorked * dailyRate
+        } else {
+          let bProfit = branchNetProfitBeforeDoctors
+          if (selectedBranch === 'all' && d.branch_id) {
+            const docBranchBill = electricityExpenses.find(e => e.branch_id === d.branch_id && e.month_year === key)?.electricity_bill || 0
+            const docBranchHelpers = helperBoys.filter(h => h.branch_id === d.branch_id)
+            const docBranchHelpersPay = docBranchHelpers.reduce((sum, h) => {
+              const hWorkingDays = getWorkingDaysInMonth(year, month, h.sunday_enabled)
+              const hAbsences = helperAttendance.filter(a => {
+                if (a.helper_boy_id !== h.id || a.status !== 'absent') return false
+                const absDate = new Date(a.date)
+                const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
+                return absMonthStr === key
+              })
+              const shift1Abs = hAbsences.filter(a => a.shift === 1).length
+              const shift2Abs = hAbsences.filter(a => a.shift === 2).length
+              const shift1Worked = h.shift_1_enabled ? Math.max(0, hWorkingDays - shift1Abs) : 0
+              const shift2Worked = h.shift_2_enabled ? Math.max(0, hWorkingDays - shift2Abs) : 0
+              return sum + (shift1Worked * h.shift_1_rate) + (shift2Worked * h.shift_2_rate)
+            }, 0)
+            const docBranchExtras = extraExpenses.filter(e => {
+              const expDate = new Date(e.expense_date)
+              const expMonthStr = `${expDate.getFullYear()}-${String(expDate.getMonth() + 1).padStart(2, '0')}`
+              return expMonthStr === key && e.branch_id === d.branch_id
+            }).reduce((sum, e) => sum + e.amount, 0)
+            
+            const docBranchAppts = dataMap[key].appts.filter((appt: any) => {
+              return appt.branch_id === d.branch_id
+            })
+            
+            let docBranchTProfit = 0
+            docBranchAppts.forEach((appt: any) => {
+              const finances = getAppointmentFinances(appt)
+              if (finances) {
+                const target = d.profit_sharing_target || 'both'
+                if (target === 'treatment') {
+                  docBranchTProfit += finances.treatmentProfit
+                } else if (target === 'medicine') {
+                  docBranchTProfit += finances.medicineProfit
+                } else {
+                  docBranchTProfit += finances.treatmentProfit + finances.medicineProfit
+                }
+              }
+            })
+            bProfit = docBranchTProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
+          } else {
+            const target = d.profit_sharing_target || 'both'
+            let filteredTProfit = branchTProfit
+            if (target === 'treatment') {
+              filteredTProfit = dataMap[key].treatmentProfit
+            } else if (target === 'medicine') {
+              filteredTProfit = dataMap[key].medicineProfit
+            }
+            bProfit = filteredTProfit - helperSalariesTotal - branchElec - branchExtras
+          }
+
+          if (bProfit > 0) {
+            const docWorkingDays = getWorkingDaysInMonth(year, month, false)
+            const absencesCount = doctorAttendance.filter(a => {
+              if (a.doctor_id !== d.id || a.status !== 'absent') return false
+              const absDate = new Date(a.date)
+              const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
+              return absMonthStr === key
+            }).length
+            const docWorked = Math.max(0, docWorkingDays - absencesCount)
+            const fullPayout = bProfit * (d.profit_percentage / 100)
+            
+            let savedRule = 'present_days_only'
+            if (typeof window !== 'undefined') {
+              savedRule = localStorage.getItem('doctor_profit_share_rule') || 'present_days_only'
+            }
+            const docPayout = savedRule === 'present_days_only' && docWorkingDays > 0
+              ? fullPayout * (docWorked / docWorkingDays)
+              : fullPayout
+            
+            doctorPercentagePayoutsTotal += docPayout
+          }
+        }
+      })
+
+      const totalDoctorPay = doctorFixedSalariesTotal + doctorPercentagePayoutsTotal
+      dataMap[key].expenses += Math.round(helperSalariesTotal + totalDoctorPay)
     })
 
     Object.keys(dataMap).forEach(key => {
@@ -130,7 +301,7 @@ export default function AnalyticsTab({
 
     const sorted = Object.values(dataMap).sort((a, b) => a.month.localeCompare(b.month))
     return sorted
-  }, [appointments, electricityExpenses, extraExpenses, selectedBranch, doctors])
+  }, [appointments, electricityExpenses, extraExpenses, selectedBranch, doctors, branches, helperBoys, helperAttendance, doctorAttendance])
 
   // Aggregate Data by Week for Recent Trend
   const weeklyData = useMemo(() => {

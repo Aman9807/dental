@@ -578,16 +578,16 @@ export default function FinancesClient({
     const netProfit = treatmentProfit - totalExpenses
 
     return {
-      totalCharged,
-      totalTreatmentCost: totalTreatmentCost + totalMedicineCost,
-      treatmentProfit,
-      helperSalariesTotal,
-      electricityTotal,
-      extraExpensesTotal,
-      totalDoctorPay,
-      totalExpenses,
-      netProfit,
-      branchNetProfitBeforeDoctors
+      totalCharged: Math.round(totalCharged),
+      totalTreatmentCost: Math.round(totalTreatmentCost + totalMedicineCost),
+      treatmentProfit: Math.round(treatmentProfit),
+      helperSalariesTotal: Math.round(helperSalariesTotal),
+      electricityTotal: Math.round(electricityTotal),
+      extraExpensesTotal: Math.round(extraExpensesTotal),
+      totalDoctorPay: Math.round(totalDoctorPay),
+      totalExpenses: Math.round(totalExpenses),
+      netProfit: Math.round(netProfit),
+      branchNetProfitBeforeDoctors: Math.round(branchNetProfitBeforeDoctors)
     }
   }
 
@@ -1156,6 +1156,7 @@ export default function FinancesClient({
             doctors={doctors}
             doctorAttendance={doctorAttendance}
             selectedBranch={selectedBranch}
+            branches={branches}
           />
         )}
         
