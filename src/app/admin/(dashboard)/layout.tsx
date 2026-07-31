@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { JetBrains_Mono, Inter } from 'next/font/google'
 import { Sparkles } from 'lucide-react'
 import AdminSidebar from './AdminSidebar'
+import { verifyToken } from '@/lib/auth'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -25,8 +26,10 @@ export default async function AdminDashboardLayout({
 }) {
   const cookieStore = await cookies()
   const token = cookieStore.get('dental_admin_token')
+  const verifiedAdmin = await verifyToken(token?.value)
+  const isValid = verifiedAdmin === 'admin'
 
-  if (!token || token.value !== 'true') {
+  if (!isValid) {
     redirect('/admin/login')
   }
 
