@@ -26,8 +26,11 @@ interface AnalyticsTabProps {
 function getAppointmentFinances(appt: any) {
   const invoice = appt.invoices?.[0]
   if (!invoice) return null
-  const treatmentDiscountMultiplier = 1 - (invoice.treatment_discount_percentage || 0) / 100
-  const medicineDiscountMultiplier = 1 - (invoice.medicine_discount_percentage || 0) / 100
+  const treatmentDiscount = invoice.treatment_discount_percentage ?? invoice.discount_percentage ?? 0
+  const medicineDiscount = invoice.medicine_discount_percentage ?? invoice.discount_percentage ?? 0
+
+  const treatmentDiscountMultiplier = 1 - treatmentDiscount / 100
+  const medicineDiscountMultiplier = 1 - medicineDiscount / 100
   let tRev = 0, tCost = 0, mRev = 0, mCost = 0
 
   if (invoice.invoice_items) {
@@ -141,6 +144,17 @@ export default function AnalyticsTab({
       }
     })
 
+    // Load salary reductions inside memo
+    let salaryReductions: any[] = []
+    if (typeof window !== 'undefined') {
+      const savedReductions = localStorage.getItem('dental_salary_reductions')
+      if (savedReductions) {
+        try {
+          salaryReductions = JSON.parse(savedReductions)
+        } catch (e) {}
+      }
+    }
+
     // Compute helper salaries and doctor payouts for each month key to match totals cards
     Object.keys(dataMap).forEach(key => {
       const [yearStr, monthStr] = key.split('-')
@@ -157,16 +171,20 @@ export default function AnalyticsTab({
       const helperSalariesTotal = branchHelpers.reduce((sum, h) => {
         const hWorkingDays = getWorkingDaysInMonth(year, month, h.sunday_enabled)
         const hAbsences = helperAttendance.filter(a => {
-          if (a.helper_boy_id !== h.id || a.status !== 'absent') return false
+          if (a.helper_boy_id !== h.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
           const absDate = new Date(a.date)
           const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
           return absMonthStr === key
         })
-        const shift1Abs = hAbsences.filter(a => a.shift === 1).length
-        const shift2Abs = hAbsences.filter(a => a.shift === 2).length
+        const shift1Abs = hAbsences.filter(a => a.shift === 1).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
+        const shift2Abs = hAbsences.filter(a => a.shift === 2).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
         const shift1Worked = h.shift_1_enabled ? Math.max(0, hWorkingDays - shift1Abs) : 0
         const shift2Worked = h.shift_2_enabled ? Math.max(0, hWorkingDays - shift2Abs) : 0
-        return sum + (shift1Worked * h.shift_1_rate) + (shift2Worked * h.shift_2_rate)
+        const basePay = (shift1Worked * h.shift_1_rate) + (shift2Worked * h.shift_2_rate)
+        const reduction = salaryReductions
+          .filter(r => r.person_id === h.id && r.month_year === key && r.person_type === 'helper')
+          .reduce((acc, curr) => acc + curr.amount, 0)
+        return sum + Math.max(0, basePay - reduction)
       }, 0)
 
       // 2. Doctor Payroll
@@ -203,15 +221,19 @@ export default function AnalyticsTab({
         if (d.compensation_type === 'fixed') {
           const docWorkingDays = getWorkingDaysInMonth(year, month, false)
           const absencesCount = doctorAttendance.filter(a => {
-            if (a.doctor_id !== d.id || a.status !== 'absent') return false
+            if (a.doctor_id !== d.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
             const absDate = new Date(a.date)
             const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
             return absMonthStr === key
-          }).length
+          }).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
           
           const docWorked = Math.max(0, docWorkingDays - absencesCount)
           const dailyRate = d.fixed_salary / docWorkingDays
-          doctorFixedSalariesTotal += docWorked * dailyRate
+          const basePay = docWorked * dailyRate
+          const reduction = salaryReductions
+            .filter(r => r.person_id === d.id && r.month_year === key && r.person_type === 'doctor')
+            .reduce((acc, curr) => acc + curr.amount, 0)
+          doctorFixedSalariesTotal += Math.max(0, basePay - reduction)
         } else {
           let bProfit = branchNetProfitBeforeDoctors
           if (selectedBranch === 'all' && d.branch_id) {
@@ -220,16 +242,20 @@ export default function AnalyticsTab({
             const docBranchHelpersPay = docBranchHelpers.reduce((sum, h) => {
               const hWorkingDays = getWorkingDaysInMonth(year, month, h.sunday_enabled)
               const hAbsences = helperAttendance.filter(a => {
-                if (a.helper_boy_id !== h.id || a.status !== 'absent') return false
+                if (a.helper_boy_id !== h.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
                 const absDate = new Date(a.date)
                 const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
                 return absMonthStr === key
               })
-              const shift1Abs = hAbsences.filter(a => a.shift === 1).length
-              const shift2Abs = hAbsences.filter(a => a.shift === 2).length
+              const shift1Abs = hAbsences.filter(a => a.shift === 1).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
+              const shift2Abs = hAbsences.filter(a => a.shift === 2).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
               const shift1Worked = h.shift_1_enabled ? Math.max(0, hWorkingDays - shift1Abs) : 0
               const shift2Worked = h.shift_2_enabled ? Math.max(0, hWorkingDays - shift2Abs) : 0
-              return sum + (shift1Worked * h.shift_1_rate) + (shift2Worked * h.shift_2_rate)
+              const basePay = (shift1Worked * h.shift_1_rate) + (shift2Worked * h.shift_2_rate)
+              const reduction = salaryReductions
+                .filter(r => r.person_id === h.id && r.month_year === key && r.person_type === 'helper')
+                .reduce((acc, curr) => acc + curr.amount, 0)
+              return sum + Math.max(0, basePay - reduction)
             }, 0)
             const docBranchExtras = extraExpenses.filter(e => {
               const expDate = new Date(e.expense_date)
@@ -242,20 +268,23 @@ export default function AnalyticsTab({
             })
             
             let docBranchTProfit = 0
+            let docBranchMProfit = 0
             docBranchAppts.forEach((appt: any) => {
               const finances = getAppointmentFinances(appt)
               if (finances) {
-                const target = d.profit_sharing_target || 'both'
-                if (target === 'treatment') {
-                  docBranchTProfit += finances.treatmentProfit
-                } else if (target === 'medicine') {
-                  docBranchTProfit += finances.medicineProfit
-                } else {
-                  docBranchTProfit += finances.treatmentProfit + finances.medicineProfit
-                }
+                docBranchTProfit += finances.treatmentProfit
+                docBranchMProfit += finances.medicineProfit
               }
             })
-            bProfit = docBranchTProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
+            
+            const target = d.profit_sharing_target || 'both'
+            if (target === 'treatment') {
+              bProfit = docBranchTProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
+            } else if (target === 'medicine') {
+              bProfit = docBranchMProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
+            } else {
+              bProfit = (docBranchTProfit + docBranchMProfit) - docBranchHelpersPay - docBranchBill - docBranchExtras
+            }
           } else {
             const target = d.profit_sharing_target || 'both'
             let filteredTProfit = branchTProfit
@@ -270,23 +299,26 @@ export default function AnalyticsTab({
           if (bProfit > 0) {
             const docWorkingDays = getWorkingDaysInMonth(year, month, false)
             const absencesCount = doctorAttendance.filter(a => {
-              if (a.doctor_id !== d.id || a.status !== 'absent') return false
+              if (a.doctor_id !== d.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
               const absDate = new Date(a.date)
               const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
               return absMonthStr === key
-            }).length
+            }).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
             const docWorked = Math.max(0, docWorkingDays - absencesCount)
             const fullPayout = bProfit * (d.profit_percentage / 100)
             
             let savedRule = 'present_days_only'
             if (typeof window !== 'undefined') {
-              savedRule = localStorage.getItem('doctor_profit_share_rule') || 'present_days_only'
+              savedRule = localStorage.getItem('dental_doctor_payout_rule') || 'present_days_only'
             }
             const docPayout = savedRule === 'present_days_only' && docWorkingDays > 0
               ? fullPayout * (docWorked / docWorkingDays)
               : fullPayout
             
-            doctorPercentagePayoutsTotal += docPayout
+            const reduction = salaryReductions
+              .filter(r => r.person_id === d.id && r.month_year === key && r.person_type === 'doctor')
+              .reduce((acc, curr) => acc + curr.amount, 0)
+            doctorPercentagePayoutsTotal += Math.max(0, docPayout - reduction)
           }
         }
       })

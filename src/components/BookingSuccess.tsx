@@ -130,7 +130,7 @@ export default function BookingSuccess({ branchSlug }: BookingSuccessProps) {
 
   if (error || !appointment) {
     return (
-      <div className="max-w-md mx-auto my-12 p-8 border border-slate-200/60 rounded-3xl shadow-lg bg-white/95 text-center">
+      <div className="max-w-md mx-auto my-4 sm:my-12 p-5 sm:p-8 border border-slate-200/60 rounded-3xl shadow-lg bg-white/95 text-center">
         <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
         <h3 className="text-lg font-serif text-slate-800 mb-2">Booking Not Found</h3>
         <p className="text-xs text-slate-500 mb-6 leading-relaxed font-light">
@@ -151,7 +151,7 @@ export default function BookingSuccess({ branchSlug }: BookingSuccessProps) {
   const branch = appointment.branches
 
   return (
-    <div className={`max-w-xl mx-auto my-6 p-8 border border-slate-200/60 rounded-3xl shadow-2xl bg-white/95 backdrop-blur-md text-center ${theme.cardShadow} animate-in zoom-in-95 duration-350`}>
+    <div className={`max-w-xl mx-auto my-4 sm:my-6 p-5 sm:p-8 border border-slate-200/60 rounded-3xl shadow-2xl bg-white/95 backdrop-blur-md text-center ${theme.cardShadow} animate-in zoom-in-95 duration-350`}>
       {/* Success Badge */}
       <div className={`w-20 h-20 bg-gradient-to-br ${theme.iconGradient} rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce`}>
         <CheckCircle className={`w-10 h-10 ${theme.accentText}`} />

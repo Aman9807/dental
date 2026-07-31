@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment, createCaptureTicket, clearCaptureTicket, triggerDeliverAndCleanup, postponeAppointmentAction } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
@@ -633,221 +633,157 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       </div>
 
       {/* ═══ 4. DIAGNOSTIC REPORTS MODAL ═══ */}
-      {showReportsModal && activeAppt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="clay border border-slate-200/60 w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col justify-between animate-fade-in-up">
-            
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-3xl">
-              <div>
-                <h3 className="text-base font-bold text-slate-800">Finalize Diagnosis & Send Report</h3>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-light mt-0.5">
-                  Patient: {activeAppt.patients?.name}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowReportsModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Body / Form */}
-            <form onSubmit={handleSendReport} className="p-6 space-y-5 flex-1">
+      <AnimatePresence>
+        {showReportsModal && activeAppt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-white border border-slate-200 dark:bg-[var(--card)] dark:border-teal-900/35 rounded-3xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col justify-between"
+            >
               
-              {/* Billing Status Badge */}
-              <div className="p-3.5 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col gap-1 text-xs">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Invoice / Billing Verification</span>
-                {loadingInvoiceCheck ? (
-                  <div className="flex items-center gap-1.5 text-slate-500 animate-pulse">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Checking billing records...</span>
-                  </div>
-                ) : associatedInvoiceId ? (
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-emerald-700 font-bold flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Bill Attached: Rs. {associatedInvoiceTotal?.toFixed(2)}
-                    </span>
-                    <span className="text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded font-mono font-bold border border-emerald-100">
-                      #{associatedInvoiceId.substring(0, 8).toUpperCase()}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="space-y-1 mt-1">
-                    <div className="flex items-center gap-1 text-amber-700 font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                      No bill compiled for this appointment
+              {/* Modal Header */}
+              <div className="p-6 border-b border-slate-100 dark:border-teal-900/25 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20 rounded-t-3xl">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 dark:text-teal-200">Finalize Diagnosis & Send Report</h3>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-light mt-0.5">
+                    Patient: {activeAppt.patients?.name}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowReportsModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-white/5 dark:hover:text-white rounded-full transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modal Body / Form */}
+              <form onSubmit={handleSendReport} className="p-6 space-y-5 flex-1 overflow-y-auto">
+                
+                {/* Billing Status Badge */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col gap-1 text-xs dark:bg-[#18302b]/60 dark:border-teal-900/40">
+                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Invoice / Billing Verification</span>
+                  {loadingInvoiceCheck ? (
+                    <div className="flex items-center gap-1.5 text-slate-500 animate-pulse">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Checking billing records...</span>
                     </div>
-                    <p className="text-[10px] text-slate-400 leading-normal font-light">
-                      ⚠️ Please go to the <strong>Billing</strong> tab to create the patient's checkout invoice before sending the clinical report.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Patient Email (Editable) */}
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-500">Patient Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="Enter email address"
-                  value={emailVal}
-                  onChange={e => setEmailVal(e.target.value)}
-                  className="w-full px-4.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                />
-                <p className="text-[10px] text-slate-400 font-light">
-                  If updated, this email will also be saved as the patient's primary contact email.
-                </p>
-              </div>
-
-              {/* Prescription Text */}
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-500">Prescription / Advice Notes</label>
-                <textarea
-                  rows={3}
-                  value={prescriptionText}
-                  onChange={e => setPrescriptionText(e.target.value)}
-                  placeholder="e.g. Paracetamol 500mg - Twice daily after meals. Rinse with saltwater..."
-                  className="w-full p-3 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                />
-              </div>
-
-              {/* X-Ray File Upload */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-500">Upload Patient X-Ray (PDF / Image)</label>
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={e => {
-                    const file = e.target.files?.[0] || null
-                    setXrayFile(file)
-                    if (file && file.type.startsWith('image/')) {
-                      setXrayPreview(URL.createObjectURL(file))
-                    } else {
-                      setXrayPreview(null)
-                    }
-                  }}
-                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition cursor-pointer"
-                />
-
-                {/* Previews for X-Ray */}
-                {activeAppt.xray_url && (
-                  <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
-                    {activeAppt.xray_url.match(/\.(jpeg|jpg|gif|png|webp)/i) || activeAppt.xray_url.includes('storage/v1/object/public') ? (
-                      <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                        <img src={activeAppt.xray_url} alt="Existing X-Ray" className="object-cover h-full w-full" />
+                  ) : associatedInvoiceId ? (
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-emerald-700 dark:text-emerald-450 font-bold flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Bill Attached: Rs. {associatedInvoiceTotal?.toFixed(2)}
+                      </span>
+                      <span className="text-[9px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400 px-2 py-0.5 rounded font-mono font-bold border border-emerald-100 dark:border-emerald-900/30">
+                        #{associatedInvoiceId.substring(0, 8).toUpperCase()}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 mt-1">
+                      <div className="flex items-center gap-1 text-amber-700 dark:text-amber-500 font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        No bill compiled for this appointment
                       </div>
-                    ) : (
-                      <div className="w-10 h-10 bg-slate-100 border rounded-lg shrink-0 flex items-center justify-center text-[10px] text-slate-500 font-bold uppercase">
-                        PDF
-                      </div>
-                    )}
-                    <div className="text-[10px] text-slate-500 leading-normal">
-                      <p className="font-bold text-slate-700">Existing X-Ray Attached</p>
-                      <a href={activeAppt.xray_url} target="_blank" rel="noreferrer" className="text-cyan-600 hover:underline">View Document</a>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-normal font-light">
+                        ⚠️ Please go to the <strong>Billing</strong> tab to create the patient's checkout invoice before sending the clinical report.
+                      </p>
                     </div>
-                  </div>
-                )}
-
-                {xrayPreview && (
-                  <div className="p-2 bg-cyan-50/50 border border-cyan-150 rounded-xl flex items-center gap-3 animate-fade-in">
-                    <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                      <img src={xrayPreview} alt="New X-Ray preview" className="object-cover h-full w-full" />
-                    </div>
-                    <div className="text-[10px] text-slate-600 leading-normal">
-                      <p className="font-bold text-cyan-800">New X-Ray Selected</p>
-                      <p className="text-slate-400 font-light truncate max-w-[200px]">{xrayFile?.name}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setXrayFile(null); setXrayPreview(null); }}
-                      className="ml-auto p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Prescription Photo Upload Source */}
-              <div className="border-t border-slate-100 pt-4 space-y-4">
-                <div className="flex justify-between items-center">
-                  <label className="block text-xs font-semibold text-slate-600">Prescription Sheet Attachment</label>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const nextState = !isWaitingForMobile
-                      setIsWaitingForMobile(nextState)
-                      setTempMobilePhoto(null)
-                      if (activeAppt?.id && activeAppt?.branches?.id) {
-                        if (nextState) {
-                          await supabase
-                            .from('appointments')
-                            .update({ temp_mobile_photo: null })
-                            .eq('id', activeAppt.id)
-                          await createCaptureTicket(activeAppt.branches.id, activeAppt.id)
-                        } else {
-                          await clearCaptureTicket(activeAppt.branches.id)
-                        }
-                      }
-                    }}
-                    className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border transition flex items-center gap-1 ${
-                      isWaitingForMobile 
-                        ? 'bg-amber-50 border-amber-200 text-amber-700' 
-                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    <QrCode className="w-3.5 h-3.5" />
-                    {isWaitingForMobile ? 'Stop Mobile Scan' : 'Pick by Mobile'}
-                  </button>
+                  )}
                 </div>
 
-                {/* Local Desktop Upload Form */}
-                {!isWaitingForMobile && (
-                  <div className="space-y-2">
+                {/* Patient Email (Editable) */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400">Patient Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="Enter email address"
+                    value={emailVal}
+                    onChange={e => setEmailVal(e.target.value)}
+                    className="w-full px-4.5 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                {/* Patient Mobile (Editable) */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400">Patient Mobile Number (WhatsApp Delivery)</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="Enter 11-digit mobile number"
+                    value={mobileVal}
+                    onChange={e => setMobileVal(e.target.value)}
+                    className="w-full px-4.5 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                {/* Clinical Notes */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400">Clinical Prescription Notes</label>
+                  <textarea
+                    required
+                    placeholder="Enter patient diagnosis, medication details, and dosage instructions..."
+                    value={prescVal}
+                    onChange={e => setPrescVal(e.target.value)}
+                    rows={4}
+                    className="w-full px-4.5 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                {/* File Uploads (X-Ray & Prescription) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* X-Ray Upload */}
+                  <div className="border-t border-slate-100 dark:border-teal-900/20 pt-4 space-y-2">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-455">X-Ray Image Attachment</label>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={e => {
                         const file = e.target.files?.[0] || null
-                        setPrescriptionFile(file)
+                        setXrayFile(file)
                         if (file && file.type.startsWith('image/')) {
-                          setPrescPreview(URL.createObjectURL(file))
+                          setXrayPreview(URL.createObjectURL(file))
                         } else {
-                          setPrescPreview(null)
+                          setXrayPreview(null)
                         }
                       }}
-                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition cursor-pointer"
+                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-100 dark:file:bg-white/5 file:text-slate-700 dark:file:text-slate-300 hover:file:bg-slate-200 dark:hover:file:bg-white/10 transition cursor-pointer"
                     />
-                    
-                    {/* Previews for Prescription */}
-                    {activeAppt.prescription_url && !tempMobilePhoto && (
-                      <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
+
+                    {activeAppt.xray_url && (
+                      <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3 dark:bg-[#18302b]/60 dark:border-teal-900/40">
                         <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                          <img src={activeAppt.prescription_url} alt="Existing Prescription" className="object-cover h-full w-full" />
+                          <img src={activeAppt.xray_url} alt="Existing X-Ray" className="object-cover h-full w-full" />
                         </div>
                         <div className="text-[10px] text-slate-500 leading-normal">
-                          <p className="font-bold text-slate-700">Existing Prescription Attached</p>
-                          <a href={activeAppt.prescription_url} target="_blank" rel="noreferrer" className="text-cyan-600 hover:underline">View Image</a>
+                          <p className="font-bold text-slate-750 dark:text-slate-300">Existing X-Ray Uploaded</p>
+                          <a href={activeAppt.xray_url} target="_blank" rel="noreferrer" className="text-cyan-600 hover:underline">View Document</a>
                         </div>
                       </div>
                     )}
 
-                    {prescPreview && (
-                      <div className="p-2 bg-cyan-50/50 border border-cyan-150 rounded-xl flex items-center gap-3 animate-fade-in">
+                    {xrayPreview && (
+                      <div className="p-2 bg-cyan-50/50 border border-cyan-150 rounded-xl flex items-center gap-3 animate-fade-in dark:bg-cyan-950/20 dark:border-cyan-900/30">
                         <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                          <img src={prescPreview} alt="New Prescription preview" className="object-cover h-full w-full" />
+                          <img src={xrayPreview} alt="New X-Ray preview" className="object-cover h-full w-full" />
                         </div>
-                        <div className="text-[10px] text-slate-600 leading-normal">
-                          <p className="font-bold text-cyan-800">New Prescription Selected</p>
-                          <p className="text-slate-400 font-light truncate max-w-[200px]">{prescriptionFile?.name}</p>
+                        <div className="text-[10px] text-slate-600 dark:text-slate-400 leading-normal">
+                          <p className="font-bold text-cyan-800 dark:text-cyan-400">New X-Ray Selected</p>
+                          <p className="text-slate-400 dark:text-slate-550 font-light truncate max-w-[200px]">{xrayFile?.name}</p>
                         </div>
                         <button
                           type="button"
-                          onClick={() => { setPrescriptionFile(null); setPrescPreview(null); }}
+                          onClick={() => { setXrayFile(null); setXrayPreview(null); }}
                           className="ml-auto p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -855,383 +791,497 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                       </div>
                     )}
                   </div>
-                )}
 
-                {/* Mobile Camera Scanner Integration */}
-                {isWaitingForMobile && (
-                  <div className="bg-slate-50 p-6 border border-slate-200 rounded-2xl space-y-4 flex flex-col items-center text-center animate-fade-in">
-                    <div className="w-12 h-12 bg-cyan-50 border border-cyan-150 rounded-2xl flex items-center justify-center text-cyan-600">
-                      <Clock className="w-6 h-6 animate-pulse" />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold text-slate-800">Mobile Capture Ticket Active</p>
-                      <p className="text-[10px] text-slate-400 font-light leading-relaxed max-w-xs mx-auto">
-                        A sync ticket has been sent to the mobile capture page for <strong>{activeAppt?.patients?.name}</strong>.
-                      </p>
-                      <p className="text-[10px] text-slate-500 italic mt-2">
-                        Open the capture page on your phone, and it will automatically lock onto this patient's photo.
-                      </p>
+                  {/* Prescription Photo Upload Source */}
+                  <div className="border-t border-slate-100 dark:border-teal-900/20 pt-4 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-455">Prescription Sheet Attachment</label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const nextState = !isWaitingForMobile
+                          setIsWaitingForMobile(nextState)
+                          setTempMobilePhoto(null)
+                          if (activeAppt?.id && activeAppt?.branches?.id) {
+                            if (nextState) {
+                              await supabase
+                                .from('appointments')
+                                .update({ temp_mobile_photo: null })
+                                .eq('id', activeAppt.id)
+                              await createCaptureTicket(activeAppt.branches.id, activeAppt.id)
+                            } else {
+                              await clearCaptureTicket(activeAppt.branches.id)
+                            }
+                          }
+                        }}
+                        className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border transition flex items-center gap-1 cursor-pointer ${
+                          isWaitingForMobile 
+                            ? 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900 dark:text-amber-400' 
+                            : 'bg-slate-100 border-slate-200 text-slate-600 dark:bg-white/5 dark:border-teal-900/40 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
+                        }`}
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        {isWaitingForMobile ? 'Stop Mobile Scan' : 'Pick by Mobile'}
+                      </button>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-[10px] text-amber-600 bg-amber-50/50 border border-amber-100/60 px-3 py-1.5 rounded-xl font-medium w-full justify-center">
-                      <Clock className="w-3 h-3 animate-spin" />
-                      <span>Waiting for phone camera prescription upload...</span>
-                    </div>
+                    {/* Local Desktop Upload Form */}
+                    {!isWaitingForMobile && (
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => {
+                            const file = e.target.files?.[0] || null
+                            setPrescriptionFile(file)
+                            if (file && file.type.startsWith('image/')) {
+                              setPrescPreview(URL.createObjectURL(file))
+                            } else {
+                              setPrescPreview(null)
+                            }
+                          }}
+                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-100 dark:file:bg-white/5 file:text-slate-700 dark:file:text-slate-300 hover:file:bg-slate-200 dark:hover:file:bg-white/10 transition cursor-pointer"
+                        />
+                        
+                        {/* Previews for Prescription */}
+                        {activeAppt.prescription_url && !tempMobilePhoto && (
+                          <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3 dark:bg-[#18302b]/60 dark:border-teal-900/40">
+                            <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                              <img src={activeAppt.prescription_url} alt="Existing Prescription" className="object-cover h-full w-full" />
+                            </div>
+                            <div className="text-[10px] text-slate-500 leading-normal">
+                              <p className="font-bold text-slate-750 dark:text-slate-300">Existing Prescription Attached</p>
+                              <a href={activeAppt.prescription_url} target="_blank" rel="noreferrer" className="text-cyan-600 hover:underline">View Image</a>
+                            </div>
+                          </div>
+                        )}
+
+                        {prescPreview && (
+                          <div className="p-2 bg-cyan-50/50 border border-cyan-150 rounded-xl flex items-center gap-3 animate-fade-in dark:bg-cyan-950/20 dark:border-cyan-900/30">
+                            <div className="w-10 h-10 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                              <img src={prescPreview} alt="New Prescription preview" className="object-cover h-full w-full" />
+                            </div>
+                            <div className="text-[10px] text-slate-600 dark:text-slate-400 leading-normal">
+                              <p className="font-bold text-cyan-800 dark:text-cyan-400">New Prescription Selected</p>
+                              <p className="text-slate-400 dark:text-slate-550 font-light truncate max-w-[200px]">{prescriptionFile?.name}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => { setPrescriptionFile(null); setPrescPreview(null); }}
+                              className="ml-auto p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Mobile Camera Scanner Integration */}
+                    {isWaitingForMobile && (
+                      <div className="bg-slate-50 dark:bg-[#121c19] p-6 border border-slate-200 dark:border-teal-900/40 rounded-2xl space-y-4 flex flex-col items-center text-center animate-fade-in">
+                        <div className="w-12 h-12 bg-cyan-50 dark:bg-cyan-950/25 border border-cyan-150 dark:border-cyan-900/30 rounded-2xl flex items-center justify-center text-cyan-600">
+                          <Clock className="w-6 h-6 animate-pulse" />
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Mobile Capture Ticket Active</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-550 leading-relaxed max-w-xs mx-auto font-light">
+                            A sync ticket has been sent to the mobile capture page for <strong>{activeAppt?.patients?.name}</strong>.
+                          </p>
+                          <p className="text-[10px] text-slate-550 italic mt-2">
+                            Open the capture page on your phone, and it will automatically lock onto this patient's photo.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100/60 dark:border-amber-900 px-3 py-1.5 rounded-xl font-medium w-full justify-center">
+                          <Clock className="w-3 h-3 animate-spin" />
+                          <span>Waiting for phone camera prescription upload...</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Render Mobile Upload Preview if uploaded */}
+                    {tempMobilePhoto && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 animate-fade-in dark:bg-emerald-950/20 dark:border-emerald-900">
+                        <div className="w-12 h-12 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                          <img src={tempMobilePhoto} alt="Mobile capture preview" className="object-cover h-full w-full" />
+                        </div>
+                        <div className="text-xs">
+                          <p className="font-bold text-emerald-800 dark:text-emerald-400">Prescription Attached from Mobile</p>
+                          <p className="text-emerald-600 dark:text-emerald-500 font-light text-[10px]">Ready to send to patient.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setTempMobilePhoto(null)}
+                          className="ml-auto p-1 hover:bg-emerald-100 rounded-md text-emerald-700"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
 
-                {/* Render Mobile Upload Preview if uploaded */}
-                {tempMobilePhoto && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 animate-fade-in">
-                    <div className="w-12 h-12 bg-slate-900 border rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                      <img src={tempMobilePhoto} alt="Mobile capture preview" className="object-cover h-full w-full" />
-                    </div>
-                    <div className="text-xs">
-                      <p className="font-bold text-emerald-800">Prescription Attached from Mobile</p>
-                      <p className="text-emerald-600 font-light text-[10px]">Ready to send to patient.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setTempMobilePhoto(null)}
-                      className="ml-auto p-1 hover:bg-emerald-100 rounded-md text-emerald-700"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
+                {/* Modal Footer / Action buttons */}
+                <div className="border-t border-slate-100 dark:border-teal-900/20 pt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowReportsModal(false)}
+                    className="flex-1 py-3 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 border border-slate-200 dark:border-teal-900/40 rounded-2xl transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={sendingReport || !associatedInvoiceId || loadingInvoiceCheck}
+                    className="flex-1 py-3 bg-slate-950 dark:bg-emerald-650 hover:bg-slate-800 dark:hover:bg-emerald-750 disabled:bg-slate-100 dark:disabled:bg-white/5 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-slate-900/10 cursor-pointer animate-none"
+                  >
+                    {sendingReport && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    {sendingReport ? 'Sending...' : 'Send Combined Report & Bill'}
+                  </button>
+                </div>
 
-              {/* Modal Footer / Action buttons */}
-              <div className="border-t border-slate-100 pt-4 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowReportsModal(false)}
-                  className="flex-1 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-2xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={sendingReport || !associatedInvoiceId || loadingInvoiceCheck}
-                  className="flex-1 py-3 bg-slate-950 hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-slate-900/10"
-                >
-                  {sendingReport && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  {sendingReport ? 'Sending...' : 'Send Combined Report & Bill'}
-                </button>
-              </div>
+              </form>
 
-            </form>
-
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 5. MODAL overlay for BOOK OFFLINE APPOINTMENT */}
-      {showOfflineModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="clay border border-slate-200/60 w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-500" />
-                Book Offline Appointment
-              </h3>
-              <button 
-                onClick={() => setShowOfflineModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Form Body */}
-            <form onSubmit={async (e) => {
-              e.preventDefault()
-              if (!offlineBranchId || !offlineDoctorId || !offlineDate || !offlineTime) {
-                alert('Please fill in all booking fields.')
-                return
-              }
-
-              // Enforce date validation
-              const today = new Date()
-              today.setHours(0, 0, 0, 0)
-              const minDate = new Date()
-              minDate.setDate(today.getDate() - 3)
-              minDate.setHours(0, 0, 0, 0)
-              const selectedDateObj = new Date(offlineDate)
-              selectedDateObj.setHours(0, 0, 0, 0)
-              if (selectedDateObj < minDate) {
-                alert('Offline appointments can only be booked for the previous 3 days or future dates.')
-                return
-              }
-
-              setBookingOffline(true)
-              try {
-                const formData = new FormData()
-                formData.append('patientName', offlineName)
-                formData.append('patientEmail', offlineEmail)
-                formData.append('patientMobile', offlineMobile)
-                formData.append('patientAge', offlineAge)
-                formData.append('branchId', offlineBranchId)
-                formData.append('doctorId', offlineDoctorId)
-                formData.append('appointmentDate', offlineDate)
-                formData.append('appointmentTime', offlineTime)
-                formData.append('problemDescription', offlineProblem)
-
-                const res = await bookOfflineAppointment(formData)
-                if (res.success) {
-                  alert('Offline appointment booked successfully!')
-                  setShowOfflineModal(false)
-                  window.location.reload()
-                } else {
-                  alert(res.error || 'Failed to book offline appointment')
-                }
-              } catch (err: any) {
-                console.error(err)
-                alert('An error occurred during booking.')
-              } finally {
-                setBookingOffline(false)
-              }
-            }} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+      <AnimatePresence>
+        {showOfflineModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-white border border-slate-200 dark:bg-[var(--card)] dark:border-teal-900/35 rounded-3xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col justify-between"
+            >
               
-              {/* Patient details section */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Patient Details</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-500">Name</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Jane Doe"
-                      value={offlineName}
-                      onChange={e => setOfflineName(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-500">Email</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="jane@example.com"
-                      value={offlineEmail}
-                      onChange={e => setOfflineEmail(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-500">Mobile</label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="03001234567"
-                      value={offlineMobile}
-                      onChange={e => setOfflineMobile(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-500">Age</label>
-                    <input
-                      type="number"
-                      required
-                      min="1"
-                      max="120"
-                      placeholder="35"
-                      value={offlineAge}
-                      onChange={e => setOfflineAge(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Appointment details section */}
-              <div className="space-y-3 pt-3 border-t border-slate-100">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Appointment Details</h4>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-500">Branch</label>
-                    <select
-                      value={offlineBranchId}
-                      onChange={e => {
-                        setOfflineBranchId(e.target.value)
-                        setOfflineDoctorId('') // Reset doctor when branch changes
-                      }}
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    >
-                      <option value="">Select Branch</option>
-                      {branches.map(b => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-500">Doctor</label>
-                    <select
-                      value={offlineDoctorId}
-                      required
-                      onChange={e => setOfflineDoctorId(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    >
-                      <option value="">Select Doctor</option>
-                      {doctorsList
-                        .filter(d => !offlineBranchId || d.branch_id === offlineBranchId)
-                        .map(d => (
-                          <option key={d.id} value={d.id}>Dr. {d.name} ({d.specialty || 'General'})</option>
-                        ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-500">Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={offlineDate}
-                      onChange={e => setOfflineDate(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-500">Time Slot</label>
-                    <select
-                      value={offlineTime}
-                      required
-                      onChange={e => setOfflineTime(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    >
-                      <option value="">Select Time</option>
-                      {timeSlotsList.map(t => (
-                        <option key={t.id} value={t.time_value}>{t.time_label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-slate-500">Problem / Notes</label>
-                  <textarea
-                    placeholder="Describe symptoms or reasons for the booking..."
-                    value={offlineProblem}
-                    onChange={e => setOfflineProblem(e.target.value)}
-                    rows={2}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* Form buttons */}
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
+              {/* Modal Header */}
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 dark:bg-slate-950/20 dark:border-teal-900/25 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-teal-200 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-slate-500 dark:text-teal-400" />
+                  Book Offline Appointment
+                </h3>
+                <button 
                   type="button"
                   onClick={() => setShowOfflineModal(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition"
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-white/5 dark:hover:text-white rounded-lg transition cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={bookingOffline}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition flex items-center gap-1.5"
-                >
-                  {bookingOffline && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  Book Appointment
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-            </form>
+              {/* Modal Form Body */}
+              <form onSubmit={async (e) => {
+                e.preventDefault()
+                if (!offlineBranchId || !offlineDoctorId || !offlineDate || !offlineTime) {
+                  alert('Please fill in all booking fields.')
+                  return
+                }
 
-          </div>
-        </div>
-      )}
+                // Enforce date validation
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                const minDate = new Date()
+                minDate.setDate(today.getDate() - 3)
+                minDate.setHours(0, 0, 0, 0)
+                const selectedDateObj = new Date(offlineDate)
+                selectedDateObj.setHours(0, 0, 0, 0)
+                if (selectedDateObj < minDate) {
+                  alert('Offline appointments can only be booked for the previous 3 days or future dates.')
+                  return
+                }
+
+                setBookingOffline(true)
+                try {
+                  const formData = new FormData()
+                  formData.append('patientName', offlineName)
+                  formData.append('patientEmail', offlineEmail)
+                  formData.append('patientMobile', offlineMobile)
+                  formData.append('patientAge', offlineAge)
+                  formData.append('branchId', offlineBranchId)
+                  formData.append('doctorId', offlineDoctorId)
+                  formData.append('appointmentDate', offlineDate)
+                  formData.append('appointmentTime', offlineTime)
+                  formData.append('problemDescription', offlineProblem)
+
+                  const res = await bookOfflineAppointment(formData)
+                  if (res.success) {
+                    alert('Offline appointment booked successfully!')
+                    setShowOfflineModal(false)
+                    window.location.reload()
+                  } else {
+                    alert(res.error || 'Failed to book offline appointment')
+                  }
+                } catch (err: any) {
+                  console.error(err)
+                  alert('An error occurred during booking.')
+                } finally {
+                  setBookingOffline(false)
+                }
+              }} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                
+                {/* Patient details section */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider">Patient Details</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-450">Name</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Jane Doe"
+                        value={offlineName}
+                        onChange={e => setOfflineName(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Email</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="jane@example.com"
+                        value={offlineEmail}
+                        onChange={e => setOfflineEmail(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Mobile</label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="03001234567"
+                        value={offlineMobile}
+                        onChange={e => setOfflineMobile(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Age</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        max="120"
+                        placeholder="35"
+                        value={offlineAge}
+                        onChange={e => setOfflineAge(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200 font-mono font-semibold"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Appointment details section */}
+                <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-teal-900/20">
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider">Appointment Details</h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Branch</label>
+                      <select
+                        value={offlineBranchId}
+                        onChange={e => {
+                          setOfflineBranchId(e.target.value)
+                          setOfflineDoctorId('')
+                        }}
+                        className="w-full px-2 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200"
+                      >
+                        <option value="" className="dark:bg-[#121c19]">Select Branch</option>
+                        {branches.map(b => (
+                          <option key={b.id} value={b.id} className="dark:bg-[#121c19]">{b.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Doctor</label>
+                      <select
+                        value={offlineDoctorId}
+                        required
+                        onChange={e => setOfflineDoctorId(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200"
+                      >
+                        <option value="" className="dark:bg-[#121c19]">Select Doctor</option>
+                        {doctorsList
+                          .filter(d => !offlineBranchId || d.branch_id === offlineBranchId)
+                          .map(d => (
+                            <option key={d.id} value={d.id} className="dark:bg-[#121c19]">Dr. {d.name} ({d.specialty || 'General'})</option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={offlineDate}
+                        onChange={e => setOfflineDate(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200 font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Time Slot</label>
+                      <select
+                        value={offlineTime}
+                        required
+                        onChange={e => setOfflineTime(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200"
+                      >
+                        <option value="" className="dark:bg-[#121c19]">Select Time</option>
+                        {timeSlotsList.map(t => (
+                          <option key={t.id} value={t.time_value} className="dark:bg-[#121c19]">{t.time_label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Problem / Notes</label>
+                    <textarea
+                      placeholder="Describe symptoms or reasons for the booking..."
+                      value={offlineProblem}
+                      onChange={e => setOfflineProblem(e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Form buttons */}
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-teal-900/20">
+                  <button
+                    type="button"
+                    onClick={() => setShowOfflineModal(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={bookingOffline}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-emerald-650 hover:bg-slate-800 dark:hover:bg-emerald-750 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {bookingOffline && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    Book Appointment
+                  </button>
+                </div>
+
+              </form>
+
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ═══ 5. POSTPONE / RESCHEDULE APPOINTMENT MODAL ═══ */}
-      {showPostponeModal && postponeAppt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="clay border border-slate-200/60 w-full max-w-md overflow-hidden flex flex-col animate-fade-in-up">
-            
-            {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-amber-50/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-amber-100 text-amber-800 rounded-2xl">
-                  <Clock className="w-5 h-5" />
+      <AnimatePresence>
+        {showPostponeModal && postponeAppt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-white border border-slate-200 dark:bg-[var(--card)] dark:border-teal-900/35 w-full max-w-md overflow-hidden flex flex-col rounded-3xl shadow-xl"
+            >
+              
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 dark:border-teal-900/25 flex items-center justify-between bg-amber-50/50 dark:bg-amber-950/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-400 rounded-2xl">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-teal-200">Postpone Appointment</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-450 font-medium">Patient: {postponeAppt.patients?.name || 'Patient'}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Postpone Appointment</h3>
-                  <p className="text-xs text-slate-500 font-medium">Patient: {postponeAppt.patients?.name || 'Patient'}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowPostponeModal(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Content Form */}
-            <form onSubmit={e => { e.preventDefault(); handleConfirmPostpone() }} className="p-6 space-y-4">
-              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs space-y-1 text-slate-600">
-                <p><strong>Current Date:</strong> {postponeAppt.appointment_date}</p>
-                <p><strong>Current Time:</strong> {postponeAppt.appointment_time}</p>
-                <p><strong>Doctor:</strong> Dr. {postponeAppt.doctors?.name || 'Practitioner'}</p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">New Appointment Date</label>
-                <input
-                  type="date"
-                  required
-                  value={newPostponeDate}
-                  onChange={e => setNewPostponeDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-amber-500 shadow-sm"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">New Time Slot</label>
-                <input
-                  type="time"
-                  required
-                  value={newPostponeTime}
-                  onChange={e => setNewPostponeTime(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-amber-500 shadow-sm"
-                />
-              </div>
-
-              <div className="p-3 bg-amber-50/70 border border-amber-200/60 rounded-2xl text-[11px] text-amber-900 font-medium leading-relaxed">
-                ℹ️ Saving will instantly update the database and send an automated <strong>WhatsApp & Email reschedule alert</strong> to the patient.
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowPostponeModal(false)}
-                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition"
+                  className="p-2 text-slate-400 hover:text-slate-650 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={postponing}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-xl shadow-md transition flex items-center gap-1.5"
-                >
-                  {postponing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
-                  Confirm Postpone
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </form>
 
-          </div>
-        </div>
-      )}
+              {/* Content Form */}
+              <form onSubmit={e => { e.preventDefault(); handleConfirmPostpone() }} className="p-6 space-y-4">
+                <div className="p-3 bg-slate-50 dark:bg-[#18302b]/60 border border-slate-200/80 dark:border-teal-900/40 rounded-2xl text-xs space-y-1 text-slate-600 dark:text-slate-300">
+                  <p><strong>Current Date:</strong> {postponeAppt.appointment_date}</p>
+                  <p><strong>Current Time:</strong> {postponeAppt.appointment_time}</p>
+                  <p><strong>Doctor:</strong> Dr. {postponeAppt.doctors?.name || 'Practitioner'}</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">New Appointment Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={newPostponeDate}
+                    onChange={e => setNewPostponeDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-2xl text-xs bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200 font-semibold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">New Time Slot</label>
+                  <input
+                    type="time"
+                    required
+                    value={newPostponeTime}
+                    onChange={e => setNewPostponeTime(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-2xl text-xs bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200 font-semibold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="p-3 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/50 rounded-2xl text-[11px] text-amber-900 dark:text-amber-400 font-medium leading-relaxed">
+                  ℹ️ Saving will instantly update the database and send an automated <strong>WhatsApp & Email reschedule alert</strong> to the patient.
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-teal-900/20">
+                  <button
+                    type="button"
+                    onClick={() => setShowPostponeModal(false)}
+                    className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={postponing}
+                    className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {postponing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
+                    Confirm Postpone
+                  </button>
+                </div>
+              </form>
+
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </motion.div>
   )

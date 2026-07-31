@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import DoctorLogin from './DoctorLogin'
 import DoctorClient from './DoctorClient'
 import { AlertCircle } from 'lucide-react'
+import { verifyToken } from '@/lib/auth'
 
 interface DoctorPageProps {
   params: Promise<{ slug: string }>
@@ -47,7 +48,8 @@ export default async function DoctorPortalPage({ params }: DoctorPageProps) {
   }
 
   // 2. Check Authentication
-  const isAuthenticated = token && token.value === slug
+  const verifiedSlug = await verifyToken(token?.value)
+  const isAuthenticated = verifiedSlug === slug
 
   if (!isAuthenticated) {
     return <DoctorLogin doctorName={doctor.name} doctorSlug={doctor.slug} />

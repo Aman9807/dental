@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   CircleDollarSign, TrendingUp, CheckCircle, AlertCircle, Calendar, Plus, Trash2, 
   User2, PlusCircle, HelpCircle, Save, Info, RefreshCw, Layers, Zap, Clock, X, Loader2
@@ -134,8 +134,11 @@ function getAppointmentFinances(appt: Appointment) {
   const invoice = appt.invoices?.[0]
   if (!invoice) return null
 
-  const treatmentDiscountMultiplier = 1 - (invoice.treatment_discount_percentage || 0) / 100
-  const medicineDiscountMultiplier = 1 - (invoice.medicine_discount_percentage || 0) / 100
+  const treatmentDiscount = invoice.treatment_discount_percentage ?? invoice.discount_percentage ?? 0
+  const medicineDiscount = invoice.medicine_discount_percentage ?? invoice.discount_percentage ?? 0
+
+  const treatmentDiscountMultiplier = 1 - treatmentDiscount / 100
+  const medicineDiscountMultiplier = 1 - medicineDiscount / 100
 
   let treatmentRevenue = 0
   let treatmentCost = 0
@@ -467,7 +470,13 @@ export default function FinancesClient({
     // 2. Fixed Expenses (Helper Salaries + Electricity)
     // Helper salaries
     const helpers = getBranchFilteredHelpers()
-    const helperSalariesTotal = helpers.reduce((sum, h) => sum + calculateHelperSalary(h), 0)
+    const helperSalariesTotal = helpers.reduce((sum, h) => {
+      const basePay = calculateHelperSalary(h)
+      const reductionsAmount = salaryReductions
+        .filter(r => r.person_id === h.id && r.month_year === selectedMonth && r.person_type === 'helper')
+        .reduce((acc, curr) => acc + curr.amount, 0)
+      return sum + Math.max(0, basePay - reductionsAmount)
+    }, 0)
 
     // Electricity bills
     let electricityTotal = 0
@@ -498,15 +507,19 @@ export default function FinancesClient({
       if (d.compensation_type === 'fixed') {
         const docWorkingDays = getWorkingDaysInMonth(year, month, false) // Doctors don't work sundays
         const absencesCount = doctorAttendance.filter(a => {
-          if (a.doctor_id !== d.id || a.status !== 'absent') return false
+          if (a.doctor_id !== d.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
           const absDate = new Date(a.date)
           const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
           return absMonthStr === selectedMonth
-        }).length
+        }).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
         
         const docWorked = Math.max(0, docWorkingDays - absencesCount)
         const dailyRate = d.fixed_salary / docWorkingDays
-        doctorFixedSalariesTotal += docWorked * dailyRate
+        const basePay = docWorked * dailyRate
+        const reductionsAmount = salaryReductions
+          .filter(r => r.person_id === d.id && r.month_year === selectedMonth && r.person_type === 'doctor')
+          .reduce((acc, curr) => acc + curr.amount, 0)
+        doctorFixedSalariesTotal += Math.max(0, basePay - reductionsAmount)
       } else {
         // Percentage based on branch net profit
         let bProfit = branchNetProfitBeforeDoctors
@@ -535,32 +548,34 @@ export default function FinancesClient({
             return apptMonthStr === selectedMonth && appt.branches?.id === d.branch_id
           })
           
-          let docBranchProfit = 0
+          let docBranchTProfit = 0
+          let docBranchMProfit = 0
           docBranchAppts.forEach(appt => {
             const finances = getAppointmentFinances(appt)
             if (finances) {
-              const target = d.profit_sharing_target || 'both'
-              if (target === 'treatment') {
-                docBranchProfit += finances.treatmentProfit
-              } else if (target === 'medicine') {
-                docBranchProfit += finances.medicineProfit
-              } else {
-                docBranchProfit += finances.treatmentProfit + finances.medicineProfit
-              }
+              docBranchTProfit += finances.treatmentProfit
+              docBranchMProfit += finances.medicineProfit
             }
           })
-
-          bProfit = docBranchProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
+          
+          const target = d.profit_sharing_target || 'both'
+          if (target === 'treatment') {
+            bProfit = docBranchTProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
+          } else if (target === 'medicine') {
+            bProfit = docBranchMProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
+          } else {
+            bProfit = (docBranchTProfit + docBranchMProfit) - docBranchHelpersPay - docBranchBill - docBranchExtras
+          }
         }
         
         if (bProfit > 0) {
           const docWorkingDays = getWorkingDaysInMonth(year, month, false)
           const absencesCount = doctorAttendance.filter(a => {
-            if (a.doctor_id !== d.id || a.status !== 'absent') return false
+            if (a.doctor_id !== d.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
             const absDate = new Date(a.date)
             const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
             return absMonthStr === selectedMonth
-          }).length
+          }).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
           const docWorked = Math.max(0, docWorkingDays - absencesCount)
           const fullPayout = bProfit * (d.profit_percentage / 100)
           
@@ -568,7 +583,11 @@ export default function FinancesClient({
             ? fullPayout * (docWorked / docWorkingDays)
             : fullPayout
 
-          doctorPercentagePayoutsTotal += docPayout
+          const reductionsAmount = salaryReductions
+            .filter(r => r.person_id === d.id && r.month_year === selectedMonth && r.person_type === 'doctor')
+            .reduce((acc, curr) => acc + curr.amount, 0)
+          
+          doctorPercentagePayoutsTotal += Math.max(0, docPayout - reductionsAmount)
         }
       }
     })
@@ -1067,7 +1086,7 @@ export default function FinancesClient({
           <button
             onClick={exportSalesLedger}
             title="Download CSV for Excel"
-            className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-2xl text-xs font-semibold shadow-sm transition transform hover:scale-105"
+            className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-2xl text-xs font-semibold shadow-sm transition-all duration-300 ease-out hover:scale-[1.02]"
           >
             <CircleDollarSign className="w-4 h-4 text-emerald-600" />
             Export Sales (CSV)
@@ -1076,7 +1095,7 @@ export default function FinancesClient({
           <button
             onClick={exportPatientDirectory}
             title="Download CSV for Excel"
-            className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-2xl text-xs font-semibold shadow-sm transition transform hover:scale-105"
+            className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 bg-white rounded-2xl text-xs font-semibold shadow-sm transition-all duration-300 ease-out hover:scale-[1.02]"
           >
             <User2 className="w-4 h-4 text-cyan-600" />
             Export Patients (CSV)
@@ -1084,7 +1103,7 @@ export default function FinancesClient({
 
           <button
             onClick={() => setShowAddExpense(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-rose-600/15 transition transform hover:scale-105"
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-rose-600/15 transition-all duration-300 ease-out hover:scale-[1.02]"
           >
             <PlusCircle className="w-4 h-4" /> Add Extra Expense
           </button>
@@ -1093,7 +1112,7 @@ export default function FinancesClient({
       </div>
 
       {/* ════ SECTION 2: STATS OVERVIEW (CLAY CARDS) ════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         
         <div className="clay p-5 border border-slate-200/60 space-y-1">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Gross Charged</p>
@@ -1101,13 +1120,18 @@ export default function FinancesClient({
         </div>
 
         <div className="clay p-5 border border-slate-200/60 space-y-1">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Treatment Costs</p>
+          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Material & Medicine Costs</p>
           <p className="text-xl font-bold font-mono text-slate-500">INR {totals.totalTreatmentCost.toLocaleString()}</p>
         </div>
 
         <div className="clay clay-emerald p-5 border border-teal-100/50 space-y-1">
           <p className="text-[10px] text-teal-700 uppercase tracking-wider font-bold">Treatment Profits</p>
-          <p className="text-xl font-bold font-mono text-teal-600">INR {totals.treatmentProfit.toLocaleString()}</p>
+          <p className="text-xl font-bold font-mono text-teal-600">INR {totals.totalTreatmentProfit.toLocaleString()}</p>
+        </div>
+
+        <div className="clay clay-emerald p-5 border border-teal-100/50 space-y-1">
+          <p className="text-[10px] text-teal-700 uppercase tracking-wider font-bold">Medicine Profits</p>
+          <p className="text-xl font-bold font-mono text-teal-600">INR {totals.totalMedicineProfit.toLocaleString()}</p>
         </div>
 
         <div className="clay clay-rose p-5 border border-rose-100/50 space-y-1">
@@ -1781,13 +1805,15 @@ export default function FinancesClient({
                   <th className="px-4 py-3">Branch Assignment</th>
                   <th className="px-4 py-3">Compensation Type</th>
                   <th className="px-4 py-3">Rates / Metric</th>
-                  <th className="px-4 py-3 text-right">Calculated Payout</th>
+                  <th className="px-4 py-3 text-right">Base Earnings</th>
+                  <th className="px-4 py-3 text-right">Fines / Deductions</th>
+                  <th className="px-4 py-3 text-right">Net Payout</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
                 {getBranchFilteredDoctors().length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-8 text-slate-400 font-light">
+                    <td colSpan={7} className="text-center py-8 text-slate-400 font-light">
                       No doctors registered.
                     </td>
                   </tr>
@@ -1798,15 +1824,16 @@ export default function FinancesClient({
                     
                     let pay = 0
                     let rateString = ''
+                    let absencesCount = 0
                     
                     if (doc.compensation_type === 'fixed') {
                       const docWorkingDays = getWorkingDaysInMonth(year, month, false)
-                      const absencesCount = doctorAttendance.filter(a => {
-                        if (a.doctor_id !== doc.id || a.status !== 'absent') return false
+                      absencesCount = doctorAttendance.filter(a => {
+                        if (a.doctor_id !== doc.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
                         const absDate = new Date(a.date)
                         const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
                         return absMonthStr === selectedMonth
-                      }).length
+                      }).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
                       
                       const worked = Math.max(0, docWorkingDays - absencesCount)
                       const dailyRate = doc.fixed_salary / docWorkingDays
@@ -1861,12 +1888,12 @@ export default function FinancesClient({
                       
                       if (bProfit > 0) {
                         const docWorkingDays = getWorkingDaysInMonth(year, month, false)
-                        const absencesCount = doctorAttendance.filter(a => {
-                          if (a.doctor_id !== doc.id || a.status !== 'absent') return false
+                        absencesCount = doctorAttendance.filter(a => {
+                          if (a.doctor_id !== doc.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
                           const absDate = new Date(a.date)
                           const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
                           return absMonthStr === selectedMonth
-                        }).length
+                        }).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
                         const docWorked = Math.max(0, docWorkingDays - absencesCount)
                         const fullPayout = bProfit * (doc.profit_percentage / 100)
 
@@ -1877,13 +1904,20 @@ export default function FinancesClient({
                       rateString = `${doc.profit_percentage}% share (${doctorRule === 'present_days_only' ? 'Present Days' : 'Full Month'})`
                     }
 
+                    const reduction = salaryReductions
+                      .filter(r => r.person_id === doc.id && r.month_year === selectedMonth && r.person_type === 'doctor')
+                      .reduce((sum, r) => sum + r.amount, 0)
+                    const netPayout = Math.max(0, pay - reduction)
+
                     return (
                       <tr key={doc.id} className="hover:bg-slate-50/50">
                         <td className="px-4 py-3 font-semibold text-slate-800">Dr. {doc.name}</td>
                         <td className="px-4 py-3">{branchName}</td>
                         <td className="px-4 py-3 uppercase font-semibold text-slate-500">{doc.compensation_type}</td>
-                        <td className="px-4 py-3">{rateString}</td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-850">INR {Math.round(pay).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-slate-500">{rateString}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-slate-700">INR {Math.round(pay).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-rose-600">INR {Math.round(reduction).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-850">INR {Math.round(netPayout).toLocaleString()}</td>
                       </tr>
                     )
                   })
@@ -1954,199 +1988,225 @@ export default function FinancesClient({
       )}
 
       {/* ════ SECTION 5: MODAL overlay for REGISTERING HELPER BOY ════ */}
-      {showAddHelper && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800">Add Helper Boy</h3>
-              <button onClick={() => setShowAddHelper(false)} className="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddHelper} className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="block text-xs font-medium text-slate-500">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Helper Boy Name"
-                  value={newHelperName}
-                  onChange={e => setNewHelperName(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Shift 1 Rate (Morning)</label>
-                  <input
-                    type="number"
-                    value={newHelperShift1}
-                    onChange={e => setNewHelperShift1(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Shift 2 Rate (Evening)</label>
-                  <input
-                    type="number"
-                    value={newHelperShift2}
-                    onChange={e => setNewHelperShift2(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-4 py-2">
-                <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newHelperShift1Enabled}
-                    onChange={e => setNewHelperShift1Enabled(e.target.checked)}
-                    className="rounded border-slate-300"
-                  />
-                  Morning Shift Enabled
-                </label>
-                <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newHelperShift2Enabled}
-                    onChange={e => setNewHelperShift2Enabled(e.target.checked)}
-                    className="rounded border-slate-300"
-                  />
-                  Evening Shift Enabled
-                </label>
-                <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newHelperSundayEnabled}
-                    onChange={e => setNewHelperSundayEnabled(e.target.checked)}
-                    className="rounded border-slate-300 font-bold"
-                  />
-                  Works on Sundays?
-                </label>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-medium text-slate-500">Branch Assignment</label>
-                <select
-                  value={newHelperBranch}
-                  onChange={e => setNewHelperBranch(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                >
-                  {branches.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddHelper(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-55 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addingHelper}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition flex items-center gap-1.5"
-                >
-                  {addingHelper && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  Register Helper
+      <AnimatePresence>
+        {showAddHelper && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-white border border-slate-200 dark:bg-[var(--card)] dark:border-teal-900/35 rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col justify-between"
+            >
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 dark:bg-slate-950/20 dark:border-teal-900/25 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-teal-200">Add Helper Boy</h3>
+                <button type="button" onClick={() => setShowAddHelper(false)} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-white/5 dark:hover:text-white rounded-lg transition cursor-pointer">
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+              <form onSubmit={handleAddHelper} className="p-6 space-y-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Helper Boy Name"
+                    value={newHelperName}
+                    onChange={e => setNewHelperName(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Shift 1 Rate (Morning)</label>
+                    <input
+                      type="number"
+                      value={newHelperShift1}
+                      onChange={e => setNewHelperShift1(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Shift 2 Rate (Evening)</label>
+                    <input
+                      type="number"
+                      value={newHelperShift2}
+                      onChange={e => setNewHelperShift2(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-4 py-2 text-slate-600 dark:text-slate-400">
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newHelperShift1Enabled}
+                      onChange={e => setNewHelperShift1Enabled(e.target.checked)}
+                      className="rounded border-slate-350 dark:border-teal-900/40 dark:bg-[#121c19]"
+                    />
+                    Morning Shift Enabled
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newHelperShift2Enabled}
+                      onChange={e => setNewHelperShift2Enabled(e.target.checked)}
+                      className="rounded border-slate-350 dark:border-teal-900/40 dark:bg-[#121c19]"
+                    />
+                    Evening Shift Enabled
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={newHelperSundayEnabled}
+                      onChange={e => setNewHelperSundayEnabled(e.target.checked)}
+                      className="rounded border-slate-350 dark:border-teal-900/40 dark:bg-[#121c19]"
+                    />
+                    Works on Sundays?
+                  </label>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Branch Assignment</label>
+                  <select
+                    value={newHelperBranch}
+                    onChange={e => setNewHelperBranch(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-850 dark:text-slate-200 font-semibold"
+                  >
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id} className="dark:bg-[#121c19] dark:text-slate-200">{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-teal-900/20">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddHelper(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-450 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingHelper}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-700 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {addingHelper && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    Register Helper
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ════ SECTION 6: MODAL overlay for ADDING EXTRA EXPENSE ════ */}
-      {showAddExpense && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800">Add Extra Expense</h3>
-              <button onClick={() => setShowAddExpense(false)} className="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddExpense} className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="block text-xs font-medium text-slate-500">Expense Description / Note (Compulsory)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Water motor broken repair, X-ray light repair"
-                  value={expenseNote}
-                  onChange={e => setExpenseNote(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                />
+      <AnimatePresence>
+        {showAddExpense && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-white border border-slate-200 dark:bg-[var(--card)] dark:border-teal-900/35 rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col justify-between"
+            >
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 dark:bg-slate-950/20 dark:border-teal-900/25 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-teal-200">Add Extra Expense</h3>
+                <button type="button" onClick={() => setShowAddExpense(false)} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-white/5 dark:hover:text-white rounded-lg transition cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleAddExpense} className="p-6 space-y-4">
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Amount (INR)</label>
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Expense Description / Note (Compulsory)</label>
                   <input
-                    type="number"
+                    type="text"
                     required
-                    min="1"
-                    placeholder="2500"
-                    value={expenseAmount}
-                    onChange={e => setExpenseAmount(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                    placeholder="e.g. Water motor broken repair, X-ray light repair"
+                    value={expenseNote}
+                    onChange={e => setExpenseNote(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={expenseDate}
-                    onChange={e => setExpenseDate(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Amount (INR)</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      placeholder="2500"
+                      value={expenseAmount}
+                      onChange={e => setExpenseAmount(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={expenseDate}
+                      onChange={e => setExpenseDate(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-medium text-slate-500">Clinic Branch</label>
-                <select
-                  value={expenseBranch}
-                  onChange={e => setExpenseBranch(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                >
-                  {branches.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-              </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Clinic Branch</label>
+                  <select
+                    value={expenseBranch}
+                    onChange={e => setExpenseBranch(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-850 dark:text-slate-200 font-semibold"
+                  >
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id} className="dark:bg-[#121c19] dark:text-slate-200">{b.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddExpense(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addingExpense}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-850 rounded-xl transition flex items-center gap-1.5"
-                >
-                  {addingExpense && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  Save Expense
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-teal-900/20">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddExpense(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-450 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-55 dark:hover:bg-white/5 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingExpense}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-700 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {addingExpense && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    Save Expense
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       </div>
     </motion.div>

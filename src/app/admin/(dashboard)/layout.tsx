@@ -52,12 +52,11 @@ export default async function AdminDashboardLayout({
       >
         {/* Top header bar */}
         <header
-          className="bg-white/85 border-b border-slate-200/60 dark:bg-[var(--card)]/85 dark:border-slate-800/40 transition-colors duration-300"
+          className="bg-white/85 border-b border-slate-200/60 dark:bg-[var(--card)]/85 dark:border-slate-800/40 transition-colors duration-300 px-4 sm:px-8"
           style={{
             height: 68,
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            padding: '0 32px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -98,13 +97,7 @@ export default async function AdminDashboardLayout({
         </header>
 
         {/* Page content */}
-        <div
-          style={{
-            flex: 1,
-            padding: '28px 32px',
-            overflowY: 'auto',
-          }}
-        >
+        <div className="flex-1 p-4 sm:p-8 overflow-y-auto">
           {children}
         </div>
       </main>

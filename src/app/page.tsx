@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Sparkles, MapPin, ArrowRight, Heart, Star, Shield, CheckCircle2 } from 'lucide-react'
 import DentalLogo from '@/components/DentalLogo'
 
@@ -50,6 +50,26 @@ const cardVariantRight = {
 }
 
 export default function Home() {
+  const shouldReduceMotion = useReducedMotion()
+
+  const blob1Animate = shouldReduceMotion ? {} : { scale: [1, 1.08, 1], rotate: [0, 5, 0] }
+  const blob1Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: 'easeInOut' }
+
+  const blob2Animate = shouldReduceMotion ? {} : { scale: [1, 1.12, 1], rotate: [0, -6, 0] }
+  const blob2Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }
+
+  const blob3Animate = shouldReduceMotion ? {} : { scale: [1, 1.06, 1] }
+  const blob3Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 1 }
+
+  const sphere1Animate = shouldReduceMotion ? {} : { y: [0, -14, 0], x: [0, 6, 0] }
+  const sphere1Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: 'easeInOut' }
+
+  const sphere2Animate = shouldReduceMotion ? {} : { y: [0, 14, 0], x: [0, -6, 0] }
+  const sphere2Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }
+
+  const sphere3Animate = shouldReduceMotion ? {} : { y: [0, -12, 0] }
+  const sphere3Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 1 }
+
   return (
     <div className="flex-1 flex flex-col justify-between min-h-screen overflow-hidden selection:bg-cyan-500 selection:text-white">
 
@@ -80,35 +100,35 @@ export default function Home() {
         
         {/* Decorative Floating Blobs with Smooth Framer Motion */}
         <motion.div
-          animate={{ scale: [1, 1.08, 1], rotate: [0, 5, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+          animate={blob1Animate}
+          transition={blob1Transition}
           className="blob blob-teal w-80 h-80 -top-20 -left-20 pointer-events-none opacity-80"
         />
         <motion.div
-          animate={{ scale: [1, 1.12, 1], rotate: [0, -6, 0] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+          animate={blob2Animate}
+          transition={blob2Transition}
           className="blob blob-teal w-96 h-96 -bottom-32 -right-32 pointer-events-none opacity-80"
         />
         <motion.div
-          animate={{ scale: [1, 1.06, 1] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          animate={blob3Animate}
+          transition={blob3Transition}
           className="blob blob-amber w-72 h-72 top-1/3 right-10 pointer-events-none opacity-70"
         />
 
         {/* Floating 3D Spheres (Framermotion Smooth Loop) */}
         <motion.div
-          animate={{ y: [0, -14, 0], x: [0, 6, 0] }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+          animate={sphere1Animate}
+          transition={sphere1Transition}
           className="absolute top-16 left-[15%] w-4 h-4 rounded-full bg-gradient-to-r from-cyan-400 to-teal-300 shadow-lg shadow-cyan-500/30 pointer-events-none"
         />
         <motion.div
-          animate={{ y: [0, 14, 0], x: [0, -6, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          animate={sphere2Animate}
+          transition={sphere2Transition}
           className="absolute top-32 right-[20%] w-3.5 h-3.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-300 shadow-lg shadow-amber-500/30 pointer-events-none"
         />
         <motion.div
-          animate={{ y: [0, -12, 0] }}
-          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+          animate={sphere3Animate}
+          transition={sphere3Transition}
           className="absolute bottom-40 left-[25%] w-3 h-3 rounded-full bg-gradient-to-r from-teal-400 to-emerald-300 shadow-lg shadow-teal-500/30 pointer-events-none"
         />
 

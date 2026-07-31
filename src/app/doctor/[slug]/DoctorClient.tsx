@@ -270,7 +270,7 @@ export default function DoctorClient({
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedRule = localStorage.getItem('doctor_profit_share_rule') || 'present_days_only'
+      const savedRule = localStorage.getItem('dental_doctor_payout_rule') || 'present_days_only'
       setDoctorRule(savedRule as any)
     }
   }, [])
@@ -704,8 +704,11 @@ export default function DoctorClient({
     const invoice = appt.invoices?.[0]
     if (!invoice) return null
 
-    const treatmentDiscountMultiplier = 1 - (invoice.treatment_discount_percentage || 0) / 100
-    const medicineDiscountMultiplier = 1 - (invoice.medicine_discount_percentage || 0) / 100
+    const treatmentDiscount = invoice.treatment_discount_percentage ?? invoice.discount_percentage ?? 0
+    const medicineDiscount = invoice.medicine_discount_percentage ?? invoice.discount_percentage ?? 0
+
+    const treatmentDiscountMultiplier = 1 - treatmentDiscount / 100
+    const medicineDiscountMultiplier = 1 - medicineDiscount / 100
 
     let treatmentRevenue = 0
     let treatmentCost = 0
@@ -755,26 +758,44 @@ export default function DoctorClient({
     
     // Doctor Absences
     const absences = doctorAttendance.filter(a => {
-      if (a.status !== 'absent') return false
+      if (a.status !== 'absent' && a.status !== 'half_day') return false
       const absDate = new Date(a.date)
       const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
       return absMonthStr === selectedMonth
     })
-    const absencesCount = absences.length
+    const absencesCount = absences.reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
     const workedDays = Math.max(0, workingDays - absencesCount)
+
+    // Load salary reductions
+    let salaryReductions: any[] = []
+    if (typeof window !== 'undefined') {
+      const savedReductions = localStorage.getItem('dental_salary_reductions')
+      if (savedReductions) {
+        try {
+          salaryReductions = JSON.parse(savedReductions)
+        } catch (e) {}
+      }
+    }
+
+    const docReductions = salaryReductions
+      .filter(r => r.person_id === doctor.id && r.month_year === selectedMonth && r.person_type === 'doctor')
+      .reduce((acc, curr) => acc + curr.amount, 0)
 
     let finalPayout = 0
     let calculations: any = {}
 
     if (doctor.compensation_type === 'fixed') {
       const dailyRate = doctor.fixed_salary / workingDays
-      finalPayout = workedDays * dailyRate
+      const basePay = workedDays * dailyRate
+      finalPayout = Math.max(0, basePay - docReductions)
       calculations = {
         workingDays,
         absencesCount,
         workedDays,
         dailyRate: Math.round(dailyRate),
-        fixedSalary: doctor.fixed_salary
+        fixedSalary: doctor.fixed_salary,
+        reductions: docReductions,
+        basePayout: Math.round(basePay)
       }
     } else {
       // Percentage of branch net profit
@@ -807,16 +828,20 @@ export default function DoctorClient({
       const branchHelpersPay = helperBoys.reduce((sum, helper) => {
         const hWorkingDays = getWorkingDaysInMonth(year, month, helper.sunday_enabled)
         const hAbsences = helperAttendance.filter(a => {
-          if (a.helper_boy_id !== helper.id || a.status !== 'absent') return false
+          if (a.helper_boy_id !== helper.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
           const absDate = new Date(a.date)
           const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
           return absMonthStr === selectedMonth
         })
-        const shift1Abs = hAbsences.filter(a => a.shift === 1).length
-        const shift2Abs = hAbsences.filter(a => a.shift === 2).length
+        const shift1Abs = hAbsences.filter(a => a.shift === 1).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
+        const shift2Abs = hAbsences.filter(a => a.shift === 2).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
         const shift1Worked = helper.shift_1_enabled ? Math.max(0, hWorkingDays - shift1Abs) : 0
         const shift2Worked = helper.shift_2_enabled ? Math.max(0, hWorkingDays - shift2Abs) : 0
-        return sum + (shift1Worked * helper.shift_1_rate) + (shift2Worked * helper.shift_2_rate)
+        const basePay = (shift1Worked * helper.shift_1_rate) + (shift2Worked * helper.shift_2_rate)
+        const reduction = salaryReductions
+          .filter(r => r.person_id === helper.id && r.month_year === selectedMonth && r.person_type === 'helper')
+          .reduce((acc, curr) => acc + curr.amount, 0)
+        return sum + Math.max(0, basePay - reduction)
       }, 0)
 
       // Electricity
@@ -848,11 +873,15 @@ export default function DoctorClient({
         totalRevenue,
         totalTreatmentCost: totalTreatmentCost + totalMedicineCost,
         treatmentProfit,
+        totalTreatmentProfit,
+        totalMedicineProfit,
         branchHelpersPay,
         electricity,
         extras,
         branchProfit,
-        profitPercentage: doctor.profit_percentage
+        profitPercentage: doctor.profit_percentage,
+        reductions: docReductions,
+        basePayout: Math.round(finalPayout)
       }
     }
 
@@ -895,10 +924,10 @@ export default function DoctorClient({
       <div className="flex-1 p-6 sm:p-10 max-w-7xl w-full mx-auto space-y-8 z-10 relative">
         
         {/* Floating Navigation Tabs */}
-        <div className="flex gap-2 p-1.5 bg-white/40 backdrop-blur-md rounded-2xl border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.03)] w-max mx-auto md:mx-0">
+        <div className="flex flex-wrap sm:flex-nowrap justify-center gap-1 sm:gap-2 p-1.5 bg-white/40 backdrop-blur-md rounded-2xl border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.03)] w-full sm:w-max mx-auto md:mx-0">
           <button
             onClick={() => setActiveTab('appointments')}
-            className={`px-6 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
+            className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
               activeTab === 'appointments' ? 'bg-white text-teal-700 shadow-[0_4px_12px_rgba(0,0,0,0.05)]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}
           >
@@ -906,19 +935,19 @@ export default function DoctorClient({
           </button>
           <button
             onClick={() => setActiveTab('book')}
-            className={`px-6 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
+            className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
               activeTab === 'book' ? 'bg-white text-teal-700 shadow-[0_4px_12px_rgba(0,0,0,0.05)]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}
           >
-            Book Offline Patient
+            Book Offline
           </button>
           <button
             onClick={() => setActiveTab('finances')}
-            className={`px-6 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
+            className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
               activeTab === 'finances' ? 'bg-white text-teal-700 shadow-[0_4px_12px_rgba(0,0,0,0.05)]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}
           >
-            Earnings & Attendance
+            Earnings
           </button>
         </div>
 
@@ -1214,17 +1243,42 @@ export default function DoctorClient({
                       <div className="flex justify-between items-center"><span className="font-medium">Base Salary:</span><span className="font-mono text-slate-800">INR {finances.calculations.fixedSalary?.toLocaleString()}</span></div>
                       <div className="flex justify-between items-center"><span className="font-medium">Working Days:</span><span className="font-mono text-slate-800">{finances.calculations.workingDays}</span></div>
                       <div className="flex justify-between items-center"><span className="font-medium">Absences:</span><span className="font-mono text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md">-{finances.calculations.absencesCount}</span></div>
+                      {finances.calculations.reductions > 0 && (
+                        <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-100"><span className="font-medium">Fines / Deductions:</span><span className="font-mono text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md">-INR {finances.calculations.reductions.toLocaleString()}</span></div>
+                      )}
                     </>
                   ) : (
                     <>
-                      <p className="font-bold uppercase tracking-wider text-[10px] mb-4 text-teal-700">Compensation: {finances.calculations.profitPercentage}% PROFIT SHARE</p>
+                      <p className="font-bold uppercase tracking-wider text-[10px] mb-4 text-teal-700">Compensation: {finances.calculations.profitPercentage}% PROFIT SHARE ({doctor.profit_sharing_target ? doctor.profit_sharing_target.toUpperCase() : 'BOTH'})</p>
                       <div className="flex justify-between items-center"><span className="font-medium">Gross Revenue:</span><span className="font-mono text-slate-800">INR {finances.calculations.totalRevenue?.toLocaleString()}</span></div>
-                      <div className="flex justify-between items-center"><span className="font-medium">Materials Cost:</span><span className="font-mono text-slate-500">-{finances.calculations.totalTreatmentCost?.toLocaleString()}</span></div>
+                      
+                      {doctor.profit_sharing_target === 'both' && (
+                        <>
+                          <div className="flex justify-between items-center pl-3 text-xs border-l-2 border-cyan-500/30"><span className="text-slate-500">Treatment Profit:</span><span className="font-mono text-slate-700">INR {finances.calculations.totalTreatmentProfit?.toLocaleString()}</span></div>
+                          <div className="flex justify-between items-center pl-3 text-xs border-l-2 border-amber-500/30"><span className="text-slate-500">Medicine Profit:</span><span className="font-mono text-slate-700">INR {finances.calculations.totalMedicineProfit?.toLocaleString()}</span></div>
+                        </>
+                      )}
+                      {doctor.profit_sharing_target === 'treatment' && (
+                        <div className="flex justify-between items-center pl-3 text-xs border-l-2 border-cyan-500/30"><span className="text-slate-500">Treatment Profit:</span><span className="font-mono text-slate-700">INR {finances.calculations.totalTreatmentProfit?.toLocaleString()}</span></div>
+                      )}
+                      {doctor.profit_sharing_target === 'medicine' && (
+                        <div className="flex justify-between items-center pl-3 text-xs border-l-2 border-amber-500/30"><span className="text-slate-500">Medicine Profit:</span><span className="font-mono text-slate-700">INR {finances.calculations.totalMedicineProfit?.toLocaleString()}</span></div>
+                      )}
+
                       <div className="flex justify-between items-center"><span className="font-medium">Helper Payouts:</span><span className="font-mono text-slate-500">-{finances.calculations.branchHelpersPay?.toLocaleString()}</span></div>
                       <div className="flex justify-between items-center"><span className="font-medium">Electricity:</span><span className="font-mono text-slate-500">-{finances.calculations.electricity?.toLocaleString()}</span></div>
                       <div className="flex justify-between items-center"><span className="font-medium">Extra Expenses:</span><span className="font-mono text-slate-500">-{finances.calculations.extras?.toLocaleString()}</span></div>
-                      <div className="flex justify-between items-center pt-3 mt-3 border-t border-slate-100 font-semibold text-slate-700">
-                        <span>Net Profit:</span><span className="font-mono text-teal-600">INR {finances.calculations.branchProfit?.toLocaleString()}</span>
+                      
+                      <div className="flex justify-between items-center pt-2 border-t border-slate-100"><span className="font-medium">Branch Base Profit:</span><span className="font-mono text-slate-800">INR {finances.calculations.branchProfit?.toLocaleString()}</span></div>
+                      <div className="flex justify-between items-center"><span className="font-medium">Working Days:</span><span className="font-mono text-slate-800">{workingDays}</span></div>
+                      <div className="flex justify-between items-center"><span className="font-medium">Absences:</span><span className="font-mono text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md">-{finances.calculations.absencesCount}</span></div>
+                      
+                      {finances.calculations.reductions > 0 && (
+                        <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-100"><span className="font-medium">Fines / Deductions:</span><span className="font-mono text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md">-INR {finances.calculations.reductions.toLocaleString()}</span></div>
+                      )}
+
+                      <div className="flex justify-between items-center pt-3 mt-3 border-t border-slate-200 font-semibold text-slate-700">
+                        <span>Net Payout:</span><span className="font-mono text-teal-600">INR {finances.finalPayout?.toLocaleString()}</span>
                       </div>
                     </>
                   )}

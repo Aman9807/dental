@@ -367,6 +367,7 @@ CREATE TABLE IF NOT EXISTS public.treatments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT UNIQUE NOT NULL,
     price NUMERIC NOT NULL DEFAULT 0,
+    cost NUMERIC NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -376,6 +377,8 @@ CREATE TABLE IF NOT EXISTS public.invoices (
     patient_id UUID REFERENCES public.patients(id) ON DELETE SET NULL,
     subtotal NUMERIC NOT NULL DEFAULT 0,
     discount_percentage NUMERIC NOT NULL DEFAULT 0,
+    treatment_discount_percentage NUMERIC NOT NULL DEFAULT 0,
+    medicine_discount_percentage NUMERIC NOT NULL DEFAULT 0,
     total NUMERIC NOT NULL DEFAULT 0,
     pdf_url TEXT,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL

@@ -6,6 +6,7 @@ import { queryTiDB } from '@/lib/tidb'
 import { randomUUID } from 'crypto'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join, basename } from 'path'
+import { signToken } from '@/lib/auth'
 
 // Admin Cookie Login
 export async function loginAdmin(password: string) {
@@ -13,7 +14,8 @@ export async function loginAdmin(password: string) {
   
   if (password === adminPassword) {
     const cookieStore = await cookies()
-    cookieStore.set('dental_admin_token', 'true', {
+    const tokenValue = await signToken('admin')
+    cookieStore.set('dental_admin_token', tokenValue, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 24, // 1 day expiration
@@ -648,7 +650,8 @@ export async function loginDoctor(slug: string, password: string) {
 
     if (doctor.password === password) {
       const cookieStore = await cookies()
-      cookieStore.set('dental_doctor_token', doctor.slug, {
+      const signedToken = await signToken(doctor.slug)
+      cookieStore.set('dental_doctor_token', signedToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 24, // 1 day expiration
@@ -1123,18 +1126,44 @@ export async function updateTreatmentPrice(id: string, price: number, cost: numb
 }
 
 // Action: Scan / Receive stock for medicine in TiDB Cloud
-export async function saveMedicineStock(barcode: string, quantityPatches: number, details: {
-  name: string
-  genericName?: string
-  batchNumber: string
-  expiryDate: string // YYYY-MM-DD
-  patchPrice: number // Price of 1 patch
-  costPrice?: number // Cost price of 1 patch
-  mrp?: number // Maximum retail price of 1 patch
-  tabletsPerPatch: number // Tablets in 1 patch
-  branchSlug?: string // Branch slug ('hazara' or 'family')
-}) {
+export async function saveMedicineStock(
+  barcode: string,
+  quantityPatches: number,
+  details: {
+    name: string
+    genericName?: string
+    batchNumber: string
+    expiryDate: string // YYYY-MM-DD
+    patchPrice: number // Price of 1 patch
+    costPrice?: number // Cost price of 1 patch
+    mrp?: number // Maximum retail price of 1 patch
+    tabletsPerPatch: number // Tablets in 1 patch
+    branchSlug?: string // Branch slug ('hazara' or 'family')
+  },
+  passcode?: string
+) {
   try {
+    // Verify Admin Session or Camera Passcode
+    const cookieStore = await cookies()
+    const adminToken = cookieStore.get('dental_admin_token')?.value
+    const verifiedAdmin = await verifyToken(adminToken)
+    const isAdmin = verifiedAdmin === 'admin'
+
+    if (!isAdmin) {
+      if (!details.branchSlug || !passcode) {
+        return { success: false, error: 'Unauthorized: Missing session credentials' }
+      }
+      const adminDb = getAdminSupabase()
+      const { data: branch } = await adminDb
+        .from('branches')
+        .select('camera_passcode')
+        .eq('slug', details.branchSlug)
+        .single()
+      if (!branch || branch.camera_passcode !== passcode) {
+        return { success: false, error: 'Unauthorized: Invalid passcode credentials' }
+      }
+    }
+
     // 0. Ensure tables are in sync
     try {
       await queryTiDB('ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10')
@@ -1534,8 +1563,29 @@ export async function triggerDeliverAndCleanup(appointmentId: string, invoiceId:
 }
 
 // Action: Fetch medicine record from TiDB Cloud by barcode
-export async function getMedicineByBarcode(barcode: string) {
+export async function getMedicineByBarcode(barcode: string, branchSlug?: string, passcode?: string) {
   try {
+    // Verify Admin Session or Camera Passcode
+    const cookieStore = await cookies()
+    const adminToken = cookieStore.get('dental_admin_token')?.value
+    const verifiedAdmin = await verifyToken(adminToken)
+    const isAdmin = verifiedAdmin === 'admin'
+
+    if (!isAdmin) {
+      if (!branchSlug || !passcode) {
+        return { success: false, error: 'Unauthorized: Missing session credentials' }
+      }
+      const adminDb = getAdminSupabase()
+      const { data: branch } = await adminDb
+        .from('branches')
+        .select('camera_passcode')
+        .eq('slug', branchSlug)
+        .single()
+      if (!branch || branch.camera_passcode !== passcode) {
+        return { success: false, error: 'Unauthorized: Invalid passcode credentials' }
+      }
+    }
+
     const sql = 'SELECT * FROM medicines WHERE barcode = ?'
     const rows = await queryTiDB(sql, [barcode.trim()])
     if (rows && rows.length > 0) {

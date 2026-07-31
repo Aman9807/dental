@@ -372,7 +372,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
   // ─── DB NOT CONFIGURED ───
   if (!dbConfigured) {
     return (
-      <div className="max-w-xl mx-auto my-12 p-8 border border-slate-200/60 rounded-3xl shadow-lg bg-white/80 backdrop-blur-sm text-center animate-scale-in">
+      <div className="max-w-xl mx-auto my-4 sm:my-12 p-5 sm:p-8 border border-slate-200/60 rounded-3xl shadow-lg bg-white/80 backdrop-blur-sm text-center animate-scale-in">
         <AlertCircle className={`w-12 h-12 ${theme.accentText} mx-auto mb-4`} />
         <h3 className="text-xl font-serif text-slate-800 mb-2">Clinic Service Pending Configuration</h3>
         <p className="text-sm text-slate-600 mb-6 leading-relaxed">
@@ -395,7 +395,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
     <div className="max-w-2xl mx-auto bg-white/90 backdrop-blur-sm rounded-3xl border border-slate-200/60 shadow-xl overflow-hidden">
       
       {/* Header */}
-      <div className={`p-8 ${theme.heroBg} border-b border-slate-100/60`}>
+      <div className={`p-5 sm:p-8 ${theme.heroBg} border-b border-slate-100/60`}>
         <div className="flex items-center justify-between mb-2">
           <span className={`text-xs font-semibold uppercase tracking-wider ${theme.accentText}`}>
             {branch?.name}
@@ -410,7 +410,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
         <p className="text-sm text-slate-500 mt-1 font-light">
           Fill out the secure intake form. No payment or credit card required.
         </p>
-
+ 
         {/* Progress Bar */}
         <div className="flex items-center gap-2 mt-6">
           {[1, 2, 3].map(s => (
@@ -431,8 +431,8 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
           ))}
         </div>
       </div>
-
-      <form onSubmit={handleSubmit} className="p-8">
+ 
+      <form onSubmit={handleSubmit} className="p-5 sm:p-8">
         {error && (
           <div className="mb-6 p-4 bg-rose-50/80 border border-rose-100 text-rose-800 text-sm rounded-2xl flex items-start gap-3 animate-fade-in-up">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />

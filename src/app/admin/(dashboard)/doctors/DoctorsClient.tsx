@@ -292,223 +292,237 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
       )}
 
       {/* 4. MODAL overlay for ADD/EDIT doctor */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-slate-500" />
-                {editingDoctor ? 'Edit Doctor Profile' : 'Add New Doctor'}
-              </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Form Body */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-white border border-slate-200 dark:bg-[var(--card)] dark:border-teal-900/35 rounded-3xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col"
+            >
               
-              {error && (
-                <div className="p-3.5 bg-rose-50 border border-rose-100 text-rose-800 text-xs rounded-xl flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Doctor picture upload wrapper */}
-              <div className="flex flex-col items-center justify-center gap-3">
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-20 rounded-full border-2 border-dashed border-slate-200 hover:border-slate-400 cursor-pointer flex items-center justify-center overflow-hidden bg-slate-50 relative group transition-colors"
+              {/* Modal Header */}
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 dark:bg-slate-950/20 dark:border-teal-900/25 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-teal-200 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-slate-500 dark:text-teal-400" />
+                  {editingDoctor ? 'Edit Doctor Profile' : 'Add New Doctor'}
+                </h3>
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-white/5 dark:hover:text-white rounded-lg transition cursor-pointer"
                 >
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <Upload className="w-6 h-6 text-slate-400 group-hover:scale-110 transition-transform" />
-                  )}
-                  <div className="absolute inset-0 bg-black/40 text-[9px] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    Upload
-                  </div>
-                </div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                <span className="text-[10px] text-slate-400 font-light">Doctor Profile Image (PNG/JPG)</span>
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* Standard inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Doctor Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+              {/* Modal Form Body */}
+              <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[80vh]">
+                
+                {error && (
+                  <div className="p-3.5 bg-rose-50 border border-rose-100 text-rose-800 text-xs rounded-xl flex items-start gap-2.5 dark:bg-rose-950/20 dark:border-rose-900/40 dark:text-rose-400">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                {/* Doctor picture upload wrapper */}
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-20 h-20 rounded-full border-2 border-dashed border-slate-200 dark:border-teal-900/40 hover:border-slate-450 cursor-pointer flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-[#121c19] relative group transition-colors"
+                  >
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <Upload className="w-6 h-6 text-slate-400 dark:text-slate-500 group-hover:scale-110 transition-transform" />
+                    )}
+                    <div className="absolute inset-0 bg-black/40 text-[9px] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      Upload
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-light">Doctor Profile Image (PNG/JPG)</span>
+                </div>
+
+                {/* Standard inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Doctor Name</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 w-4 h-4 text-slate-400 dark:text-slate-500" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Jane Smith"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400 dark:text-slate-500" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="dr.jane@clinic.com"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Specialty</label>
                     <input
                       type="text"
-                      required
-                      placeholder="Jane Smith"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                      placeholder="Pediatric Orthodontist"
+                      value={specialty}
+                      onChange={e => setSpecialty(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
                     />
                   </div>
-                </div>
 
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="dr.jane@clinic.com"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Specialty</label>
-                  <input
-                    type="text"
-                    placeholder="Pediatric Orthodontist"
-                    value={specialty}
-                    onChange={e => setSpecialty(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Branch Assignment</label>
-                  <select
-                    value={branchId}
-                    onChange={e => setBranchId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  >
-                    {branches.map(b => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Compensation details */}
-              <div className="border-t border-slate-100 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Compensation Type</label>
-                  <select
-                    value={compensationType}
-                    onChange={e => setCompensationType(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  >
-                    <option value="fixed">Fixed Salary</option>
-                    <option value="percentage">Profit Percentage Share</option>
-                  </select>
-                </div>
-
-                {compensationType === 'fixed' ? (
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-slate-500">Monthly Fixed Salary (INR)</label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      value={fixedSalary}
-                      onChange={e => setFixedSalary(e.target.value)}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                    />
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Branch Assignment</label>
+                    <select
+                      value={branchId}
+                      onChange={e => setBranchId(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-850 dark:text-slate-200 font-semibold"
+                    >
+                      {branches.map(b => (
+                        <option key={b.id} value={b.id} className="dark:bg-[#121c19] dark:text-slate-200">
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                ) : (
-                  <>
+                </div>
+
+                {/* Compensation details */}
+                <div className="border-t border-slate-100 dark:border-teal-900/20 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Compensation Type</label>
+                    <select
+                      value={compensationType}
+                      onChange={e => setCompensationType(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-850 dark:text-slate-200 font-semibold"
+                    >
+                      <option value="fixed" className="dark:bg-[#121c19] dark:text-slate-200">Fixed Salary</option>
+                      <option value="percentage" className="dark:bg-[#121c19] dark:text-slate-200">Profit Percentage Share</option>
+                    </select>
+                  </div>
+
+                  {compensationType === 'fixed' ? (
                     <div className="space-y-1">
-                      <label className="block text-xs font-medium text-slate-500">Branch Profit Share (%)</label>
+                      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Monthly Fixed Salary (INR)</label>
                       <input
                         type="number"
                         required
                         min="0"
-                        max="100"
-                        step="0.1"
-                        value={profitPercentage}
-                        onChange={e => setProfitPercentage(e.target.value)}
-                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+                        value={fixedSalary}
+                        onChange={e => setFixedSalary(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-mono font-bold"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-slate-500">Profit Sharing Target</label>
-                      <select
-                        value={profitSharingTarget}
-                        onChange={e => setProfitSharingTarget(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                      >
-                        <option value="both">Both Treatment & Medicine Profit</option>
-                        <option value="treatment">Treatment Profit Only</option>
-                        <option value="medicine">Medicine Profit Only</option>
-                      </select>
-                    </div>
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Branch Profit Share (%)</label>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={profitPercentage}
+                          onChange={e => setProfitPercentage(e.target.value)}
+                          className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-mono font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Profit Sharing Target</label>
+                        <select
+                          value={profitSharingTarget}
+                          onChange={e => setProfitSharingTarget(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-850 dark:text-slate-200 font-semibold"
+                        >
+                          <option value="both" className="dark:bg-[#121c19] dark:text-slate-200">Both Treatment & Medicine Profit</option>
+                          <option value="treatment" className="dark:bg-[#121c19] dark:text-slate-200">Treatment Profit Only</option>
+                          <option value="medicine" className="dark:bg-[#121c19] dark:text-slate-200">Medicine Profit Only</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
 
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">Portal Password</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="doctor123"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Portal Password</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="doctor123"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">URL Slug (e.g. /doctor/name)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. aman"
+                      value={slug}
+                      onChange={e => setSlug(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-500">URL Slug (e.g. /doctor/name)</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. aman"
-                    value={slug}
-                    onChange={e => setSlug(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
-                  />
+                {/* Form buttons */}
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-teal-900/20">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-450 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-700 hover:bg-slate-800 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {editingDoctor ? 'Save Changes' : 'Register Doctor'}
+                  </button>
                 </div>
-              </div>
 
-              {/* Form buttons */}
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition animate-in fade-in"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition flex items-center gap-1.5"
-                >
-                  {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  {editingDoctor ? 'Save Changes' : 'Register Doctor'}
-                </button>
-              </div>
+              </form>
 
-            </form>
-
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </motion.div>
   )

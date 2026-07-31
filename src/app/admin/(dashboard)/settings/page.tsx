@@ -816,7 +816,9 @@ export default function AdminSettingsPage() {
 
               <div className="space-y-3 text-xs">
                 <label className={`flex items-start gap-3 p-3.5 rounded-2xl border transition cursor-pointer ${
-                  doctorRule === 'present_days_only' ? 'bg-teal-50/70 border-teal-300 text-teal-900 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  doctorRule === 'present_days_only' 
+                    ? 'bg-teal-50/70 border-teal-300 text-teal-900 shadow-sm dark:bg-emerald-950/30 dark:border-emerald-800/50 dark:text-emerald-400' 
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 dark:bg-[#121c19]/30 dark:border-teal-900/20 dark:text-slate-450 dark:hover:bg-[#121c19]/50'
                 }`}>
                   <input 
                     type="radio" 
@@ -824,18 +826,20 @@ export default function AdminSettingsPage() {
                     value="present_days_only"
                     checked={doctorRule === 'present_days_only'}
                     onChange={() => handleSaveDoctorRule('present_days_only')}
-                    className="mt-0.5 text-teal-600"
+                    className="mt-0.5 text-teal-600 dark:text-emerald-500 dark:bg-[#121c19]"
                   />
                   <div>
-                    <strong className="font-bold block">Option 1: Present Days Only (Recommended)</strong>
-                    <span className="text-[11px] text-slate-500 font-medium leading-snug block mt-0.5">
+                    <strong className="font-bold block dark:text-teal-200">Option 1: Present Days Only (Recommended)</strong>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-snug block mt-0.5">
                       Percentage doctor earns profit share only for dates they were logged present.
                     </span>
                   </div>
                 </label>
 
                 <label className={`flex items-start gap-3 p-3.5 rounded-2xl border transition cursor-pointer ${
-                  doctorRule === 'full_month' ? 'bg-teal-50/70 border-teal-300 text-teal-900 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  doctorRule === 'full_month' 
+                    ? 'bg-teal-50/70 border-teal-300 text-teal-900 shadow-sm dark:bg-emerald-950/30 dark:border-emerald-800/50 dark:text-emerald-400' 
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 dark:bg-[#121c19]/30 dark:border-teal-900/20 dark:text-slate-450 dark:hover:bg-[#121c19]/50'
                 }`}>
                   <input 
                     type="radio" 
@@ -843,11 +847,11 @@ export default function AdminSettingsPage() {
                     value="full_month"
                     checked={doctorRule === 'full_month'}
                     onChange={() => handleSaveDoctorRule('full_month')}
-                    className="mt-0.5 text-teal-600"
+                    className="mt-0.5 text-teal-600 dark:text-emerald-500 dark:bg-[#121c19]"
                   />
                   <div>
-                    <strong className="font-bold block">Option 2: Full Month Branch Net Profit</strong>
-                    <span className="text-[11px] text-slate-500 font-medium leading-snug block mt-0.5">
+                    <strong className="font-bold block dark:text-teal-200">Option 2: Full Month Branch Net Profit</strong>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-snug block mt-0.5">
                       Percentage doctor earns profit share on total monthly branch net profits.
                     </span>
                   </div>

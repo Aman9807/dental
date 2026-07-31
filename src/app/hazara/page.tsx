@@ -1,8 +1,14 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Calendar, Clock, MapPin, Phone, ArrowLeft, ArrowRight, ShieldCheck, Star, Sparkles, Zap } from 'lucide-react'
 import { getAdminSupabase } from '@/lib/supabase'
 import AnimateOnScroll from '@/components/AnimateOnScroll'
 import DentalLogo from '@/components/DentalLogo'
+
+export const metadata: Metadata = {
+  title: 'Hazara Branch',
+  description: 'Book free dental appointments at Hazara Dental Clinic.',
+}
 
 export default async function HazaraHome() {
   const supabaseServer = getAdminSupabase()

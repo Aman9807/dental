@@ -110,7 +110,7 @@ export default function MobileCapturePage() {
   // Helper to dynamically query database for barcode information
   const fetchMedicineDetails = async (gtinCode: string) => {
     try {
-      const res = await getMedicineByBarcode(gtinCode)
+      const res = await getMedicineByBarcode(gtinCode, selectedBranchSlug, passcode)
       if (res.success && res.data) {
         setMedName(res.data.name)
         setMedGeneric(res.data.generic_name || '')
@@ -178,8 +178,9 @@ export default function MobileCapturePage() {
         expiryDate: parsedExpiry,
         patchPrice: parseFloat(medPrice),
         costPrice: parseFloat(costPrice),
-        tabletsPerPatch: parseInt(tabletsPerPatch)
-      })
+        tabletsPerPatch: parseInt(tabletsPerPatch),
+        branchSlug: selectedBranchSlug
+      }, passcode)
 
       if (res.success) {
         setStockSuccess(true)
