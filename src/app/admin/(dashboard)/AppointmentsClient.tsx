@@ -30,6 +30,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
   
   // Form fields
   const [emailVal, setEmailVal] = useState('')
+  const [mobileVal, setMobileVal] = useState('')
   const [prescriptionText, setPrescriptionText] = useState('')
   const [xrayFile, setXrayFile] = useState<File | null>(null)
   const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null)
@@ -168,6 +169,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
   const handleOpenReportsModal = async (appt: any, passedInvoiceId?: string) => {
     setActiveAppt(appt)
     setEmailVal(appt.patients?.email || '')
+    setMobileVal(appt.patients?.mobile || '')
     setPrescriptionText(appt.prescription_text || '')
     setXrayFile(null)
     setPrescriptionFile(null)
@@ -732,8 +734,8 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                   <textarea
                     required
                     placeholder="Enter patient diagnosis, medication details, and dosage instructions..."
-                    value={prescVal}
-                    onChange={e => setPrescVal(e.target.value)}
+                    value={prescriptionText}
+                    onChange={e => setPrescriptionText(e.target.value)}
                     rows={4}
                     className="w-full px-4.5 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200"
                   />

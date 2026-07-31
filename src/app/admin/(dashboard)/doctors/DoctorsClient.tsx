@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { addDoctor, updateDoctor, deleteDoctor } from '@/app/admin/actions'
 import { 
   Plus, Edit, Trash2, X, Upload, Mail, User, ShieldCheck, 

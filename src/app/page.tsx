@@ -53,22 +53,22 @@ export default function Home() {
   const shouldReduceMotion = useReducedMotion()
 
   const blob1Animate = shouldReduceMotion ? {} : { scale: [1, 1.08, 1], rotate: [0, 5, 0] }
-  const blob1Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: 'easeInOut' }
+  const blob1Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: 'easeInOut' as const }
 
   const blob2Animate = shouldReduceMotion ? {} : { scale: [1, 1.12, 1], rotate: [0, -6, 0] }
-  const blob2Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }
+  const blob2Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.5, repeat: Infinity, ease: 'easeInOut' as const, delay: 0.5 }
 
   const blob3Animate = shouldReduceMotion ? {} : { scale: [1, 1.06, 1] }
-  const blob3Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 1 }
+  const blob3Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.2, repeat: Infinity, ease: 'easeInOut' as const, delay: 1 }
 
   const sphere1Animate = shouldReduceMotion ? {} : { y: [0, -14, 0], x: [0, 6, 0] }
-  const sphere1Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: 'easeInOut' }
+  const sphere1Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: 'easeInOut' as const }
 
   const sphere2Animate = shouldReduceMotion ? {} : { y: [0, 14, 0], x: [0, -6, 0] }
-  const sphere2Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }
+  const sphere2Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.5, repeat: Infinity, ease: 'easeInOut' as const, delay: 0.5 }
 
   const sphere3Animate = shouldReduceMotion ? {} : { y: [0, -12, 0] }
-  const sphere3Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 1 }
+  const sphere3Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.2, repeat: Infinity, ease: 'easeInOut' as const, delay: 1 }
 
   return (
     <div className="flex-1 flex flex-col justify-between min-h-screen overflow-hidden selection:bg-cyan-500 selection:text-white">

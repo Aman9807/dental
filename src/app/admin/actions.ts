@@ -6,7 +6,7 @@ import { queryTiDB } from '@/lib/tidb'
 import { randomUUID } from 'crypto'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join, basename } from 'path'
-import { signToken } from '@/lib/auth'
+import { signToken, verifyToken } from '@/lib/auth'
 
 // Admin Cookie Login
 export async function loginAdmin(password: string) {

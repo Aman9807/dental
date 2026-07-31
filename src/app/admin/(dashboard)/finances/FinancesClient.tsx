@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   CircleDollarSign, TrendingUp, CheckCircle, AlertCircle, Calendar, Plus, Trash2, 
@@ -188,6 +189,7 @@ export default function FinancesClient({
   initialExtraExpenses,
   initialAppointments
 }: FinancesClientProps) {
+  const router = useRouter()
   
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<'analytics' | 'closing' | 'attendance' | 'helpers' | 'doctors' | 'extra'>('analytics')
@@ -1958,7 +1960,7 @@ export default function FinancesClient({
                     const docAppts = appointments.filter(appt => {
                       const apptDate = new Date(appt.appointment_date)
                       const apptMonthStr = `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}`
-                      return apptMonthStr === selectedMonth && appt.doctor_id === doc.id
+                      return apptMonthStr === selectedMonth && appt.doctors?.id === doc.id
                     })
                     let docTotalGross = 0
                     docAppts.forEach(appt => {
@@ -1978,7 +1980,7 @@ export default function FinancesClient({
                     })
 
                     const absentDaysGross = absentRecords.map(rec => {
-                      const apptsOnDay = appointments.filter(appt => appt.doctor_id === doc.id && appt.appointment_date === rec.date)
+                      const apptsOnDay = appointments.filter(appt => appt.doctors?.id === doc.id && appt.appointment_date === rec.date)
                       let dayGross = 0
                       apptsOnDay.forEach(appt => {
                         const finances = getAppointmentFinances(appt)
@@ -2071,7 +2073,7 @@ export default function FinancesClient({
                         <td className="px-4 py-3 text-right font-bold text-slate-850">INR {Math.round(netPayout).toLocaleString()}</td>
                         <td className="px-4 py-3 text-center">
                           <button
-                            onClick={() => setSelectedDocDetail(detailObj)}
+                            onClick={() => router.push(`/admin/finances/doctor/${doc.id}?month=${selectedMonth}`)}
                             className="px-2.5 py-1 text-[10px] font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg dark:bg-emerald-950/20 dark:text-emerald-450 dark:border-emerald-900/40 dark:hover:bg-emerald-950/40 transition cursor-pointer"
                           >
                             Details
@@ -2367,226 +2369,6 @@ export default function FinancesClient({
         )}
       </AnimatePresence>
 
-      {/* ═══ Doctor Salary Calculation Details Modal ═══ */}
-      <AnimatePresence>
-        {selectedDocDetail && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedDocDetail(null)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-            />
-            
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-2xl rounded-3xl p-6 max-w-lg w-full relative z-10 space-y-6 text-slate-800 dark:text-slate-100 overflow-y-auto max-h-[90vh]"
-            >
-              <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div>
-                  <h3 className="text-base font-serif font-bold text-slate-900 dark:text-teal-200">
-                    Dr. {selectedDocDetail.doctorName}
-                  </h3>
-                  <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider mt-0.5">
-                    Payroll Calculation breakdown ({selectedMonth})
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedDocDetail(null)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-semibold p-1"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-4 text-xs">
-                {/* 1. Compensation Type */}
-                <div className="p-3 bg-slate-50 dark:bg-emerald-950/10 border border-slate-100 dark:border-teal-950/30 rounded-2xl">
-                  <div className="flex justify-between">
-                    <span className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Compensation Type:</span>
-                    <span className="font-bold text-teal-600 dark:text-teal-400 uppercase">{selectedDocDetail.compensationType}</span>
-                  </div>
-                  {selectedDocDetail.compensationType === 'percentage' ? (
-                    <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      Earns <strong className="text-slate-800 dark:text-slate-200">{selectedDocDetail.profitPercentage}%</strong> of branch net profits derived from <strong className="text-slate-800 dark:text-slate-200">{selectedDocDetail.profitSharingTarget.toUpperCase()}</strong>.
-                    </div>
-                  ) : (
-                    <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      Earns a fixed base salary of <strong className="text-slate-800 dark:text-slate-200">INR {selectedDocDetail.fixedSalary.toLocaleString()}</strong> per month, prorated based on attendance.
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. Gross Revenue & Absentee calculations */}
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">1. Gross Revenue & Attendance:</h4>
-                  
-                  <div className="space-y-1.5 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Gross Billed (Appointments):</span>
-                      <span className="font-mono font-medium">INR {selectedDocDetail.docTotalGross.toLocaleString()}</span>
-                    </div>
-
-                    {doctorRule === 'present_days_only' && selectedDocDetail.absencesCount > 0 && (
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between group relative cursor-help">
-                          <span className="text-rose-600 dark:text-rose-450 flex items-center gap-1">
-                            Gross on Absent Days (Hover for details) ⓘ
-                          </span>
-                          <span className="font-mono text-rose-650 dark:text-rose-400">-INR {selectedDocDetail.totalAbsentGross.toLocaleString()}</span>
-                          
-                          {/* Absent days hover tooltip */}
-                          <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-slate-900 text-white text-[10px] p-2.5 rounded-xl shadow-xl z-50 w-64 border border-rose-900/30 space-y-1">
-                            <p className="font-bold text-rose-400 mb-1 border-b border-white/10 pb-0.5">Absent Days Gross Breakdown</p>
-                            {selectedDocDetail.absentDaysGross.map((d: any, idx: number) => (
-                              <div key={idx} className="flex justify-between font-mono">
-                                <span>{d.date} ({d.status.toUpperCase()}):</span>
-                                <span>INR {d.gross.toLocaleString()}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex justify-between border-t border-dashed border-slate-200 dark:border-slate-700 pt-1.5 font-semibold">
-                          <span>Gross for Salary Subtotal:</span>
-                          <span className="font-mono text-slate-950 dark:text-white">INR {selectedDocDetail.grossForSalary.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between pt-1">
-                      <span className="text-slate-500">Attendance Days:</span>
-                      <span className="font-mono font-medium text-slate-800 dark:text-slate-200">
-                        {selectedDocDetail.workedDays} worked / {selectedDocDetail.workingDays} total days ({selectedDocDetail.absencesCount} absences)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Branch Expenses (Only applicable to percentage share) */}
-                {selectedDocDetail.compensationType === 'percentage' && (
-                  <div className="space-y-2">
-                    <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">2. Operating Expenses Deductions:</h4>
-                    
-                    <div className="space-y-1.5 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
-                      <div className="flex justify-between group relative cursor-help">
-                        <span className="text-slate-500 flex items-center gap-1">
-                          Total Operating Expenses (Hover details) ⓘ
-                        </span>
-                        <span className="font-mono text-rose-500">-INR {selectedDocDetail.totalBranchExpenses.toLocaleString()}</span>
-
-                        {/* Expenses list tooltip */}
-                        <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-slate-900 text-white text-[10px] p-2.5 rounded-xl shadow-xl z-50 w-56 border border-white/10 space-y-1">
-                          <p className="font-bold text-teal-400 mb-1 border-b border-white/10 pb-0.5">Operating Expenses List</p>
-                          <div className="flex justify-between font-mono">
-                            <span>Electricity Bill:</span>
-                            <span>INR {selectedDocDetail.electricity.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between font-mono">
-                            <span>Helper Boy Salaries:</span>
-                            <span>INR {selectedDocDetail.branchHelpersPay.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between font-mono">
-                            <span>Extra Expenses:</span>
-                            <span>INR {selectedDocDetail.extras.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. Step-by-step Math calculation */}
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">3. Step-by-Step Salary Calculation:</h4>
-                  
-                  <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-2.5 font-mono text-[11px] leading-relaxed">
-                    {selectedDocDetail.compensationType === 'percentage' ? (
-                      <>
-                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                          <p className="text-slate-500">Step A: Get Branch Revenue ({selectedDocDetail.profitSharingTarget.toUpperCase()})</p>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            = INR {selectedDocDetail.profitSharingTarget === 'treatment' 
-                              ? selectedDocDetail.branchTProfit.toLocaleString() 
-                              : selectedDocDetail.profitSharingTarget === 'medicine' 
-                              ? selectedDocDetail.branchMProfit.toLocaleString() 
-                              : (selectedDocDetail.branchTProfit + selectedDocDetail.branchMProfit).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                          <p className="text-slate-500">Step B: Compute Net Branch Profit (Revenue - Expenses)</p>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            = INR {selectedDocDetail.profitSharingTarget === 'treatment' 
-                              ? selectedDocDetail.branchTProfit.toLocaleString() 
-                              : selectedDocDetail.profitSharingTarget === 'medicine' 
-                              ? selectedDocDetail.branchMProfit.toLocaleString() 
-                              : (selectedDocDetail.branchTProfit + selectedDocDetail.branchMProfit).toLocaleString()} 
-                            - INR {selectedDocDetail.totalBranchExpenses.toLocaleString()}
-                            <br />
-                            = INR {selectedDocDetail.branchProfit.toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                          <p className="text-slate-500">Step C: Apply Profit Split Percentage ({selectedDocDetail.profitPercentage}%)</p>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            = INR {selectedDocDetail.branchProfit.toLocaleString()} * {selectedDocDetail.profitPercentage}%
-                            <br />
-                            = INR {Math.round(selectedDocDetail.branchProfit * (selectedDocDetail.profitPercentage / 100)).toLocaleString()}
-                          </p>
-                        </div>
-                        {doctorRule === 'present_days_only' && (
-                          <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                            <p className="text-slate-500">Step D: Prorate Earning on Attendance Ratio ({selectedDocDetail.workedDays}/{selectedDocDetail.workingDays} days)</p>
-                            <p className="font-semibold text-slate-800 dark:text-slate-200">
-                              = INR {Math.round(selectedDocDetail.branchProfit * (selectedDocDetail.profitPercentage / 100)).toLocaleString()} * ({selectedDocDetail.workedDays} / {selectedDocDetail.workingDays})
-                              <br />
-                              = INR {Math.round(selectedDocDetail.baseEarnings).toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                          <p className="text-slate-500">Step A: Prorate Fixed Salary on Attendance ({selectedDocDetail.workedDays}/{selectedDocDetail.workingDays} days)</p>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            = INR {selectedDocDetail.fixedSalary.toLocaleString()} * ({selectedDocDetail.workedDays} / {selectedDocDetail.workingDays})
-                            <br />
-                            = INR {Math.round(selectedDocDetail.baseEarnings).toLocaleString()}
-                          </p>
-                        </div>
-                      </>
-                    )}
-                    <div>
-                      <p className="text-slate-500">Step E: Subtract Fines & Deductions</p>
-                      <p className="font-semibold text-slate-800 dark:text-slate-200">
-                        = INR {Math.round(selectedDocDetail.baseEarnings).toLocaleString()} 
-                        - INR {selectedDocDetail.reduction.toLocaleString()}
-                        <br />
-                        <span className="text-teal-600 dark:text-teal-400 font-bold">= INR {Math.round(selectedDocDetail.netPayout).toLocaleString()} Net Payout</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  onClick={() => setSelectedDocDetail(null)}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-white rounded-xl text-xs font-semibold shadow-md transition cursor-pointer"
-                >
-                  Close Details
-                </button>
-              </div>
-
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       </div>
     </motion.div>

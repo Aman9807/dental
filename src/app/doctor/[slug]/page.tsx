@@ -122,6 +122,7 @@ export default async function DoctorPortalPage({ params }: DoctorPageProps) {
       appointment_time,
       status,
       branch_id,
+      doctor_id,
       invoices (
         id,
         total,

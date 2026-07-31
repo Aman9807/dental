@@ -33,6 +33,7 @@ interface Doctor {
   compensation_type: 'fixed' | 'percentage'
   fixed_salary: number
   profit_percentage: number
+  profit_sharing_target?: string | null
   slug: string
   branches: { id: string; name: string; slug: string } | null
 }
@@ -84,6 +85,7 @@ interface BranchAppointment {
   id: string
   appointment_date: string
   branch_id: string
+  doctor_id?: string | null
   invoices?: {
     id: string
     total: number
@@ -1281,7 +1283,7 @@ export default function DoctorClient({
                   <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-dashed border-slate-100">
                     <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Detailed Breakdown</span>
                     <button
-                      onClick={() => setShowBreakdownDetail(true)}
+                      onClick={() => router.push(`/doctor/${doctor.slug}/earnings?month=${selectedMonth}`)}
                       className="px-2.5 py-1 text-[10px] font-bold text-cyan-600 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-lg dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/60 dark:hover:bg-cyan-950/40 transition cursor-pointer"
                     >
                       Details
@@ -1321,7 +1323,7 @@ export default function DoctorClient({
                       <div className="flex justify-between items-center"><span className="font-medium">Extra Expenses:</span><span className="font-mono text-slate-500">-{finances.calculations.extras?.toLocaleString()}</span></div>
                       
                       <div className="flex justify-between items-center pt-2 border-t border-slate-100"><span className="font-medium">Branch Base Profit:</span><span className="font-mono text-slate-800">INR {finances.calculations.branchProfit?.toLocaleString()}</span></div>
-                      <div className="flex justify-between items-center"><span className="font-medium">Working Days:</span><span className="font-mono text-slate-800">{workingDays}</span></div>
+                      <div className="flex justify-between items-center"><span className="font-medium">Working Days:</span><span className="font-mono text-slate-800">{finances.calculations.workingDays}</span></div>
                       <div className="flex justify-between items-center"><span className="font-medium">Absences:</span><span className="font-mono text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md">-{finances.calculations.absencesCount}</span></div>
                       
                       {finances.calculations.reductions > 0 && (
@@ -1827,227 +1829,6 @@ export default function DoctorClient({
               </form>
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ═══ Doctor Salary Calculation Details Modal ═══ */}
-      <AnimatePresence>
-        {showBreakdownDetail && finances.calculations && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowBreakdownDetail(false)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-            />
-            
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-2xl rounded-3xl p-6 max-w-lg w-full relative z-10 space-y-6 text-slate-800 dark:text-slate-100 overflow-y-auto max-h-[90vh]"
-            >
-              <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div>
-                  <h3 className="text-base font-serif font-bold text-slate-900 dark:text-teal-200">
-                    Dr. {doctorName}
-                  </h3>
-                  <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider mt-0.5">
-                    Payroll Calculation breakdown ({selectedMonth})
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowBreakdownDetail(false)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-semibold p-1"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-4 text-xs">
-                {/* 1. Compensation Type */}
-                <div className="p-3 bg-slate-50 dark:bg-emerald-950/10 border border-slate-100 dark:border-teal-950/30 rounded-2xl">
-                  <div className="flex justify-between">
-                    <span className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Compensation Type:</span>
-                    <span className="font-bold text-teal-600 dark:text-teal-400 uppercase">{doctor.compensation_type}</span>
-                  </div>
-                  {doctor.compensation_type === 'percentage' ? (
-                    <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      Earns <strong className="text-slate-800 dark:text-slate-200">{doctor.profit_percentage}%</strong> of branch net profits derived from <strong className="text-slate-800 dark:text-slate-200">{(doctor.profit_sharing_target || 'both').toUpperCase()}</strong>.
-                    </div>
-                  ) : (
-                    <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      Earns a fixed base salary of <strong className="text-slate-800 dark:text-slate-200">INR {doctor.fixed_salary.toLocaleString()}</strong> per month, prorated based on attendance.
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. Gross Revenue & Absentee calculations */}
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">1. Gross Revenue & Attendance:</h4>
-                  
-                  <div className="space-y-1.5 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Gross Billed (Appointments):</span>
-                      <span className="font-mono font-medium">INR {finances.calculations.docTotalGross.toLocaleString()}</span>
-                    </div>
-
-                    {doctorRule === 'present_days_only' && finances.calculations.absencesCount > 0 && (
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between group relative cursor-help">
-                          <span className="text-rose-600 dark:text-rose-455 flex items-center gap-1">
-                            Gross on Absent Days (Hover for details) ⓘ
-                          </span>
-                          <span className="font-mono text-rose-650 dark:text-rose-400">-INR {finances.calculations.totalAbsentGross.toLocaleString()}</span>
-                          
-                          {/* Absent days hover tooltip */}
-                          <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-slate-900 text-white text-[10px] p-2.5 rounded-xl shadow-xl z-50 w-64 border border-rose-900/30 space-y-1">
-                            <p className="font-bold text-rose-400 mb-1 border-b border-white/10 pb-0.5">Absent Days Gross Breakdown</p>
-                            {finances.calculations.absentDaysGross.map((d: any, idx: number) => (
-                              <div key={idx} className="flex justify-between font-mono">
-                                <span>{d.date} ({d.status.toUpperCase()}):</span>
-                                <span>INR {d.gross.toLocaleString()}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex justify-between border-t border-dashed border-slate-200 dark:border-slate-700 pt-1.5 font-semibold">
-                          <span>Gross for Salary Subtotal:</span>
-                          <span className="font-mono text-slate-950 dark:text-white">INR {finances.calculations.grossForSalary.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between pt-1">
-                      <span className="text-slate-500">Attendance Days:</span>
-                      <span className="font-mono font-medium text-slate-800 dark:text-slate-200">
-                        {workedDays} worked / {workingDays} total days ({finances.calculations.absencesCount} absences)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Branch Expenses (Only applicable to percentage share) */}
-                {doctor.compensation_type === 'percentage' && (
-                  <div className="space-y-2">
-                    <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">2. Operating Expenses Deductions:</h4>
-                    
-                    <div className="space-y-1.5 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
-                      <div className="flex justify-between group relative cursor-help">
-                        <span className="text-slate-500 flex items-center gap-1">
-                          Total Operating Expenses (Hover details) ⓘ
-                        </span>
-                        <span className="font-mono text-rose-500">-INR {(finances.calculations.branchHelpersPay + finances.calculations.electricity + finances.calculations.extras).toLocaleString()}</span>
-
-                        {/* Expenses list tooltip */}
-                        <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-slate-900 text-white text-[10px] p-2.5 rounded-xl shadow-xl z-50 w-56 border border-white/10 space-y-1">
-                          <p className="font-bold text-teal-400 mb-1 border-b border-white/10 pb-0.5">Operating Expenses List</p>
-                          <div className="flex justify-between font-mono">
-                            <span>Electricity Bill:</span>
-                            <span>INR {finances.calculations.electricity.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between font-mono">
-                            <span>Helper Boy Salaries:</span>
-                            <span>INR {finances.calculations.branchHelpersPay.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between font-mono">
-                            <span>Extra Expenses:</span>
-                            <span>INR {finances.calculations.extras.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. Step-by-step Math calculation */}
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">3. Step-by-Step Salary Calculation:</h4>
-                  
-                  <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-2.5 font-mono text-[11px] leading-relaxed">
-                    {doctor.compensation_type === 'percentage' ? (
-                      <>
-                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                          <p className="text-slate-500">Step A: Get Branch Revenue ({(doctor.profit_sharing_target || 'both').toUpperCase()})</p>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            = INR {doctor.profit_sharing_target === 'treatment' 
-                              ? finances.calculations.totalTreatmentProfit.toLocaleString() 
-                              : doctor.profit_sharing_target === 'medicine' 
-                              ? finances.calculations.totalMedicineProfit.toLocaleString() 
-                              : (finances.calculations.totalTreatmentProfit + finances.calculations.totalMedicineProfit).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                          <p className="text-slate-500">Step B: Compute Net Branch Profit (Revenue - Expenses)</p>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            = INR {doctor.profit_sharing_target === 'treatment' 
-                              ? finances.calculations.totalTreatmentProfit.toLocaleString() 
-                              : doctor.profit_sharing_target === 'medicine' 
-                              ? finances.calculations.totalMedicineProfit.toLocaleString() 
-                              : (finances.calculations.totalTreatmentProfit + finances.calculations.totalMedicineProfit).toLocaleString()} 
-                            - INR {(finances.calculations.branchHelpersPay + finances.calculations.electricity + finances.calculations.extras).toLocaleString()}
-                            <br />
-                            = INR {finances.calculations.branchProfit.toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                          <p className="text-slate-500">Step C: Apply Profit Split Percentage ({doctor.profit_percentage}%)</p>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            = INR {finances.calculations.branchProfit.toLocaleString()} * {doctor.profit_percentage}%
-                            <br />
-                            = INR {Math.round(finances.calculations.branchProfit * (doctor.profit_percentage / 100)).toLocaleString()}
-                          </p>
-                        </div>
-                        {doctorRule === 'present_days_only' && (
-                          <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                            <p className="text-slate-500">Step D: Prorate Earning on Attendance Ratio ({workedDays}/{workingDays} days)</p>
-                            <p className="font-semibold text-slate-800 dark:text-slate-200">
-                              = INR {Math.round(finances.calculations.branchProfit * (doctor.profit_percentage / 100)).toLocaleString()} * ({workedDays} / {workingDays})
-                              <br />
-                              = INR {Math.round(finances.calculations.basePayout).toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                          <p className="text-slate-500">Step A: Prorate Fixed Salary on Attendance ({workedDays}/{workingDays} days)</p>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            = INR {doctor.fixed_salary.toLocaleString()} * ({workedDays} / {workingDays})
-                            <br />
-                            = INR {Math.round(finances.calculations.basePayout).toLocaleString()}
-                          </p>
-                        </div>
-                      </>
-                    )}
-                    <div>
-                      <p className="text-slate-500">Step E: Subtract Fines & Deductions</p>
-                      <p className="font-semibold text-slate-800 dark:text-slate-200">
-                        = INR {Math.round(finances.calculations.basePayout).toLocaleString()} 
-                        - INR {finances.calculations.reductions.toLocaleString()}
-                        <br />
-                        <span className="text-teal-600 dark:text-teal-400 font-bold">= INR {finances.finalPayout.toLocaleString()} Net Payout</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  onClick={() => setShowBreakdownDetail(false)}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-white rounded-xl text-xs font-semibold shadow-md transition cursor-pointer"
-                >
-                  Close Details
-                </button>
-              </div>
-
-            </motion.div>
-          </div>
         )}
       </AnimatePresence>
       
