@@ -267,106 +267,138 @@ export default function DoctorFinancePageClient({
 
   const netPayout = Math.max(0, proratedBaseEarnings - docReductions)
 
+  // Motion variants for stagger entry
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08
+      }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: 'spring' as const,
+        stiffness: 100,
+        damping: 15
+      }
+    }
+  }
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 p-1 animate-in fade-in duration-300">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="max-w-4xl mx-auto space-y-8 p-1 text-slate-800 dark:text-slate-100"
+    >
       
-      {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/60 pb-5">
-        <div className="space-y-1">
+      {/* HEADER SECTION (Claymorphic card) */}
+      <motion.div 
+        variants={itemVariants} 
+        className="clay bg-white dark:bg-[#121c19] border border-teal-950/10 dark:border-teal-900/30 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-scale-in"
+      >
+        <div className="space-y-1.5">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition cursor-pointer mb-2 font-medium"
+            className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-teal-400/80 hover:text-slate-800 dark:hover:text-teal-350 transition cursor-pointer mb-2 font-semibold"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Finances
           </button>
-          <h1 className="text-2xl font-serif text-slate-900 font-bold">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-teal-100 font-serif">
             Salary Computation breakdown
           </h1>
-          <p className="text-xs text-slate-400 font-light uppercase tracking-wider">
+          <p className="text-[10px] text-slate-400 dark:text-teal-400 font-bold uppercase tracking-wider">
             Dr. {doctor.name} • Branch: {doctor.branches?.name || 'Clinic'}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 font-medium">Payroll Month:</span>
+          <span className="text-xs text-slate-500 dark:text-teal-400/70 font-semibold">Payroll Month:</span>
           <input
             type="month"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition"
+            className="px-4 py-2 bg-slate-50 dark:bg-[#0c1412] border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition font-mono"
           />
         </div>
-      </div>
+      </motion.div>
 
       {/* OVERVIEW KEYSTATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="clay p-5 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Payout</span>
-          <div className="mt-2 text-2xl font-bold text-teal-600 dark:text-teal-400 font-mono">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="clay clay-teal bg-gradient-to-br from-teal-500/10 to-teal-500/5 dark:from-teal-950/30 dark:to-teal-900/10 p-5 flex flex-col justify-between border border-teal-500/20 dark:border-teal-900/40 relative overflow-visible">
+          <span className="text-[10px] text-slate-500 dark:text-teal-450 font-bold uppercase tracking-wider">Total Payout</span>
+          <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-teal-600 dark:text-teal-400 font-mono tracking-tight">
             INR {Math.round(netPayout).toLocaleString()}
           </div>
-          <span className="text-[10px] text-slate-400 mt-1">Calculated net monthly salary</span>
+          <span className="text-[10px] text-slate-450 dark:text-teal-400/60 mt-1.5 font-medium">Calculated net monthly salary</span>
         </div>
 
-        <div className="clay p-5 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Attendance Rate</span>
-          <div className="mt-2 text-2xl font-bold text-slate-800 dark:text-slate-100 font-mono">
-            {workedDays} / {workingDays} days
+        <div className="clay bg-white dark:bg-[#121c19] border border-teal-950/10 dark:border-teal-900/20 p-5 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-450 dark:text-teal-450 font-bold uppercase tracking-wider">Attendance Rate</span>
+          <div className="mt-2 text-2xl font-bold text-slate-800 dark:text-slate-200 font-mono tracking-tight">
+            {workedDays} / {workingDays} <span className="text-sm text-slate-405 font-sans font-medium">days</span>
           </div>
-          <span className="text-[10px] text-slate-400 mt-1">{absencesCount} absent days logged</span>
+          <span className="text-[10px] text-slate-450 dark:text-teal-450/60 mt-1.5 font-medium">{absencesCount} absent days logged</span>
         </div>
 
-        <div className="clay p-5 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Compensation Scheme</span>
-          <div className="mt-2 text-base font-bold text-slate-700 dark:text-slate-350 uppercase">
+        <div className="clay bg-white dark:bg-[#121c19] border border-teal-950/10 dark:border-teal-900/20 p-5 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-450 dark:text-teal-450 font-bold uppercase tracking-wider">Compensation Scheme</span>
+          <div className="mt-2 text-sm sm:text-base font-extrabold text-slate-700 dark:text-teal-350 uppercase tracking-wide">
             {doctor.compensation_type === 'percentage' 
               ? `${doctor.profit_percentage}% Profit Share` 
               : 'Fixed base salary'}
           </div>
-          <span className="text-[10px] text-slate-400 mt-1">Target sharing: {(doctor.profit_sharing_target || 'both').toUpperCase()}</span>
+          <span className="text-[10px] text-slate-450 dark:text-teal-450/60 mt-1.5 font-medium">Target sharing: {(doctor.profit_sharing_target || 'both').toUpperCase()}</span>
         </div>
-      </div>
+      </motion.div>
 
       {/* CORE CALCULATION SECTIONS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
         {/* LEFT COLUMN: PARAMETERS & BREAKDOWNS */}
-        <div className="space-y-6">
+        <motion.div variants={itemVariants} className="space-y-6">
           
           {/* SECTION 1: Gross Billed & Attendance */}
-          <div className="clay p-6 space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-150/40 pb-2">
+          <div className="clay bg-white dark:bg-[#121c19] border border-teal-950/10 dark:border-teal-900/20 p-6 space-y-4">
+            <h3 className="text-xs font-bold text-slate-500 dark:text-teal-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-150/40 dark:border-teal-950/40 pb-2.5">
               <Calendar className="w-4 h-4 text-cyan-500" />
               1. Gross Billed & Attendance
             </h3>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3.5 text-xs">
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Gross Billed appointments:</span>
-                <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">INR {docTotalGross.toLocaleString()}</span>
+                <span className="text-slate-500 dark:text-slate-400">Gross Billed appointments:</span>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-sm">INR {docTotalGross.toLocaleString()}</span>
               </div>
 
               {doctorRule === 'present_days_only' && absencesCount > 0 && (
-                <div className="space-y-2 border-t border-dashed border-slate-200/60 pt-3">
-                  <div className="flex justify-between items-center font-semibold text-rose-600">
+                <div className="space-y-3.5 border-t border-dashed border-slate-200/60 dark:border-teal-950/40 pt-3.5">
+                  <div className="flex justify-between items-center font-bold text-rose-600 dark:text-rose-455">
                     <span>Absent Days Gross Deducted:</span>
-                    <span className="font-mono font-bold">-INR {totalAbsentGross.toLocaleString()}</span>
+                    <span className="font-mono text-sm">-INR {totalAbsentGross.toLocaleString()}</span>
                   </div>
                   
-                  <div className="p-3 bg-rose-50/50 dark:bg-rose-950/10 rounded-2xl border border-rose-100/50 dark:border-rose-900/20 space-y-1.5">
-                    <p className="font-bold text-[9px] text-rose-500 uppercase tracking-wider">Absentee Gross breakdown</p>
+                  <div className="p-3.5 bg-rose-50/50 dark:bg-rose-950/10 rounded-2xl border border-rose-100/50 dark:border-rose-900/20 space-y-2">
+                    <p className="font-bold text-[9px] text-rose-500 dark:text-rose-400 uppercase tracking-wider">Absentee Gross breakdown</p>
                     {absentDaysGross.map((d, i) => (
                       <div key={i} className="flex justify-between font-mono text-[10px] text-slate-650 dark:text-slate-400">
                         <span>{d.date} ({d.status.toUpperCase()}):</span>
-                        <span>INR {d.gross.toLocaleString()}</span>
+                        <span className="font-semibold">INR {d.gross.toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
 
                   <div className="flex justify-between border-t border-slate-100 dark:border-slate-850 pt-2 font-bold text-slate-850 dark:text-slate-100">
                     <span>Gross Billed for Salary:</span>
-                    <span className="font-mono">INR {grossForSalary.toLocaleString()}</span>
+                    <span className="font-mono text-sm">INR {grossForSalary.toLocaleString()}</span>
                   </div>
                 </div>
               )}
@@ -375,82 +407,78 @@ export default function DoctorFinancePageClient({
 
           {/* SECTION 2: Branch Operating Expenses (if percentage share) */}
           {doctor.compensation_type === 'percentage' && (
-            <div className="clay p-6 space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-150/40 pb-2">
-                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-amber-500" />
-                  2. Branch Operating Expenses
-                </h3>
+            <div className="clay bg-white dark:bg-[#121c19] border border-teal-950/10 dark:border-teal-900/20 p-6 space-y-4">
+              <h3 className="text-xs font-bold text-slate-500 dark:text-teal-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-150/40 dark:border-teal-950/40 pb-2.5">
+                <Zap className="w-4 h-4 text-amber-500" />
+                2. Branch Operating Expenses
+              </h3>
+
+              <div className="space-y-3.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400">Electricity Bill:</span>
+                  <span className="font-mono font-semibold text-slate-800 dark:text-slate-300">INR {electricity.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400">Helper Boy Salaries:</span>
+                  <span className="font-mono font-semibold text-slate-800 dark:text-slate-300">INR {branchHelpersPay.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400">Extra Expenses:</span>
+                  <span className="font-mono font-semibold text-slate-800 dark:text-slate-300">INR {extras.toLocaleString()}</span>
+                </div>
                 
-                {/* Total Expenses Hover Tooltip */}
-                <div className="group relative cursor-help">
-                  <span className="text-[10px] text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-md hover:bg-cyan-100 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/60 transition">
-                    Breakdown ⓘ
+                {/* Total Expenses Row with Built-In Hover Tooltip Details */}
+                <div className="flex justify-between border-t border-slate-150/60 dark:border-teal-950/40 pt-2.5 font-bold text-slate-850 dark:text-slate-100 relative group cursor-help">
+                  <span className="flex items-center gap-1 border-b border-dashed border-slate-400 dark:border-teal-700/60 pb-0.5">
+                    Total Branch Expenses ⓘ
                   </span>
+                  <span className="font-mono text-rose-500 dark:text-rose-455">INR {(electricity + branchHelpersPay + extras).toLocaleString()}</span>
                   
-                  <div className="absolute right-0 top-full mt-1.5 hidden group-hover:block bg-slate-950 text-white text-[11px] p-3 rounded-2xl shadow-xl z-50 w-56 border border-white/10 space-y-1.5 font-mono">
-                    <p className="font-bold text-teal-400 border-b border-white/10 pb-1 text-[9px] uppercase tracking-wider">Expenses Details</p>
+                  {/* Detailed popover */}
+                  <div className="absolute right-0 top-full mt-2 hidden group-hover:block bg-slate-950 text-white text-[11px] p-4 rounded-2xl shadow-xl z-50 w-64 border border-white/10 space-y-2.5 font-mono">
+                    <p className="font-bold text-teal-400 border-b border-white/10 pb-1.5 text-[9px] uppercase tracking-wider">Expenses Details</p>
                     <div className="flex justify-between">
-                      <span>Electricity Bill:</span>
-                      <span>INR {electricity.toLocaleString()}</span>
+                      <span className="text-slate-400">Electricity Bill:</span>
+                      <span className="font-bold">INR {electricity.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Helper Boy Salaries:</span>
-                      <span>INR {branchHelpersPay.toLocaleString()}</span>
+                      <span className="text-slate-400">Helper Boy Salaries:</span>
+                      <span className="font-bold">INR {branchHelpersPay.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Extra Expenses:</span>
-                      <span>INR {extras.toLocaleString()}</span>
+                      <span className="text-slate-400">Extra Expenses:</span>
+                      <span className="font-bold">INR {extras.toLocaleString()}</span>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Electricity Bill:</span>
-                  <span className="font-mono">INR {electricity.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Helper Boy Salaries:</span>
-                  <span className="font-mono">INR {branchHelpersPay.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Extra Expenses:</span>
-                  <span className="font-mono">INR {extras.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between border-t border-slate-100 pt-2 font-bold text-slate-800 dark:text-slate-200">
-                  <span>Total Branch Expenses:</span>
-                  <span className="font-mono text-rose-500">INR {(electricity + branchHelpersPay + extras).toLocaleString()}</span>
                 </div>
               </div>
             </div>
           )}
 
-        </div>
+        </motion.div>
 
         {/* RIGHT COLUMN: STEP-BY-STEP MATH */}
-        <div className="space-y-6">
+        <motion.div variants={itemVariants} className="space-y-6">
           
-          <div className="clay p-6 space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-150/40 pb-2">
+          <div className="clay bg-white dark:bg-[#121c19] border border-teal-950/10 dark:border-teal-900/20 p-6 space-y-4">
+            <h3 className="text-xs font-bold text-slate-500 dark:text-teal-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-150/40 dark:border-teal-950/40 pb-2.5">
               <Calculator className="w-4 h-4 text-emerald-500" />
               3. Step-by-Step Mathematical Math
             </h3>
 
-            <div className="space-y-4 font-mono text-[11px] text-slate-750 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-950 p-4 border border-slate-150/40 dark:border-slate-800 rounded-2xl">
+            <div className="space-y-4 font-mono text-[11px] text-slate-750 dark:text-slate-350 leading-relaxed bg-slate-50 dark:bg-[#0c1412] p-4 border border-slate-150/40 dark:border-teal-900/20 rounded-2xl">
               {doctor.compensation_type === 'percentage' ? (
                 <>
-                  <div className="border-b border-slate-200/60 dark:border-slate-850 pb-2">
-                    <p className="text-[10px] text-slate-400 uppercase">Step A: Get Branch Revenue ({(doctor.profit_sharing_target || 'both').toUpperCase()})</p>
-                    <p className="font-semibold mt-0.5 text-slate-900 dark:text-slate-100">
+                  <div className="border-b border-slate-200/60 dark:border-teal-950/20 pb-2.5">
+                    <p className="text-[9px] text-slate-400 dark:text-teal-450 uppercase font-bold tracking-wide">Step A: Get Branch Revenue ({(doctor.profit_sharing_target || 'both').toUpperCase()})</p>
+                    <p className="font-bold mt-1 text-slate-900 dark:text-teal-100 text-xs">
                       = INR {(totalTreatmentProfit + totalMedicineProfit).toLocaleString()}
                     </p>
                   </div>
                   
-                  <div className="border-b border-slate-200/60 dark:border-slate-850 pb-2">
-                    <p className="text-[10px] text-slate-400 uppercase">Step B: Compute Net Branch Profit (Revenue - Expenses)</p>
-                    <p className="font-semibold mt-0.5 text-slate-900 dark:text-slate-100">
+                  <div className="border-b border-slate-200/60 dark:border-teal-950/20 pb-2.5">
+                    <p className="text-[9px] text-slate-400 dark:text-teal-450 uppercase font-bold tracking-wide">Step B: Compute Net Branch Profit (Revenue - Expenses)</p>
+                    <p className="font-bold mt-1 text-slate-900 dark:text-teal-100 text-xs">
                       = INR {(totalTreatmentProfit + totalMedicineProfit).toLocaleString()} 
                       - INR {(electricity + branchHelpersPay + extras).toLocaleString()}
                       <br />
@@ -458,9 +486,9 @@ export default function DoctorFinancePageClient({
                     </p>
                   </div>
 
-                  <div className="border-b border-slate-200/60 dark:border-slate-850 pb-2">
-                    <p className="text-[10px] text-slate-400 uppercase">Step C: Apply Profit Split ({doctor.profit_percentage}%)</p>
-                    <p className="font-semibold mt-0.5 text-slate-900 dark:text-slate-100">
+                  <div className="border-b border-slate-200/60 dark:border-teal-950/20 pb-2.5">
+                    <p className="text-[9px] text-slate-400 dark:text-teal-450 uppercase font-bold tracking-wide">Step C: Apply Profit Split ({doctor.profit_percentage}%)</p>
+                    <p className="font-bold mt-1 text-slate-900 dark:text-teal-100 text-xs">
                       = INR {branchProfit.toLocaleString()} * {doctor.profit_percentage}%
                       <br />
                       = INR {Math.round(baseEarnings).toLocaleString()}
@@ -468,9 +496,9 @@ export default function DoctorFinancePageClient({
                   </div>
 
                   {doctorRule === 'present_days_only' && (
-                    <div className="border-b border-slate-200/60 dark:border-slate-850 pb-2">
-                      <p className="text-[10px] text-slate-400 uppercase">Step D: Prorate on Attendance ({workedDays} / {workingDays} days)</p>
-                      <p className="font-semibold mt-0.5 text-slate-900 dark:text-slate-100">
+                    <div className="border-b border-slate-200/60 dark:border-teal-950/20 pb-2.5">
+                      <p className="text-[9px] text-slate-400 dark:text-teal-450 uppercase font-bold tracking-wide">Step D: Prorate on Attendance ({workedDays} / {workingDays} days)</p>
+                      <p className="font-bold mt-1 text-slate-900 dark:text-teal-100 text-xs">
                         = INR {Math.round(baseEarnings).toLocaleString()} * ({workedDays} / {workingDays})
                         <br />
                         = INR {Math.round(proratedBaseEarnings).toLocaleString()}
@@ -480,9 +508,9 @@ export default function DoctorFinancePageClient({
                 </>
               ) : (
                 <>
-                  <div className="border-b border-slate-200/60 dark:border-slate-850 pb-2">
-                    <p className="text-[10px] text-slate-400 uppercase">Step A: Prorate Fixed Salary on Attendance ({workedDays} / {workingDays} days)</p>
-                    <p className="font-semibold mt-0.5 text-slate-900 dark:text-slate-100">
+                  <div className="border-b border-slate-200/60 dark:border-teal-950/20 pb-2.5">
+                    <p className="text-[9px] text-slate-400 dark:text-teal-450 uppercase font-bold tracking-wide">Step A: Prorate Fixed Salary on Attendance ({workedDays} / {workingDays} days)</p>
+                    <p className="font-bold mt-1 text-slate-900 dark:text-teal-100 text-xs">
                       = INR {doctor.fixed_salary.toLocaleString()} * ({workedDays} / {workingDays})
                       <br />
                       = INR {Math.round(proratedBaseEarnings).toLocaleString()}
@@ -492,11 +520,11 @@ export default function DoctorFinancePageClient({
               )}
 
               <div>
-                <p className="text-[10px] text-slate-400 uppercase">Step E: Subtract Fines & Deductions (Local Storage)</p>
-                <p className="font-semibold mt-0.5 text-slate-900 dark:text-slate-100">
+                <p className="text-[9px] text-slate-400 dark:text-teal-450 uppercase font-bold tracking-wide">Step E: Subtract Fines & Deductions (Local Storage)</p>
+                <p className="font-bold mt-1 text-slate-900 dark:text-teal-100 text-xs">
                   = INR {Math.round(proratedBaseEarnings).toLocaleString()} - INR {docReductions.toLocaleString()}
                   <br />
-                  <span className="text-teal-650 dark:text-teal-400 font-bold text-xs">
+                  <span className="text-teal-650 dark:text-teal-400 font-extrabold text-sm block mt-1.5 border-t border-slate-200/40 dark:border-teal-950/40 pt-1.5">
                     = INR {Math.round(netPayout).toLocaleString()} Net Payout
                   </span>
                 </p>
@@ -505,20 +533,20 @@ export default function DoctorFinancePageClient({
           </div>
 
           {/* ATTENDANCE RULE BANNER */}
-          <div className="clay p-4 flex gap-3 bg-amber-50/50 border-amber-200/60 dark:bg-amber-950/10 dark:border-amber-900/30">
+          <div className="clay bg-[#fffbeb] border border-amber-200/60 dark:bg-amber-950/10 dark:border-amber-900/30 p-4 flex gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="space-y-1 text-xs">
               <p className="font-bold text-amber-800 dark:text-amber-400">Clinic Attendance Policy</p>
-              <p className="text-[11px] text-slate-650 dark:text-slate-400 leading-relaxed">
+              <p className="text-[11px] text-slate-650 dark:text-slate-400 leading-relaxed font-medium">
                 The current calculation rule is set to <strong>{doctorRule === 'present_days_only' ? 'Present Days Only' : 'Full Month Payout'}</strong>. You can change this clinic-wide policy inside the Finances attendances settings tab.
               </p>
             </div>
           </div>
 
-        </div>
+        </motion.div>
 
       </div>
 
-    </div>
+    </motion.div>
   )
 }
