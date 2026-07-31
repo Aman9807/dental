@@ -118,7 +118,7 @@ export default function AdminSidebar() {
             ? { x: isMobileOpen ? 0 : -256, width: 256 }
             : { x: 0, width: isCollapsed ? 80 : 256 }
         }
-        transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
+        transition={{ type: 'tween', ease: 'easeInOut', duration: 0.6 }}
         style={{
           background: 'linear-gradient(170deg, #0c1a17 0%, #152d28 100%)',
           display: 'flex',

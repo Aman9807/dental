@@ -297,6 +297,10 @@ export default function FinancesClient({
   const [reductionAmount, setReductionAmount] = useState('')
   const [reductionReason, setReductionReason] = useState('')
 
+  // Earning breakdown and tooltips states
+  const [selectedDocDetail, setSelectedDocDetail] = useState<any | null>(null)
+  const [showMedTooltip, setShowMedTooltip] = useState(false)
+
   useEffect(() => {
     const savedRule = localStorage.getItem('dental_doctor_payout_rule')
     if (savedRule === 'full_month' || savedRule === 'present_days_only') {
@@ -453,6 +457,7 @@ export default function FinancesClient({
     let totalTreatmentProfit = 0
     let totalMedicineProfit = 0
     let totalMedicineCost = 0
+    let totalMedicineRevenue = 0
 
     filteredAppts.forEach(appt => {
       const finances = getAppointmentFinances(appt)
@@ -462,6 +467,7 @@ export default function FinancesClient({
         totalMedicineCost += finances.medicineCost
         totalTreatmentProfit += finances.treatmentProfit
         totalMedicineProfit += finances.medicineProfit
+        totalMedicineRevenue += finances.netMedicineRevenue
       }
     })
 
@@ -602,6 +608,8 @@ export default function FinancesClient({
       treatmentProfit: Math.round(treatmentProfit),
       totalTreatmentProfit: Math.round(totalTreatmentProfit),
       totalMedicineProfit: Math.round(totalMedicineProfit),
+      totalMedicineCost: Math.round(totalMedicineCost),
+      totalMedicineRevenue: Math.round(totalMedicineRevenue),
       helperSalariesTotal: Math.round(helperSalariesTotal),
       electricityTotal: Math.round(electricityTotal),
       extraExpensesTotal: Math.round(extraExpensesTotal),
@@ -1129,9 +1137,45 @@ export default function FinancesClient({
           <p className="text-xl font-bold font-mono text-teal-600">INR {totals.totalTreatmentProfit.toLocaleString()}</p>
         </div>
 
-        <div className="clay clay-emerald p-5 border border-teal-100/50 space-y-1">
+        <div 
+          className="clay clay-emerald p-5 border border-teal-100/50 space-y-1 relative group cursor-help"
+          onMouseEnter={() => setShowMedTooltip(true)}
+          onMouseLeave={() => setShowMedTooltip(false)}
+        >
           <p className="text-[10px] text-teal-700 uppercase tracking-wider font-bold">Medicine Profits</p>
           <p className="text-xl font-bold font-mono text-teal-600">INR {totals.totalMedicineProfit.toLocaleString()}</p>
+          
+          <AnimatePresence>
+            {showMedTooltip && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3.5 w-60 p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-50 border border-teal-500/20 space-y-2 text-left"
+              >
+                <div className="border-b border-white/10 pb-1.5 flex items-center justify-between">
+                  <span className="font-bold text-teal-400">Medicine Profit Breakdown</span>
+                  <span className="text-[9px] bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded-full font-semibold">Net Info</span>
+                </div>
+                <div className="space-y-1.5 font-medium">
+                  <div className="flex justify-between text-slate-300">
+                    <span>Total Selling Price:</span>
+                    <span className="font-mono text-white">INR {totals.totalMedicineRevenue.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-350">
+                    <span>Total Cost Price:</span>
+                    <span className="font-mono text-white">INR {totals.totalMedicineCost.toLocaleString()}</span>
+                  </div>
+                  <div className="border-t border-white/5 pt-1.5 flex justify-between font-bold text-teal-400">
+                    <span>Net Profit:</span>
+                    <span className="font-mono">INR {totals.totalMedicineProfit.toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-r border-b border-teal-500/20" />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="clay clay-rose p-5 border border-rose-100/50 space-y-1">
@@ -1808,12 +1852,13 @@ export default function FinancesClient({
                   <th className="px-4 py-3 text-right">Base Earnings</th>
                   <th className="px-4 py-3 text-right">Fines / Deductions</th>
                   <th className="px-4 py-3 text-right">Net Payout</th>
+                  <th className="px-4 py-3 text-center">Breakdown</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
                 {getBranchFilteredDoctors().length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-slate-400 font-light">
+                    <td colSpan={8} className="text-center py-8 text-slate-400 font-light">
                       No doctors registered.
                     </td>
                   </tr>
@@ -1825,6 +1870,7 @@ export default function FinancesClient({
                     let pay = 0
                     let rateString = ''
                     let absencesCount = 0
+                    let bProfit = totals.branchNetProfitBeforeDoctors
                     
                     if (doc.compensation_type === 'fixed') {
                       const docWorkingDays = getWorkingDaysInMonth(year, month, false)
@@ -1841,7 +1887,6 @@ export default function FinancesClient({
                       rateString = `INR ${doc.fixed_salary.toLocaleString()} / mo (${absencesCount} absences)`
                     } else {
                       // Percentage based on branch net profit
-                      let bProfit = totals.branchNetProfitBeforeDoctors
                       if (selectedBranch === 'all' && doc.branch_id) {
                         const docBranchBill = electricityExpenses.find(e => e.branch_id === doc.branch_id && e.month_year === selectedMonth)?.electricity_bill || 0
                         const docBranchHelpers = helperBoysList.filter(h => h.branch_id === doc.branch_id)
@@ -1909,6 +1954,112 @@ export default function FinancesClient({
                       .reduce((sum, r) => sum + r.amount, 0)
                     const netPayout = Math.max(0, pay - reduction)
 
+                    // Details calculations
+                    const docAppts = appointments.filter(appt => {
+                      const apptDate = new Date(appt.appointment_date)
+                      const apptMonthStr = `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}`
+                      return apptMonthStr === selectedMonth && appt.doctor_id === doc.id
+                    })
+                    let docTotalGross = 0
+                    docAppts.forEach(appt => {
+                      const finances = getAppointmentFinances(appt)
+                      if (finances) {
+                        docTotalGross += finances.totalPaid
+                      }
+                    })
+
+                    const docWorkingDays = getWorkingDaysInMonth(year, month, false)
+                    
+                    const absentRecords = doctorAttendance.filter(a => {
+                      if (a.doctor_id !== doc.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
+                      const absDate = new Date(a.date)
+                      const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
+                      return absMonthStr === selectedMonth
+                    })
+
+                    const absentDaysGross = absentRecords.map(rec => {
+                      const apptsOnDay = appointments.filter(appt => appt.doctor_id === doc.id && appt.appointment_date === rec.date)
+                      let dayGross = 0
+                      apptsOnDay.forEach(appt => {
+                        const finances = getAppointmentFinances(appt)
+                        if (finances) {
+                          dayGross += finances.totalPaid
+                        }
+                      })
+                      return {
+                        date: rec.date,
+                        status: rec.status,
+                        gross: dayGross
+                      }
+                    })
+                    const totalAbsentGross = absentDaysGross.reduce((sum, item) => sum + item.gross, 0)
+                    const grossForSalary = docTotalGross - totalAbsentGross
+
+                    // Branch expenses details
+                    let branchHelpers = helperBoysList
+                    let branchBill = 0
+                    let branchExtrasTotal = 0
+                    let branchTProfit = totals.totalTreatmentProfit
+                    let branchMProfit = totals.totalMedicineProfit
+
+                    if (doc.branch_id) {
+                      branchHelpers = helperBoysList.filter(h => h.branch_id === doc.branch_id)
+                      branchBill = electricityExpenses.find(e => e.branch_id === doc.branch_id && e.month_year === selectedMonth)?.electricity_bill || 0
+                      branchExtrasTotal = extraExpenses.filter(e => {
+                        const expDate = new Date(e.expense_date)
+                        const expMonthStr = `${expDate.getFullYear()}-${String(expDate.getMonth() + 1).padStart(2, '0')}`
+                        return expMonthStr === selectedMonth && e.branch_id === doc.branch_id
+                      }).reduce((sum, e) => sum + e.amount, 0)
+
+                      const branchApptsForExp = appointments.filter(appt => {
+                        const apptDate = new Date(appt.appointment_date)
+                        const apptMonthStr = `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}`
+                        return apptMonthStr === selectedMonth && appt.branches?.id === doc.branch_id
+                      })
+                      let tProf = 0
+                      let mProf = 0
+                      branchApptsForExp.forEach(appt => {
+                        const finances = getAppointmentFinances(appt)
+                        if (finances) {
+                          tProf += finances.treatmentProfit
+                          mProf += finances.medicineProfit
+                        }
+                      })
+                      branchTProfit = tProf
+                      branchMProfit = mProf
+                    } else {
+                      branchBill = totals.electricityTotal
+                      branchExtrasTotal = totals.extraExpensesTotal
+                    }
+
+                    const branchHelpersPay = branchHelpers.reduce((sum, h) => sum + calculateHelperSalary(h), 0)
+                    const totalBranchExpenses = branchHelpersPay + branchBill + branchExtrasTotal
+
+                    const detailObj = {
+                      doctorName: doc.name,
+                      compensationType: doc.compensation_type,
+                      profitPercentage: doc.profit_percentage,
+                      fixedSalary: doc.fixed_salary,
+                      profitSharingTarget: doc.profit_sharing_target || 'both',
+                      docTotalGross,
+                      absentDaysGross,
+                      totalAbsentGross,
+                      grossForSalary,
+                      workingDays: docWorkingDays,
+                      workedDays: Math.max(0, docWorkingDays - absencesCount),
+                      absencesCount,
+                      branchHelpersPay,
+                      electricity: branchBill,
+                      extras: branchExtrasTotal,
+                      totalBranchExpenses,
+                      branchTProfit,
+                      branchMProfit,
+                      branchProfit: bProfit,
+                      baseEarnings: pay,
+                      reduction,
+                      netPayout,
+                    }
+
                     return (
                       <tr key={doc.id} className="hover:bg-slate-50/50">
                         <td className="px-4 py-3 font-semibold text-slate-800">Dr. {doc.name}</td>
@@ -1918,6 +2069,14 @@ export default function FinancesClient({
                         <td className="px-4 py-3 text-right font-semibold text-slate-700">INR {Math.round(pay).toLocaleString()}</td>
                         <td className="px-4 py-3 text-right font-semibold text-rose-600">INR {Math.round(reduction).toLocaleString()}</td>
                         <td className="px-4 py-3 text-right font-bold text-slate-850">INR {Math.round(netPayout).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => setSelectedDocDetail(detailObj)}
+                            className="px-2.5 py-1 text-[10px] font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg dark:bg-emerald-950/20 dark:text-emerald-450 dark:border-emerald-900/40 dark:hover:bg-emerald-950/40 transition cursor-pointer"
+                          >
+                            Details
+                          </button>
+                        </td>
                       </tr>
                     )
                   })
@@ -2205,6 +2364,227 @@ export default function FinancesClient({
               </form>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ Doctor Salary Calculation Details Modal ═══ */}
+      <AnimatePresence>
+        {selectedDocDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedDocDetail(null)}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-2xl rounded-3xl p-6 max-w-lg w-full relative z-10 space-y-6 text-slate-800 dark:text-slate-100 overflow-y-auto max-h-[90vh]"
+            >
+              <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-base font-serif font-bold text-slate-900 dark:text-teal-200">
+                    Dr. {selectedDocDetail.doctorName}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider mt-0.5">
+                    Payroll Calculation breakdown ({selectedMonth})
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedDocDetail(null)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-semibold p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                {/* 1. Compensation Type */}
+                <div className="p-3 bg-slate-50 dark:bg-emerald-950/10 border border-slate-100 dark:border-teal-950/30 rounded-2xl">
+                  <div className="flex justify-between">
+                    <span className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Compensation Type:</span>
+                    <span className="font-bold text-teal-600 dark:text-teal-400 uppercase">{selectedDocDetail.compensationType}</span>
+                  </div>
+                  {selectedDocDetail.compensationType === 'percentage' ? (
+                    <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                      Earns <strong className="text-slate-800 dark:text-slate-200">{selectedDocDetail.profitPercentage}%</strong> of branch net profits derived from <strong className="text-slate-800 dark:text-slate-200">{selectedDocDetail.profitSharingTarget.toUpperCase()}</strong>.
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                      Earns a fixed base salary of <strong className="text-slate-800 dark:text-slate-200">INR {selectedDocDetail.fixedSalary.toLocaleString()}</strong> per month, prorated based on attendance.
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Gross Revenue & Absentee calculations */}
+                <div className="space-y-2">
+                  <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">1. Gross Revenue & Attendance:</h4>
+                  
+                  <div className="space-y-1.5 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Gross Billed (Appointments):</span>
+                      <span className="font-mono font-medium">INR {selectedDocDetail.docTotalGross.toLocaleString()}</span>
+                    </div>
+
+                    {doctorRule === 'present_days_only' && selectedDocDetail.absencesCount > 0 && (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between group relative cursor-help">
+                          <span className="text-rose-600 dark:text-rose-450 flex items-center gap-1">
+                            Gross on Absent Days (Hover for details) ⓘ
+                          </span>
+                          <span className="font-mono text-rose-650 dark:text-rose-400">-INR {selectedDocDetail.totalAbsentGross.toLocaleString()}</span>
+                          
+                          {/* Absent days hover tooltip */}
+                          <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-slate-900 text-white text-[10px] p-2.5 rounded-xl shadow-xl z-50 w-64 border border-rose-900/30 space-y-1">
+                            <p className="font-bold text-rose-400 mb-1 border-b border-white/10 pb-0.5">Absent Days Gross Breakdown</p>
+                            {selectedDocDetail.absentDaysGross.map((d: any, idx: number) => (
+                              <div key={idx} className="flex justify-between font-mono">
+                                <span>{d.date} ({d.status.toUpperCase()}):</span>
+                                <span>INR {d.gross.toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex justify-between border-t border-dashed border-slate-200 dark:border-slate-700 pt-1.5 font-semibold">
+                          <span>Gross for Salary Subtotal:</span>
+                          <span className="font-mono text-slate-950 dark:text-white">INR {selectedDocDetail.grossForSalary.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between pt-1">
+                      <span className="text-slate-500">Attendance Days:</span>
+                      <span className="font-mono font-medium text-slate-800 dark:text-slate-200">
+                        {selectedDocDetail.workedDays} worked / {selectedDocDetail.workingDays} total days ({selectedDocDetail.absencesCount} absences)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Branch Expenses (Only applicable to percentage share) */}
+                {selectedDocDetail.compensationType === 'percentage' && (
+                  <div className="space-y-2">
+                    <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">2. Operating Expenses Deductions:</h4>
+                    
+                    <div className="space-y-1.5 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
+                      <div className="flex justify-between group relative cursor-help">
+                        <span className="text-slate-500 flex items-center gap-1">
+                          Total Operating Expenses (Hover details) ⓘ
+                        </span>
+                        <span className="font-mono text-rose-500">-INR {selectedDocDetail.totalBranchExpenses.toLocaleString()}</span>
+
+                        {/* Expenses list tooltip */}
+                        <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-slate-900 text-white text-[10px] p-2.5 rounded-xl shadow-xl z-50 w-56 border border-white/10 space-y-1">
+                          <p className="font-bold text-teal-400 mb-1 border-b border-white/10 pb-0.5">Operating Expenses List</p>
+                          <div className="flex justify-between font-mono">
+                            <span>Electricity Bill:</span>
+                            <span>INR {selectedDocDetail.electricity.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between font-mono">
+                            <span>Helper Boy Salaries:</span>
+                            <span>INR {selectedDocDetail.branchHelpersPay.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between font-mono">
+                            <span>Extra Expenses:</span>
+                            <span>INR {selectedDocDetail.extras.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Step-by-step Math calculation */}
+                <div className="space-y-2">
+                  <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">3. Step-by-Step Salary Calculation:</h4>
+                  
+                  <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-2.5 font-mono text-[11px] leading-relaxed">
+                    {selectedDocDetail.compensationType === 'percentage' ? (
+                      <>
+                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
+                          <p className="text-slate-500">Step A: Get Branch Revenue ({selectedDocDetail.profitSharingTarget.toUpperCase()})</p>
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">
+                            = INR {selectedDocDetail.profitSharingTarget === 'treatment' 
+                              ? selectedDocDetail.branchTProfit.toLocaleString() 
+                              : selectedDocDetail.profitSharingTarget === 'medicine' 
+                              ? selectedDocDetail.branchMProfit.toLocaleString() 
+                              : (selectedDocDetail.branchTProfit + selectedDocDetail.branchMProfit).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
+                          <p className="text-slate-500">Step B: Compute Net Branch Profit (Revenue - Expenses)</p>
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">
+                            = INR {selectedDocDetail.profitSharingTarget === 'treatment' 
+                              ? selectedDocDetail.branchTProfit.toLocaleString() 
+                              : selectedDocDetail.profitSharingTarget === 'medicine' 
+                              ? selectedDocDetail.branchMProfit.toLocaleString() 
+                              : (selectedDocDetail.branchTProfit + selectedDocDetail.branchMProfit).toLocaleString()} 
+                            - INR {selectedDocDetail.totalBranchExpenses.toLocaleString()}
+                            <br />
+                            = INR {selectedDocDetail.branchProfit.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
+                          <p className="text-slate-500">Step C: Apply Profit Split Percentage ({selectedDocDetail.profitPercentage}%)</p>
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">
+                            = INR {selectedDocDetail.branchProfit.toLocaleString()} * {selectedDocDetail.profitPercentage}%
+                            <br />
+                            = INR {Math.round(selectedDocDetail.branchProfit * (selectedDocDetail.profitPercentage / 100)).toLocaleString()}
+                          </p>
+                        </div>
+                        {doctorRule === 'present_days_only' && (
+                          <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
+                            <p className="text-slate-500">Step D: Prorate Earning on Attendance Ratio ({selectedDocDetail.workedDays}/{selectedDocDetail.workingDays} days)</p>
+                            <p className="font-semibold text-slate-800 dark:text-slate-200">
+                              = INR {Math.round(selectedDocDetail.branchProfit * (selectedDocDetail.profitPercentage / 100)).toLocaleString()} * ({selectedDocDetail.workedDays} / {selectedDocDetail.workingDays})
+                              <br />
+                              = INR {Math.round(selectedDocDetail.baseEarnings).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
+                          <p className="text-slate-500">Step A: Prorate Fixed Salary on Attendance ({selectedDocDetail.workedDays}/{selectedDocDetail.workingDays} days)</p>
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">
+                            = INR {selectedDocDetail.fixedSalary.toLocaleString()} * ({selectedDocDetail.workedDays} / {selectedDocDetail.workingDays})
+                            <br />
+                            = INR {Math.round(selectedDocDetail.baseEarnings).toLocaleString()}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <p className="text-slate-500">Step E: Subtract Fines & Deductions</p>
+                      <p className="font-semibold text-slate-800 dark:text-slate-200">
+                        = INR {Math.round(selectedDocDetail.baseEarnings).toLocaleString()} 
+                        - INR {selectedDocDetail.reduction.toLocaleString()}
+                        <br />
+                        <span className="text-teal-600 dark:text-teal-400 font-bold">= INR {Math.round(selectedDocDetail.netPayout).toLocaleString()} Net Payout</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => setSelectedDocDetail(null)}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-white rounded-xl text-xs font-semibold shadow-md transition cursor-pointer"
+                >
+                  Close Details
+                </button>
+              </div>
+
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
