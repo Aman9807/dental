@@ -83,7 +83,7 @@ export default function AdminLoginPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full pl-12 pr-4 py-3.5 text-sm rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 transition-all duration-200 bg-white/80 hover:border-slate-300"
+                className="w-full pl-12 pr-4 py-3.5 text-sm rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 transition-all duration-200 bg-white/90 text-slate-900 placeholder-slate-400 hover:border-slate-300"
               />
             </div>
           </div>

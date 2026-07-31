@@ -69,7 +69,7 @@ export default function DoctorLogin({ doctorName, doctorSlug }: DoctorLoginProps
               placeholder="Enter your doctor portal password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white"
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 bg-white text-slate-900"
             />
           </div>
 

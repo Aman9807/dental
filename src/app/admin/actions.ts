@@ -19,7 +19,7 @@ export async function loginAdmin(password: string) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 24, // 1 day expiration
-      path: '/admin',
+      path: '/',
     })
     return { success: true }
   }
