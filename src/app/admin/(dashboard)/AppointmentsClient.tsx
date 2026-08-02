@@ -566,7 +566,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                     <td className="px-6 py-4">
                       <div className="space-y-0.5">
                         <p className="font-semibold text-slate-800">Dr. {appt.doctors?.name}</p>
-                        <p className="text-xs text-slate-400 font-light">{appt.doctors?.specialty || 'General Practitioner'}</p>
+                        <p className="text-xs text-slate-400 font-light">{(appt.doctors?.specialty ? appt.doctors.specialty.split('||')[0] : '') || 'General Practitioner'}</p>
                       </div>
                     </td>
 
@@ -1120,7 +1120,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                         {doctorsList
                           .filter(d => !offlineBranchId || d.branch_id === offlineBranchId)
                           .map(d => (
-                            <option key={d.id} value={d.id} className="dark:bg-[#121c19]">Dr. {d.name} ({d.specialty || 'General'})</option>
+                            <option key={d.id} value={d.id} className="dark:bg-[#121c19]">Dr. {d.name} ({d.specialty ? d.specialty.split('||')[0] : 'General'})</option>
                           ))}
                       </select>
                     </div>

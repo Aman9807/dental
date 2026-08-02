@@ -307,11 +307,8 @@ export default function AnalyticsTab({
             const docWorked = Math.max(0, docWorkingDays - absencesCount)
             const fullPayout = bProfit * (d.profit_percentage / 100)
             
-            let savedRule = 'present_days_only'
-            if (typeof window !== 'undefined') {
-              savedRule = localStorage.getItem('dental_doctor_payout_rule') || 'present_days_only'
-            }
-            const docPayout = savedRule === 'present_days_only' && docWorkingDays > 0
+            const docRule = (d.specialty || '').split('||')[1] || 'present_days_only'
+            const docPayout = docRule === 'present_days_only' && docWorkingDays > 0
               ? fullPayout * (docWorked / docWorkingDays)
               : fullPayout
             

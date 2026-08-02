@@ -117,7 +117,7 @@ export default async function AdministrationDirectoryPage() {
                       <Stethoscope className="w-3 h-3 text-teal-500" />
                       Dr. {doc.name}
                     </span>
-                    <span className="text-[9px] text-slate-500 font-light uppercase tracking-wider">{doc.specialty}</span>
+                    <span className="text-[9px] text-slate-500 font-light uppercase tracking-wider">{doc.specialty?.split('||')[0]}</span>
                   </Link>
                 ))
               )}

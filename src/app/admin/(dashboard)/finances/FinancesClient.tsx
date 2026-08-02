@@ -601,7 +601,8 @@ export default function FinancesClient({
           const docWorked = Math.max(0, docWorkingDays - absencesCount)
           const fullPayout = bProfit * (d.profit_percentage / 100)
           
-          const docPayout = doctorRule === 'present_days_only' && docWorkingDays > 0
+          const docRule = (d.specialty || '').split('||')[1] || 'present_days_only'
+          const docPayout = docRule === 'present_days_only' && docWorkingDays > 0
             ? fullPayout * (docWorked / docWorkingDays)
             : fullPayout
 
@@ -2080,11 +2081,13 @@ export default function FinancesClient({
                         const docWorked = Math.max(0, docWorkingDays - absencesCount)
                         const fullPayout = bProfit * (doc.profit_percentage / 100)
 
-                        pay = doctorRule === 'present_days_only' && docWorkingDays > 0
+                        const docRule = (doc.specialty || '').split('||')[1] || 'present_days_only'
+                        pay = docRule === 'present_days_only' && docWorkingDays > 0
                           ? fullPayout * (docWorked / docWorkingDays)
                           : fullPayout
                       }
-                      rateString = `${doc.profit_percentage}% share (${doctorRule === 'present_days_only' ? 'Present Days' : 'Full Month'})`
+                      const docRule = (doc.specialty || '').split('||')[1] || 'present_days_only'
+                      rateString = `${doc.profit_percentage}% share (${docRule === 'present_days_only' ? 'Present Days' : 'Full Month'})`
                     }
 
                     const reduction = salaryReductions

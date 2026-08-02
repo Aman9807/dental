@@ -625,7 +625,7 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
                       )}
                       <div>
                         <p className="text-sm font-semibold text-slate-800">Dr. {doc.name}</p>
-                        <p className="text-xs text-slate-500 font-light">{doc.specialty || 'General Practitioner'}</p>
+                        <p className="text-xs text-slate-500 font-light">{(doc.specialty ? doc.specialty.split('||')[0] : '') || 'General Practitioner'}</p>
                       </div>
                       {selectedDoctorId === doc.id && (
                         <CheckCircle className={`w-5 h-5 ${theme.accentText} ml-auto animate-scale-in`} />

@@ -46,6 +46,7 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [specialty, setSpecialty] = useState('')
+  const [payoutRule, setPayoutRule] = useState<'present_days_only' | 'full_month'>('present_days_only')
   const [branchId, setBranchId] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -68,6 +69,7 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     setName('')
     setEmail('')
     setSpecialty('')
+    setPayoutRule('present_days_only')
     setBranchId(branches[0]?.id || '')
     setImageFile(null)
     setImagePreview(null)
@@ -86,7 +88,13 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     setEditingDoctor(doc)
     setName(doc.name)
     setEmail(doc.email)
-    setSpecialty(doc.specialty || '')
+    
+    // Parse specialty & rule
+    const savedSpecialty = doc.specialty || ''
+    const parts = savedSpecialty.split('||')
+    setSpecialty(parts[0] || '')
+    setPayoutRule((parts[1] as 'present_days_only' | 'full_month') || 'present_days_only')
+
     setBranchId(doc.branch_id || '')
     setImageFile(null)
     setImagePreview(doc.picture_url)
@@ -123,7 +131,7 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     const formData = new FormData()
     formData.append('name', name)
     formData.append('email', email)
-    formData.append('specialty', specialty)
+    formData.append('specialty', specialty + '||' + payoutRule)
     formData.append('branch_id', branchId)
     formData.append('compensation_type', compensationType)
     formData.append('fixed_salary', fixedSalary)
@@ -281,7 +289,7 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
                   )}
                   <div className="space-y-1 min-w-0">
                     <h3 className="font-bold text-slate-850 dark:text-teal-100 text-sm truncate font-serif">Dr. {doc.name}</h3>
-                    <p className="text-xs text-slate-400 dark:text-teal-400/80 font-medium truncate">{doc.specialty || 'General Practitioner'}</p>
+                    <p className="text-xs text-slate-400 dark:text-teal-400/80 font-medium truncate">{(doc.specialty ? doc.specialty.split('||')[0] : '') || 'General Practitioner'}</p>
                     <div className="flex items-center gap-1.5 mt-2">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-bold rounded-md border uppercase tracking-wider ${
                         doc.branches?.slug === 'hazara' 
@@ -315,6 +323,20 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
                         : `INR ${(doc.fixed_salary || 0).toLocaleString()}`}
                     </span>
                   </div>
+                  {doc.compensation_type === 'percentage' && (
+                    <div className="flex justify-between items-center text-[10px] text-slate-455 dark:text-teal-450 border-t border-slate-100/50 dark:border-teal-950/20 pt-1.5">
+                      <span className="font-semibold uppercase tracking-wider flex items-center gap-1">
+                        <Activity className="w-3 h-3 text-slate-400" /> Payout Policy:
+                      </span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200">
+                        {(() => {
+                          const parts = (doc.specialty || '').split('||')
+                          const rule = parts[1] || 'present_days_only'
+                          return rule === 'present_days_only' ? 'Present Days Only' : 'Full Month'
+                        })()}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Email link info */}
@@ -458,6 +480,18 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
                       onChange={e => setSpecialty(e.target.value)}
                       className="w-full px-4 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-teal-500 bg-white dark:bg-[#0c1412] text-slate-800 dark:text-slate-200 font-semibold"
                     />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-slate-500 dark:text-teal-400">Payout Policy Rule</label>
+                    <select
+                      value={payoutRule}
+                      onChange={e => setPayoutRule(e.target.value as 'present_days_only' | 'full_month')}
+                      className="w-full px-3 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-teal-500 bg-white dark:bg-[#0c1412] text-slate-850 dark:text-slate-200 font-semibold"
+                    >
+                      <option value="present_days_only" className="dark:bg-[#0c1412] dark:text-slate-200">Present Days Only (Prorated)</option>
+                      <option value="full_month" className="dark:bg-[#0c1412] dark:text-slate-200">Full Month Payout (Unprorated)</option>
+                    </select>
                   </div>
 
                   <div className="space-y-1">

@@ -268,15 +268,8 @@ export default function DoctorClient({
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   
-  const [doctorRule, setDoctorRule] = useState<'present_days_only' | 'full_month'>('present_days_only')
+  const doctorRule = (doctor.specialty || '').split('||')[1] || 'present_days_only'
   const [showBreakdownDetail, setShowBreakdownDetail] = useState(false)
-  
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedRule = localStorage.getItem('dental_doctor_payout_rule') || 'present_days_only'
-      setDoctorRule(savedRule as any)
-    }
-  }, [])
 
   // Load IP and poll for mobile capture
   useEffect(() => {
