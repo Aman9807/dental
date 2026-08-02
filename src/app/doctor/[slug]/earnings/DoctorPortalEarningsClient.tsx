@@ -90,50 +90,53 @@ export default function DoctorPortalEarningsClient({
   const absencesCount = absences.reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
   const workedDays = Math.max(0, workingDays - absencesCount)
 
-  // 3. Helper Invoice Finance Calculation
+  // 3. Helper Invoice Finance Calculation (aligned with list page logic)
   const getAppointmentFinances = (appt: any) => {
-    const invoices = appt.invoices || []
-    if (invoices.length === 0) return null
+    const invoice = appt.invoices?.[0]
+    if (!invoice) return null
 
-    let totalPaid = 0
+    const treatmentDiscount = invoice.treatment_discount_percentage ?? invoice.discount_percentage ?? 0
+    const medicineDiscount = invoice.medicine_discount_percentage ?? invoice.discount_percentage ?? 0
+
+    const treatmentDiscountMultiplier = 1 - treatmentDiscount / 100
+    const medicineDiscountMultiplier = 1 - medicineDiscount / 100
+
+    let treatmentRevenue = 0
     let treatmentCost = 0
+    let medicineRevenue = 0
     let medicineCost = 0
-    let treatmentProfit = 0
-    let medicineProfit = 0
 
-    invoices.forEach((invoice: any) => {
-      const discount = invoice.discount_percentage || 0
-      const items = invoice.invoice_items || []
-      
-      items.forEach((item: any) => {
-        const qty = item.quantity || 1
-        const price = item.unit_price || 0
-        const cost = item.unit_cost || 0
-        const itemType = item.item_type || 'treatment'
-
-        let discountPercentage = discount
-        if (itemType === 'treatment' && invoice.treatment_discount_percentage !== undefined && invoice.treatment_discount_percentage !== null) {
-          discountPercentage = invoice.treatment_discount_percentage
-        } else if (itemType === 'medicine' && invoice.medicine_discount_percentage !== undefined && invoice.medicine_discount_percentage !== null) {
-          discountPercentage = invoice.medicine_discount_percentage
-        }
-
-        const netItemPrice = price * (1 - discountPercentage / 100) * qty
-        const totalCost = cost * qty
-        const profit = netItemPrice - totalCost
-
-        totalPaid += netItemPrice
-        if (itemType === 'treatment') {
-          treatmentCost += totalCost
-          treatmentProfit += profit
+    if (invoice.invoice_items) {
+      invoice.invoice_items.forEach((item: any) => {
+        const price = Number(item.unit_price || 0) * Number(item.quantity || 1)
+        const cost = Number(item.unit_cost || 0) * Number(item.quantity || 1)
+        const isMedicine = item.item_type === 'medicine' || (item.custom_name && /medicine|tab|capsule|syrup|strip/i.test(item.custom_name))
+        if (isMedicine) {
+          medicineRevenue += price
+          medicineCost += cost
         } else {
-          medicineCost += totalCost
-          medicineProfit += profit
+          treatmentRevenue += price
+          treatmentCost += cost
         }
       })
-    })
+    }
 
-    return { totalPaid, treatmentCost, medicineCost, treatmentProfit, medicineProfit }
+    const netTreatmentRevenue = treatmentRevenue * treatmentDiscountMultiplier
+    const netMedicineRevenue = medicineRevenue * medicineDiscountMultiplier
+
+    const treatmentProfit = netTreatmentRevenue - treatmentCost
+    const medicineProfit = netMedicineRevenue - medicineCost
+
+    return {
+      netTreatmentRevenue,
+      treatmentCost,
+      treatmentProfit,
+      netMedicineRevenue,
+      medicineCost,
+      medicineProfit,
+      totalProfit: treatmentProfit + medicineProfit,
+      totalPaid: invoice.total
+    }
   }
 
   // 4. Calculate Payout Metrics
@@ -210,7 +213,7 @@ export default function DoctorPortalEarningsClient({
 
     const treatmentProfit = totalTreatmentProfit + totalMedicineProfit
 
-    // Helper salaries for branch
+    // Helper salaries for branch (without reductions, matching list page logic)
     branchHelpersPay = helperBoys.reduce((sum, helper) => {
       const hWorkingDays = getWorkingDaysInMonth(year, month, helper.sunday_enabled)
       const hAbsences = helperAttendance.filter(a => {
@@ -224,10 +227,7 @@ export default function DoctorPortalEarningsClient({
       const shift1Worked = helper.shift_1_enabled ? Math.max(0, hWorkingDays - shift1Abs) : 0
       const shift2Worked = helper.shift_2_enabled ? Math.max(0, hWorkingDays - shift2Abs) : 0
       const basePay = (shift1Worked * helper.shift_1_rate) + (shift2Worked * helper.shift_2_rate)
-      const reduction = salaryReductions
-        .filter(r => r.person_id === helper.id && r.month_year === selectedMonth && r.person_type === 'helper')
-        .reduce((acc, curr) => acc + curr.amount, 0)
-      return sum + Math.max(0, basePay - reduction)
+      return sum + basePay
     }, 0)
 
     // Electricity
@@ -472,14 +472,14 @@ export default function DoctorPortalEarningsClient({
                   <div className="border-b border-slate-200/60 dark:border-teal-950/20 pb-2.5">
                     <p className="text-[9px] text-slate-400 dark:text-teal-450 uppercase font-bold tracking-wide">Step A: Get Branch Revenue ({(doctor.profit_sharing_target || 'both').toUpperCase()})</p>
                     <p className="font-bold mt-1 text-slate-900 dark:text-teal-100 text-xs">
-                      = INR {(totalTreatmentProfit + totalMedicineProfit).toLocaleString()}
+                      = INR {revenueTarget.toLocaleString()}
                     </p>
                   </div>
                   
                   <div className="border-b border-slate-200/60 dark:border-teal-950/20 pb-2.5">
                     <p className="text-[9px] text-slate-400 dark:text-teal-450 uppercase font-bold tracking-wide">Step B: Compute Net Branch Profit (Revenue - Expenses)</p>
                     <p className="font-bold mt-1 text-slate-900 dark:text-teal-100 text-xs">
-                      = INR {(totalTreatmentProfit + totalMedicineProfit).toLocaleString()} 
+                      = INR {revenueTarget.toLocaleString()} 
                       - INR {(electricity + branchHelpersPay + extras).toLocaleString()}
                       <br />
                       = INR {branchProfit.toLocaleString()}

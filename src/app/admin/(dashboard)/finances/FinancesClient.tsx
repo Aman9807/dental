@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   CircleDollarSign, TrendingUp, CheckCircle, AlertCircle, Calendar, Plus, Trash2, 
-  User2, PlusCircle, HelpCircle, Save, Info, RefreshCw, Layers, Zap, Clock, X, Loader2
+  User2, PlusCircle, HelpCircle, Save, Info, RefreshCw, Layers, Zap, Clock, X, Loader2, Edit
 } from 'lucide-react'
 import { 
   updateAppointmentFinances, 
@@ -14,7 +14,9 @@ import {
   deleteHelperBoy, 
   updateHelperAttendance, 
   updateDoctorAttendance, 
-  addExtraExpense 
+  addExtraExpense,
+  updateExtraExpense,
+  deleteExtraExpense
 } from '@/app/admin/actions'
 import AnalyticsTab from './AnalyticsTab'
 
@@ -302,6 +304,18 @@ export default function FinancesClient({
   // Earning breakdown and tooltips states
   const [selectedDocDetail, setSelectedDocDetail] = useState<any | null>(null)
   const [showMedTooltip, setShowMedTooltip] = useState(false)
+  const [showExpTooltip, setShowExpTooltip] = useState(false)
+  const [showAddBill, setShowAddBill] = useState(false)
+  const [billElectricity, setBillElectricity] = useState('')
+  const [billWater, setBillWater] = useState('')
+  const [billGas, setBillGas] = useState('')
+  const [billRent, setBillRent] = useState('')
+  const [billInternet, setBillInternet] = useState('')
+  const [billOther, setBillOther] = useState('')
+  const [billDate, setBillDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [billBranch, setBillBranch] = useState(branches[0]?.id || '')
+  const [savingBill, setSavingBill] = useState(false)
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
 
   useEffect(() => {
     const savedRule = localStorage.getItem('dental_doctor_payout_rule')
@@ -749,7 +763,23 @@ export default function FinancesClient({
     }
   }
 
-  // Add Extra Expense
+  // Helper to parse utility bills from note string
+  const parseUtilityBills = (note: string) => {
+    const match = note.match(/^Utility Bills - Electricity:\s*([\d.]+),\s*Water:\s*([\d.]+),\s*Gas:\s*([\d.]+),\s*Rent:\s*([\d.]+),\s*Internet:\s*([\d.]+),\s*Other:\s*([\d.]+)$/)
+    if (match) {
+      return {
+        electricity: match[1] === '0' ? '' : match[1],
+        water: match[2] === '0' ? '' : match[2],
+        gas: match[3] === '0' ? '' : match[3],
+        rent: match[4] === '0' ? '' : match[4],
+        internet: match[5] === '0' ? '' : match[5],
+        other: match[6] === '0' ? '' : match[6]
+      }
+    }
+    return null
+  }
+
+  // Add Extra Expense (handles both add & edit)
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!expenseNote.trim()) {
@@ -761,21 +791,83 @@ export default function FinancesClient({
     const amount = parseFloat(expenseAmount || '0')
 
     try {
-      const res = await addExtraExpense(amount, expenseNote, expenseDate, expenseBranch)
-      if (res.success && res.data) {
-        alert('Extra expense logged successfully!')
-        setExtraExpenses(prev => [res.data[0], ...prev])
-        setShowAddExpense(false)
-        setExpenseAmount('0')
-        setExpenseNote('')
+      if (editingExpenseId) {
+        // Edit flow
+        const res = await updateExtraExpense(editingExpenseId, amount, expenseNote, expenseDate, expenseBranch)
+        if (res.success && res.data) {
+          alert('Extra expense updated successfully!')
+          setExtraExpenses(prev => prev.map(exp => exp.id === editingExpenseId ? res.data[0] : exp))
+          setShowAddExpense(false)
+          setEditingExpenseId(null)
+          setExpenseAmount('0')
+          setExpenseNote('')
+        } else {
+          alert(res.error || 'Failed to update expense')
+        }
       } else {
-        alert(res.error || 'Failed to add expense')
+        // Add flow
+        const res = await addExtraExpense(amount, expenseNote, expenseDate, expenseBranch)
+        if (res.success && res.data) {
+          alert('Extra expense logged successfully!')
+          setExtraExpenses(prev => [res.data[0], ...prev])
+          setShowAddExpense(false)
+          setExpenseAmount('0')
+          setExpenseNote('')
+        } else {
+          alert(res.error || 'Failed to add expense')
+        }
       }
     } catch (err) {
       console.error(err)
       alert('An error occurred.')
     } finally {
       setAddingExpense(false)
+    }
+  }
+
+  // Save Utility Bill (handles both add & edit)
+  const handleSaveBill = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingBill(true)
+
+    const elec = parseFloat(billElectricity || '0')
+    const water = parseFloat(billWater || '0')
+    const gas = parseFloat(billGas || '0')
+    const rent = parseFloat(billRent || '0')
+    const internet = parseFloat(billInternet || '0')
+    const other = parseFloat(billOther || '0')
+
+    const totalBillAmount = elec + water + gas + rent + internet + other
+    const note = `Utility Bills - Electricity: ${elec}, Water: ${water}, Gas: ${gas}, Rent: ${rent}, Internet: ${internet}, Other: ${other}`
+
+    try {
+      if (editingExpenseId) {
+        // Edit flow
+        const res = await updateExtraExpense(editingExpenseId, totalBillAmount, note, billDate, billBranch)
+        if (res.success && res.data) {
+          alert('Bill details updated successfully!')
+          setExtraExpenses(prev => prev.map(exp => exp.id === editingExpenseId ? res.data[0] : exp))
+          setShowAddBill(false)
+          setEditingExpenseId(null)
+        } else {
+          alert(res.error || 'Failed to update bill')
+        }
+      } else {
+        // Add flow
+        const res = await addExtraExpense(totalBillAmount, note, billDate, billBranch)
+        if (res.success && res.data) {
+          alert('Bill details saved successfully!')
+          setExtraExpenses(prev => [res.data[0], ...prev])
+          setShowAddBill(false)
+        } else {
+          alert(res.error || 'Failed to save bill')
+        }
+      }
+    } catch (err) {
+      console.error(err)
+      alert('An error occurred.')
+    } finally {
+      setSavingBill(false)
     }
   }
 
@@ -1180,9 +1272,53 @@ export default function FinancesClient({
           </AnimatePresence>
         </div>
 
-        <div className="clay clay-rose p-5 border border-rose-100/50 space-y-1">
+        <div 
+          className="clay clay-rose p-5 border border-rose-100/50 space-y-1 relative group cursor-help"
+          onMouseEnter={() => setShowExpTooltip(true)}
+          onMouseLeave={() => setShowExpTooltip(false)}
+        >
           <p className="text-[10px] text-rose-700 uppercase tracking-wider font-bold">Total Expenses</p>
           <p className="text-xl font-bold font-mono text-rose-600">INR {totals.totalExpenses.toLocaleString()}</p>
+          
+          <AnimatePresence>
+            {showExpTooltip && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3.5 w-60 p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-50 border border-rose-500/20 space-y-2 text-left"
+              >
+                <div className="border-b border-white/10 pb-1.5 flex items-center justify-between font-bold text-rose-450">
+                  <span>Expenses Breakdown</span>
+                  <span className="text-[9px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded-full font-semibold">Net Info</span>
+                </div>
+                <div className="space-y-1.5 font-medium">
+                  <div className="flex justify-between text-slate-350">
+                    <span>Helper Salaries:</span>
+                    <span className="font-mono text-white">INR {totals.helperSalariesTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-350">
+                    <span>Electricity Bills:</span>
+                    <span className="font-mono text-white">INR {totals.electricityTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-350">
+                    <span>Extra Expenses:</span>
+                    <span className="font-mono text-white">INR {totals.extraExpensesTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-350">
+                    <span>Dentists Payouts:</span>
+                    <span className="font-mono text-white">INR {totals.totalDoctorPay.toLocaleString()}</span>
+                  </div>
+                  <div className="border-t border-white/5 pt-1.5 flex justify-between font-bold text-rose-455">
+                    <span>Total Expenses:</span>
+                    <span className="font-mono">INR {totals.totalExpenses.toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-r border-b border-rose-500/20" />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="clay clay-cyan p-5 border border-cyan-100/50 text-slate-800 space-y-1">
@@ -2099,16 +2235,38 @@ export default function FinancesClient({
               </h3>
               <p className="text-[10px] text-slate-400 mt-1">Logs miscellaneous repairs, breakages, or store costs.</p>
             </div>
-            <button
-              onClick={() => {
-                setExpenseAmount('0')
-                setExpenseNote('')
-                setShowAddExpense(true)
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold shadow-sm transition animate-in fade-in"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Extra Expense
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setBillElectricity('')
+                  setBillWater('')
+                  setBillGas('')
+                  setBillRent('')
+                  setBillInternet('')
+                  setBillOther('')
+                  setBillDate(new Date().toISOString().split('T')[0])
+                  setBillBranch(branches[0]?.id || '')
+                  setEditingExpenseId(null)
+                  setShowAddBill(true)
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-sm transition cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Bill
+              </button>
+              <button
+                onClick={() => {
+                  setExpenseAmount('0')
+                  setExpenseNote('')
+                  setExpenseDate(new Date().toISOString().split('T')[0])
+                  setExpenseBranch(branches[0]?.id || '')
+                  setEditingExpenseId(null)
+                  setShowAddExpense(true)
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold shadow-sm transition cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Extra Expense
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -2119,12 +2277,13 @@ export default function FinancesClient({
                   <th className="px-4 py-3">Description / Note</th>
                   <th className="px-4 py-3">Branch Clinic</th>
                   <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
                 {getFilteredExtraExpenses().length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-8 text-slate-400 font-light">
+                    <td colSpan={5} className="text-center py-8 text-slate-400 font-light">
                       No extra expenses logged for this month/branch filters.
                     </td>
                   </tr>
@@ -2138,6 +2297,56 @@ export default function FinancesClient({
                         <td className="px-4 py-3 font-semibold text-slate-800">{exp.note}</td>
                         <td className="px-4 py-3">{branchName}</td>
                         <td className="px-4 py-3 text-right text-rose-600 font-bold">INR {exp.amount.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => {
+                              const parsed = parseUtilityBills(exp.note)
+                              if (parsed) {
+                                setBillElectricity(parsed.electricity)
+                                setBillWater(parsed.water)
+                                setBillGas(parsed.gas)
+                                setBillRent(parsed.rent)
+                                setBillInternet(parsed.internet)
+                                setBillOther(parsed.other)
+                                setBillDate(exp.expense_date)
+                                setBillBranch(exp.branch_id)
+                                setEditingExpenseId(exp.id)
+                                setShowAddBill(true)
+                              } else {
+                                setExpenseAmount(String(exp.amount))
+                                setExpenseNote(exp.note)
+                                setExpenseDate(exp.expense_date)
+                                setExpenseBranch(exp.branch_id)
+                                setEditingExpenseId(exp.id)
+                                setShowAddExpense(true)
+                              }
+                            }}
+                            className="p-1 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition cursor-pointer"
+                            title="Edit"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Are you sure you want to delete this expense?')) return
+                              try {
+                                const res = await deleteExtraExpense(exp.id)
+                                if (res.success) {
+                                  setExtraExpenses(prev => prev.filter(e => e.id !== exp.id))
+                                  alert('Expense deleted successfully.')
+                                } else {
+                                  alert(res.error || 'Failed to delete expense')
+                                }
+                              } catch (err) {
+                                console.error(err)
+                              }
+                            }}
+                            className="p-1 text-slate-500 hover:text-rose-600 dark:hover:text-rose-455 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition cursor-pointer"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
                       </tr>
                     )
                   })
@@ -2288,7 +2497,7 @@ export default function FinancesClient({
               className="bg-white border border-slate-200 dark:bg-[var(--card)] dark:border-teal-900/35 rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col justify-between"
             >
               <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 dark:bg-slate-950/20 dark:border-teal-900/25 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-800 dark:text-teal-200">Add Extra Expense</h3>
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-teal-200">{editingExpenseId ? 'Edit Extra Expense' : 'Add Extra Expense'}</h3>
                 <button type="button" onClick={() => setShowAddExpense(false)} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-white/5 dark:hover:text-white rounded-lg transition cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
@@ -2338,7 +2547,7 @@ export default function FinancesClient({
                   <select
                     value={expenseBranch}
                     onChange={e => setExpenseBranch(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-850 dark:text-slate-200 font-semibold"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-855 dark:text-slate-200 font-semibold"
                   >
                     {branches.map(b => (
                       <option key={b.id} value={b.id} className="dark:bg-[#121c19] dark:text-slate-200">{b.name}</option>
@@ -2350,7 +2559,7 @@ export default function FinancesClient({
                   <button
                     type="button"
                     onClick={() => setShowAddExpense(false)}
-                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-450 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-55 dark:hover:bg-white/5 transition cursor-pointer"
+                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-455 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -2360,7 +2569,152 @@ export default function FinancesClient({
                     className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-700 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     {addingExpense && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                    Save Expense
+                    {editingExpenseId ? 'Update Expense' : 'Save Expense'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ════ SECTION 7: MODAL overlay for ADDING/EDITING BILLS ════ */}
+      <AnimatePresence>
+        {showAddBill && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-white border border-slate-200 dark:bg-[var(--card)] dark:border-teal-900/35 rounded-3xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col justify-between"
+            >
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 dark:bg-slate-950/20 dark:border-teal-900/25 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-teal-200">{editingExpenseId ? 'Edit Utility Bill' : 'Add Utility Bill'}</h3>
+                <button type="button" onClick={() => setShowAddBill(false)} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-white/5 dark:hover:text-white rounded-lg transition cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveBill} className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Clinic Branch</label>
+                    <select
+                      value={billBranch}
+                      onChange={e => setBillBranch(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-855 dark:text-slate-200 font-semibold"
+                    >
+                      {branches.map(b => (
+                        <option key={b.id} value={b.id} className="dark:bg-[#121c19] dark:text-slate-200">{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Billing Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={billDate}
+                      onChange={e => setBillDate(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 dark:bg-slate-950/20 border border-slate-100 dark:border-teal-900/20 rounded-2xl space-y-3">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-450 dark:text-teal-400 font-bold border-b border-slate-200/40 pb-1">Bill Breakdown (Optional)</p>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-550 dark:text-slate-400">Electricity Bill</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={billElectricity}
+                        onChange={e => setBillElectricity(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/35 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-mono font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-550 dark:text-slate-400">Water Bill</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={billWater}
+                        onChange={e => setBillWater(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/35 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-mono font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-550 dark:text-slate-400">Rent / Lease</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={billRent}
+                        onChange={e => setBillRent(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/35 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-mono font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-550 dark:text-slate-400">Internet / Phone</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={billInternet}
+                        onChange={e => setBillInternet(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/35 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-mono font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-550 dark:text-slate-400">Gas Bill</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={billGas}
+                        onChange={e => setBillGas(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/35 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-mono font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-medium text-slate-550 dark:text-slate-400">Other Utilities</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={billOther}
+                        onChange={e => setBillOther(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-teal-900/35 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-800 dark:text-slate-200 font-mono font-semibold"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-teal-900/20">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddBill(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-455 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingBill}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-700 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 animate-pulse-slow"
+                  >
+                    {savingBill && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    {editingExpenseId ? 'Update Bill Details' : 'Save Bills'}
                   </button>
                 </div>
               </form>

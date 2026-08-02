@@ -111,14 +111,13 @@ export default function AdminSidebar() {
       </AnimatePresence>
 
       <motion.aside
-        layout
         initial={isMobile ? { x: -256 } : false}
         animate={
           isMobile
             ? { x: isMobileOpen ? 0 : -256, width: 256 }
             : { x: 0, width: isCollapsed ? 80 : 256 }
         }
-        transition={{ type: 'tween', ease: 'easeInOut', duration: 0.6 }}
+        transition={{ type: 'tween', ease: 'easeInOut', duration: 0.25 }}
         style={{
           background: 'linear-gradient(170deg, #0c1a17 0%, #152d28 100%)',
           display: 'flex',
@@ -252,7 +251,6 @@ export default function AdminSidebar() {
               return (
                 <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }} onClick={() => isMobile && setIsMobileOpen(false)}>
                   <motion.div
-                    layout
                     whileHover={{ x: isCollapsed ? 0 : 3 }}
                     whileTap={{ scale: 0.97 }}
                     style={{
@@ -380,7 +378,6 @@ export default function AdminSidebar() {
           {/* Theme Toggle Button */}
           <div style={{ padding: '0 10px', marginBottom: 8 }}>
             <motion.button
-              layout
               onClick={toggleTheme}
               style={{
                 width: '100%',

@@ -949,6 +949,48 @@ export async function addExtraExpense(amount: number, note: string, date: string
   }
 }
 
+export async function updateExtraExpense(id: string, amount: number, note: string, date: string, branchId: string) {
+  const adminDb = getAdminSupabase()
+  if (!note || note.trim() === '') {
+    return { success: false, error: 'A description/note is compulsory for extra expenses.' }
+  }
+  try {
+    const { data, error } = await adminDb
+      .from('extra_expenses')
+      .update({
+        amount,
+        note: note.trim(),
+        expense_date: date,
+        branch_id: branchId
+      })
+      .eq('id', id)
+      .select()
+      
+    if (error) throw error
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error updating extra expense:', err)
+    return { success: false, error: err.message || 'Failed to update extra expense.' }
+  }
+}
+
+export async function deleteExtraExpense(id: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { error } = await adminDb
+      .from('extra_expenses')
+      .delete()
+      .eq('id', id)
+      
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error deleting extra expense:', err)
+    return { success: false, error: err.message || 'Failed to delete extra expense.' }
+  }
+}
+
+
 export async function createCaptureTicket(branchId: string, appointmentId: string) {
   const adminDb = getAdminSupabase()
   try {
