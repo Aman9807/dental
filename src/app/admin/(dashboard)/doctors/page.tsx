@@ -35,6 +35,7 @@ export default async function AdminDoctorsPage() {
             compensation_type,
             fixed_salary,
             profit_percentage,
+            profit_sharing_target,
             slug,
             password,
             branches (id, name, slug)

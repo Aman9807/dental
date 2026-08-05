@@ -333,6 +333,12 @@ export default function FinancesClient({
     }
   }, [])
 
+  const getDocRule = (d: any): 'present_days_only' | 'full_month' => {
+    const specRule = (d?.specialty || '').split('||')[1]
+    if (specRule === 'full_month' || specRule === 'present_days_only') return specRule
+    return doctorRule || 'present_days_only'
+  }
+
   const handleAddSalaryReduction = (e: React.FormEvent) => {
     e.preventDefault()
     if (!reductionPersonId || !reductionAmount || !reductionReason) {
@@ -612,7 +618,7 @@ export default function FinancesClient({
           const docWorked = Math.max(0, docWorkingDays - absencesCount)
           const fullPayout = bProfit * (d.profit_percentage / 100)
           
-          const docRule = (d.specialty || '').split('||')[1] || 'present_days_only'
+          const docRule = getDocRule(d)
           const docPayout = docRule === 'present_days_only' && docWorkingDays > 0
             ? fullPayout * (docWorked / docWorkingDays)
             : fullPayout
@@ -2121,12 +2127,12 @@ export default function FinancesClient({
                         const docWorked = Math.max(0, docWorkingDays - absencesCount)
                         const fullPayout = bProfit * (doc.profit_percentage / 100)
 
-                        const docRule = (doc.specialty || '').split('||')[1] || 'present_days_only'
+                        const docRule = getDocRule(doc)
                         pay = docRule === 'present_days_only' && docWorkingDays > 0
                           ? fullPayout * (docWorked / docWorkingDays)
                           : fullPayout
                       }
-                      const docRule = (doc.specialty || '').split('||')[1] || 'present_days_only'
+                      const docRule = getDocRule(doc)
                       rateString = `${doc.profit_percentage}% share (${docRule === 'present_days_only' ? 'Present Days' : 'Full Month'})`
                     }
 
