@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { addDoctor, updateDoctor, deleteDoctor } from '@/app/admin/actions'
 import { 
   Plus, Edit, Trash2, X, Upload, Mail, User, ShieldCheck, 
-  MapPin, Loader2, AlertCircle, Sparkles, CreditCard, DollarSign, Key
+  MapPin, Loader2, AlertCircle, Sparkles, CreditCard, DollarSign, Key, Activity
 } from 'lucide-react'
 
 interface Doctor {

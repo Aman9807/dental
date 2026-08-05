@@ -46,6 +46,8 @@ export default async function DoctorFinancePage({ params, searchParams }: PagePr
       }
 
       // 2. Fetch parallel branch data based on the doctor's branch_id
+      const branchIdFilter = doctor.branch_id
+
       const [
         helperRes,
         helperAttRes,
@@ -54,12 +56,12 @@ export default async function DoctorFinancePage({ params, searchParams }: PagePr
         extraRes,
         apptRes
       ] = await Promise.all([
-        adminDb.from('helper_boys').select('*').eq('branch_id', doctor.branch_id),
+        branchIdFilter ? adminDb.from('helper_boys').select('*').eq('branch_id', branchIdFilter) : Promise.resolve({ data: [], error: null }),
         adminDb.from('helper_attendance').select('*'),
         adminDb.from('doctor_attendance').select('*').eq('doctor_id', id),
-        adminDb.from('monthly_expenses').select('*').eq('branch_id', doctor.branch_id),
-        adminDb.from('extra_expenses').select('*').eq('branch_id', doctor.branch_id),
-        adminDb.from('appointments').select(`
+        branchIdFilter ? adminDb.from('monthly_expenses').select('*').eq('branch_id', branchIdFilter) : Promise.resolve({ data: [], error: null }),
+        branchIdFilter ? adminDb.from('extra_expenses').select('*').eq('branch_id', branchIdFilter) : Promise.resolve({ data: [], error: null }),
+        branchIdFilter ? adminDb.from('appointments').select(`
           id,
           appointment_date,
           appointment_time,
@@ -83,7 +85,7 @@ export default async function DoctorFinancePage({ params, searchParams }: PagePr
               total_price
             )
           )
-        `).eq('branch_id', doctor.branch_id)
+        `).eq('branch_id', branchIdFilter) : Promise.resolve({ data: [], error: null })
       ])
 
       helperBoys = helperRes.data || []

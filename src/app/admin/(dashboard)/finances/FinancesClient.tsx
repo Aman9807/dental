@@ -500,21 +500,32 @@ export default function FinancesClient({
       return sum + Math.max(0, basePay - reductionsAmount)
     }, 0)
 
-    // Electricity bills
-    let electricityTotal = 0
-    if (selectedBranch === 'all') {
-      electricityTotal = electricityExpenses
-        .filter(e => e.month_year === selectedMonth)
-        .reduce((sum, e) => sum + (e.electricity_bill || 0), 0)
-    } else {
-      const targetBranch = branches.find(b => b.slug === selectedBranch)
-      const bill = electricityExpenses.find(e => e.branch_id === targetBranch?.id && e.month_year === selectedMonth)
-      electricityTotal = bill ? bill.electricity_bill : 0
-    }
-
-    // 3. Extra Expenses
+    // 3. Extra Expenses & Utility Bills (parsing out utilities)
     const extras = getFilteredExtraExpenses()
-    const extraExpensesTotal = extras.reduce((sum, e) => sum + (e.amount || 0), 0)
+    
+    let electricityTotal = 0
+    let waterTotal = 0
+    let gasTotal = 0
+    let rentTotal = 0
+    let internetTotal = 0
+    let otherTotal = 0
+    let nonBillExtraExpensesTotal = 0
+
+    extras.forEach(e => {
+      const parsed = parseUtilityBills(e.note)
+      if (parsed) {
+        electricityTotal += parsed.electricity ? parseFloat(parsed.electricity) : 0
+        waterTotal += parsed.water ? parseFloat(parsed.water) : 0
+        gasTotal += parsed.gas ? parseFloat(parsed.gas) : 0
+        rentTotal += parsed.rent ? parseFloat(parsed.rent) : 0
+        internetTotal += parsed.internet ? parseFloat(parsed.internet) : 0
+        otherTotal += parsed.other ? parseFloat(parsed.other) : 0
+      } else {
+        nonBillExtraExpensesTotal += e.amount || 0
+      }
+    })
+
+    const extraExpensesTotal = nonBillExtraExpensesTotal + waterTotal + gasTotal + rentTotal + internetTotal + otherTotal
 
     // Doctor Payroll Expenses (if configured as fixed salary)
     const activeDocs = getBranchFilteredDoctors()
@@ -629,6 +640,12 @@ export default function FinancesClient({
       totalMedicineRevenue: Math.round(totalMedicineRevenue),
       helperSalariesTotal: Math.round(helperSalariesTotal),
       electricityTotal: Math.round(electricityTotal),
+      waterTotal: Math.round(waterTotal),
+      gasTotal: Math.round(gasTotal),
+      rentTotal: Math.round(rentTotal),
+      internetTotal: Math.round(internetTotal),
+      otherTotal: Math.round(otherTotal),
+      nonBillExtraExpensesTotal: Math.round(nonBillExtraExpensesTotal),
       extraExpensesTotal: Math.round(extraExpensesTotal),
       totalDoctorPay: Math.round(totalDoctorPay),
       totalExpenses: Math.round(totalExpenses),
@@ -765,7 +782,7 @@ export default function FinancesClient({
   }
 
   // Helper to parse utility bills from note string
-  const parseUtilityBills = (note: string) => {
+  function parseUtilityBills(note: string) {
     const match = note.match(/^Utility Bills - Electricity:\s*([\d.]+),\s*Water:\s*([\d.]+),\s*Gas:\s*([\d.]+),\s*Rent:\s*([\d.]+),\s*Internet:\s*([\d.]+),\s*Other:\s*([\d.]+)$/)
     if (match) {
       return {
@@ -1299,19 +1316,42 @@ export default function FinancesClient({
                     <span>Helper Salaries:</span>
                     <span className="font-mono text-white">INR {totals.helperSalariesTotal.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-slate-350">
-                    <span>Electricity Bills:</span>
-                    <span className="font-mono text-white">INR {totals.electricityTotal.toLocaleString()}</span>
+                  <div className="border-t border-white/5 pt-1 space-y-1">
+                    <p className="text-[9px] uppercase tracking-wider text-rose-300 font-bold">Utility Bills Breakdown</p>
+                    <div className="flex justify-between text-slate-400 pl-2">
+                      <span>• Electricity:</span>
+                      <span className="font-mono text-white">INR {totals.electricityTotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400 pl-2">
+                      <span>• Water:</span>
+                      <span className="font-mono text-white">INR {totals.waterTotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400 pl-2">
+                      <span>• Gas:</span>
+                      <span className="font-mono text-white">INR {totals.gasTotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400 pl-2">
+                      <span>• Rent / Lease:</span>
+                      <span className="font-mono text-white">INR {totals.rentTotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400 pl-2">
+                      <span>• Internet:</span>
+                      <span className="font-mono text-white">INR {totals.internetTotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400 pl-2">
+                      <span>• Other:</span>
+                      <span className="font-mono text-white">INR {totals.otherTotal.toLocaleString()}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-slate-350">
-                    <span>Extra Expenses:</span>
-                    <span className="font-mono text-white">INR {totals.extraExpensesTotal.toLocaleString()}</span>
+                  <div className="flex justify-between text-slate-350 border-t border-white/5 pt-1">
+                    <span>Non-Bill Extra Exp:</span>
+                    <span className="font-mono text-white">INR {totals.nonBillExtraExpensesTotal.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-slate-350">
                     <span>Dentists Payouts:</span>
                     <span className="font-mono text-white">INR {totals.totalDoctorPay.toLocaleString()}</span>
                   </div>
-                  <div className="border-t border-white/5 pt-1.5 flex justify-between font-bold text-rose-455">
+                  <div className="border-t border-white/10 pt-1.5 flex justify-between font-bold text-rose-455">
                     <span>Total Expenses:</span>
                     <span className="font-mono">INR {totals.totalExpenses.toLocaleString()}</span>
                   </div>

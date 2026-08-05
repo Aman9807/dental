@@ -130,7 +130,7 @@ export default function AdminSidebar() {
           bottom: 0,
           height: '100vh',
           zIndex: 50,
-          overflow: 'hidden',
+          overflow: 'visible',
           borderRight: '1px solid rgba(255,255,255,0.05)',
         }}
       >
@@ -197,53 +197,7 @@ export default function AdminSidebar() {
                 )}
               </AnimatePresence>
             </div>
-            
-            <AnimatePresence initial={false}>
-              {!isCollapsed && !isMobile && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.2 }}
-                  onClick={handleToggleCollapse}
-                  style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: 'none',
-                    color: 'rgba(255,255,255,0.4)',
-                    borderRadius: '8px',
-                    padding: '4px',
-                    cursor: 'pointer',
-                    marginLeft: 'auto',
-                  }}
-                  className="hover:bg-white/10 hover:text-white flex items-center justify-center flex-shrink-0"
-                >
-                  <ChevronLeft size={15} />
-                </motion.button>
-              )}
-            </AnimatePresence>
           </div>
-
-          {/* Collapsed Expand Trigger */}
-          {isCollapsed && !isMobile && (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
-              <button
-                onClick={handleToggleCollapse}
-                style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: 'none',
-                  color: 'rgba(255,255,255,0.4)',
-                  borderRadius: '8px',
-                  padding: '6px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-                className="hover:bg-white/10 hover:text-white"
-              >
-                <ChevronRight size={15} />
-              </button>
-            </div>
-          )}
-
           {/* Navigation */}
           <nav style={{ padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {NAV_ITEMS.map((item) => {
@@ -257,11 +211,11 @@ export default function AdminSidebar() {
                       position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: isCollapsed ? 'center' : 'flex-start',
+                      justifyContent: 'flex-start',
                       paddingTop: 10,
                       paddingBottom: 10,
-                      paddingLeft: isCollapsed ? 0 : 12,
-                      paddingRight: isCollapsed ? 0 : 12,
+                      paddingLeft: isCollapsed ? 14 : 12,
+                      paddingRight: 12,
                       borderRadius: 14,
                       cursor: 'pointer',
                       background: active ? item.bg : 'transparent',
@@ -465,6 +419,34 @@ export default function AdminSidebar() {
             </AnimatePresence>
           </div>
         </div>
+
+        {!isMobile && (
+          <button
+            onClick={handleToggleCollapse}
+            style={{
+              position: 'absolute',
+              right: -12,
+              top: 22,
+              width: 24,
+              height: 24,
+              borderRadius: '50%',
+              background: '#152d28',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: 'rgba(255,255,255,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              zIndex: 60,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              transition: 'all 0.15s ease',
+            }}
+            className="hover:scale-110 hover:text-white hover:border-teal-400"
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+          </button>
+        )}
       </motion.aside>
     </>
   )

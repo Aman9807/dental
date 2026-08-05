@@ -173,6 +173,26 @@ export default function DoctorPortalEarningsClient({
   const totalAbsentGross = absentDaysGross.reduce((sum, item) => sum + item.gross, 0)
   const grossForSalary = docTotalGross - totalAbsentGross
 
+  const parseUtilityBills = (note: string) => {
+    if (!note.startsWith('Utility Bills - ')) return null
+    const parts = note.replace('Utility Bills - ', '').split(', ')
+    const res: Record<string, string> = {}
+    parts.forEach(p => {
+      const [key, val] = p.split(': ')
+      if (key) {
+        res[key.toLowerCase()] = val || '0'
+      }
+    })
+    return {
+      electricity: res['electricity'] || '0',
+      water: res['water'] || '0',
+      gas: res['gas'] || '0',
+      rent: res['rent'] || '0',
+      internet: res['internet'] || '0',
+      other: res['other'] || '0',
+    }
+  }
+
   let finalPayout = 0
   let branchProfit = 0
   let totalRevenue = 0
@@ -180,7 +200,14 @@ export default function DoctorPortalEarningsClient({
   let totalMedicineProfit = 0
   let branchHelpersPay = 0
   let electricity = 0
+  let water = 0
+  let gas = 0
+  let rent = 0
+  let internet = 0
+  let other = 0
+  let nonBillExtras = 0
   let extras = 0
+  let revenueTarget = 0
 
   if (doctor.compensation_type === 'fixed') {
     const dailyRate = doctor.fixed_salary / workingDays
@@ -227,18 +254,31 @@ export default function DoctorPortalEarningsClient({
       return sum + basePay
     }, 0)
 
-    // Electricity
-    electricity = electricityExpenses.find(e => e.month_year === selectedMonth)?.electricity_bill || 0
-
-    // Extra expenses
-    extras = extraExpenses.filter(e => {
+    // Extra expenses & Utility Bills parsing
+    const branchExtrasList = extraExpenses.filter(e => {
       const expDate = new Date(e.expense_date)
       const expMonthStr = `${expDate.getFullYear()}-${String(expDate.getMonth() + 1).padStart(2, '0')}`
       return expMonthStr === selectedMonth
-    }).reduce((sum, e) => sum + e.amount, 0)
+    })
+
+    branchExtrasList.forEach(e => {
+      const parsed = parseUtilityBills(e.note)
+      if (parsed) {
+        electricity += parsed.electricity ? parseFloat(parsed.electricity) : 0
+        water += parsed.water ? parseFloat(parsed.water) : 0
+        gas += parsed.gas ? parseFloat(parsed.gas) : 0
+        rent += parsed.rent ? parseFloat(parsed.rent) : 0
+        internet += parsed.internet ? parseFloat(parsed.internet) : 0
+        other += parsed.other ? parseFloat(parsed.other) : 0
+      } else {
+        nonBillExtras += e.amount || 0
+      }
+    })
+
+    extras = nonBillExtras + water + gas + rent + internet + other
 
     const target = doctor.profit_sharing_target || 'both'
-    const revenueTarget = target === 'treatment' 
+    revenueTarget = target === 'treatment' 
       ? totalTreatmentProfit 
       : target === 'medicine' 
       ? totalMedicineProfit 
