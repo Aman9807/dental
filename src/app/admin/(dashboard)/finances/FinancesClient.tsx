@@ -1260,7 +1260,7 @@ export default function FinancesClient({
         </div>
 
         <div 
-          className="clay clay-emerald p-5 border border-teal-100/50 space-y-1 relative group cursor-help"
+          className="clay clay-emerald p-5 border border-teal-100/50 space-y-1 relative group cursor-help z-10 hover:z-[100]"
           onMouseEnter={() => setShowMedTooltip(true)}
           onMouseLeave={() => setShowMedTooltip(false)}
         >
@@ -1274,7 +1274,7 @@ export default function FinancesClient({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3.5 w-60 p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-50 border border-teal-500/20 space-y-2 text-left"
+                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3.5 w-60 p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-[999] border border-teal-500/20 space-y-2 text-left"
               >
                 <div className="border-b border-white/10 pb-1.5 flex items-center justify-between">
                   <span className="font-bold text-teal-400">Medicine Profit Breakdown</span>
@@ -1301,7 +1301,7 @@ export default function FinancesClient({
         </div>
 
         <div 
-          className="clay clay-rose p-5 border border-rose-100/50 space-y-1 relative group cursor-help"
+          className="clay clay-rose p-5 border border-rose-100/50 space-y-1 relative group cursor-help z-10 hover:z-[100]"
           onMouseEnter={() => setShowExpTooltip(true)}
           onMouseLeave={() => setShowExpTooltip(false)}
         >
@@ -1311,13 +1311,12 @@ export default function FinancesClient({
           <AnimatePresence>
             {showExpTooltip && (
               <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="absolute left-1/2 -translate-x-1/2 top-full mt-3.5 w-72 sm:w-80 max-h-[360px] overflow-y-auto p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-50 border border-rose-500/20 space-y-2 text-left"
+                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3.5 w-72 sm:w-80 p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-[999] border border-rose-500/20 space-y-2 text-left"
               >
-                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-l border-t border-rose-500/20" />
                 <div className="border-b border-white/10 pb-1.5 flex items-center justify-between font-bold text-rose-400">
                   <span>Expenses Breakdown</span>
                   <span className="text-[9px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded-full font-semibold">Net Info</span>
@@ -1369,13 +1368,14 @@ export default function FinancesClient({
                     <span className="font-mono">INR {totals.totalExpenses.toLocaleString()}</span>
                   </div>
                 </div>
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-r border-b border-rose-500/20" />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         <div 
-          className="clay clay-indigo p-5 border border-indigo-100/50 space-y-1 relative group cursor-help"
+          className="clay clay-indigo p-5 border border-indigo-100/50 space-y-1 relative group cursor-help z-10 hover:z-[100]"
           onMouseEnter={() => setShowPreDocTooltip(true)}
           onMouseLeave={() => setShowPreDocTooltip(false)}
         >
@@ -1389,7 +1389,7 @@ export default function FinancesClient({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3.5 w-64 p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-50 border border-indigo-500/20 space-y-2 text-left"
+                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3.5 w-64 p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-[999] border border-indigo-500/20 space-y-2 text-left"
               >
                 <div className="border-b border-white/10 pb-1.5 flex items-center justify-between font-bold text-indigo-400">
                   <span>Pre-Doctor Net Profit</span>
