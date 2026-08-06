@@ -925,12 +925,28 @@ export async function updateDoctorAttendance(
   }
 }
 
+async function resolveBranchId(branchIdInput: string): Promise<string | null> {
+  if (!branchIdInput || !branchIdInput.trim()) return null
+  const input = branchIdInput.trim()
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)
+  if (isUuid) return input
+
+  const adminDb = getAdminSupabase()
+  const { data: branch } = await adminDb
+    .from('branches')
+    .select('id')
+    .eq('slug', input)
+    .maybeSingle()
+
+  return branch?.id || null
+}
+
 export async function addExtraExpense(amount: number, note: string, date: string, branchId: string) {
   const adminDb = getAdminSupabase()
   if (!note || note.trim() === '') {
     return { success: false, error: 'A description/note is compulsory for extra expenses.' }
   }
-  const sanitizedBranchId = branchId && branchId.trim() !== '' ? branchId : null
+  const sanitizedBranchId = await resolveBranchId(branchId)
   try {
     const { data, error } = await adminDb
       .from('extra_expenses')
@@ -955,7 +971,7 @@ export async function updateExtraExpense(id: string, amount: number, note: strin
   if (!note || note.trim() === '') {
     return { success: false, error: 'A description/note is compulsory for extra expenses.' }
   }
-  const sanitizedBranchId = branchId && branchId.trim() !== '' ? branchId : null
+  const sanitizedBranchId = await resolveBranchId(branchId)
   try {
     const { data, error } = await adminDb
       .from('extra_expenses')

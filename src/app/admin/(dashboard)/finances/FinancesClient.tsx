@@ -813,7 +813,8 @@ export default function FinancesClient({
 
     setAddingExpense(true)
     const amount = parseFloat(expenseAmount || '0')
-    const targetBranch = (expenseBranch && expenseBranch.trim() !== '') ? expenseBranch : (selectedBranch !== 'all' ? selectedBranch : branches[0]?.id || '')
+    const activeBranchObj = branches.find(b => b.id === expenseBranch || b.slug === expenseBranch || b.slug === selectedBranch || b.id === selectedBranch)
+    const targetBranch = activeBranchObj?.id || (expenseBranch && expenseBranch.trim() !== '' ? expenseBranch : branches[0]?.id || '')
 
     try {
       if (editingExpenseId) {
@@ -864,7 +865,8 @@ export default function FinancesClient({
 
     const totalBillAmount = elec + water + gas + rent + internet + other
     const note = `Utility Bills - Electricity: ${elec}, Water: ${water}, Gas: ${gas}, Rent: ${rent}, Internet: ${internet}, Other: ${other}`
-    const targetBranch = (billBranch && billBranch.trim() !== '') ? billBranch : (selectedBranch !== 'all' ? selectedBranch : branches[0]?.id || '')
+    const activeBranchObj = branches.find(b => b.id === billBranch || b.slug === billBranch || b.slug === selectedBranch || b.id === selectedBranch)
+    const targetBranch = activeBranchObj?.id || (billBranch && billBranch.trim() !== '' ? billBranch : branches[0]?.id || '')
 
     try {
       if (editingExpenseId) {
