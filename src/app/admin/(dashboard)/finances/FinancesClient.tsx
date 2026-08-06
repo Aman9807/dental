@@ -302,9 +302,9 @@ export default function FinancesClient({
   const [reductionReason, setReductionReason] = useState('')
 
   // Earning breakdown and tooltips states
-  const [selectedDocDetail, setSelectedDocDetail] = useState<any | null>(null)
   const [showMedTooltip, setShowMedTooltip] = useState(false)
   const [showExpTooltip, setShowExpTooltip] = useState(false)
+  const [showPreDocTooltip, setShowPreDocTooltip] = useState(false)
   const [showAddBill, setShowAddBill] = useState(false)
   const [billElectricity, setBillElectricity] = useState('')
   const [billWater, setBillWater] = useState('')
@@ -813,11 +813,12 @@ export default function FinancesClient({
 
     setAddingExpense(true)
     const amount = parseFloat(expenseAmount || '0')
+    const targetBranch = (expenseBranch && expenseBranch.trim() !== '') ? expenseBranch : (selectedBranch !== 'all' ? selectedBranch : branches[0]?.id || '')
 
     try {
       if (editingExpenseId) {
         // Edit flow
-        const res = await updateExtraExpense(editingExpenseId, amount, expenseNote, expenseDate, expenseBranch)
+        const res = await updateExtraExpense(editingExpenseId, amount, expenseNote, expenseDate, targetBranch)
         if (res.success && res.data) {
           alert('Extra expense updated successfully!')
           setExtraExpenses(prev => prev.map(exp => exp.id === editingExpenseId ? res.data[0] : exp))
@@ -830,7 +831,7 @@ export default function FinancesClient({
         }
       } else {
         // Add flow
-        const res = await addExtraExpense(amount, expenseNote, expenseDate, expenseBranch)
+        const res = await addExtraExpense(amount, expenseNote, expenseDate, targetBranch)
         if (res.success && res.data) {
           alert('Extra expense logged successfully!')
           setExtraExpenses(prev => [res.data[0], ...prev])
@@ -841,9 +842,9 @@ export default function FinancesClient({
           alert(res.error || 'Failed to add expense')
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('An error occurred.')
+      alert(err?.message || 'An error occurred while saving the expense.')
     } finally {
       setAddingExpense(false)
     }
@@ -863,11 +864,12 @@ export default function FinancesClient({
 
     const totalBillAmount = elec + water + gas + rent + internet + other
     const note = `Utility Bills - Electricity: ${elec}, Water: ${water}, Gas: ${gas}, Rent: ${rent}, Internet: ${internet}, Other: ${other}`
+    const targetBranch = (billBranch && billBranch.trim() !== '') ? billBranch : (selectedBranch !== 'all' ? selectedBranch : branches[0]?.id || '')
 
     try {
       if (editingExpenseId) {
         // Edit flow
-        const res = await updateExtraExpense(editingExpenseId, totalBillAmount, note, billDate, billBranch)
+        const res = await updateExtraExpense(editingExpenseId, totalBillAmount, note, billDate, targetBranch)
         if (res.success && res.data) {
           alert('Bill details updated successfully!')
           setExtraExpenses(prev => prev.map(exp => exp.id === editingExpenseId ? res.data[0] : exp))
@@ -878,7 +880,7 @@ export default function FinancesClient({
         }
       } else {
         // Add flow
-        const res = await addExtraExpense(totalBillAmount, note, billDate, billBranch)
+        const res = await addExtraExpense(totalBillAmount, note, billDate, targetBranch)
         if (res.success && res.data) {
           alert('Bill details saved successfully!')
           setExtraExpenses(prev => [res.data[0], ...prev])
@@ -887,9 +889,9 @@ export default function FinancesClient({
           alert(res.error || 'Failed to save bill')
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('An error occurred.')
+      alert(err?.message || 'An error occurred while saving the bill.')
     } finally {
       setSavingBill(false)
     }
@@ -1238,7 +1240,7 @@ export default function FinancesClient({
       </div>
 
       {/* ════ SECTION 2: STATS OVERVIEW (CLAY CARDS) ════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
         
         <div className="clay p-5 border border-slate-200/60 space-y-1">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Gross Charged</p>
@@ -1363,6 +1365,51 @@ export default function FinancesClient({
                   </div>
                 </div>
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-r border-b border-rose-500/20" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div 
+          className="clay clay-indigo p-5 border border-indigo-100/50 space-y-1 relative group cursor-help"
+          onMouseEnter={() => setShowPreDocTooltip(true)}
+          onMouseLeave={() => setShowPreDocTooltip(false)}
+        >
+          <p className="text-[10px] text-indigo-700 uppercase tracking-wider font-bold">Pre-Doctor Net Profit</p>
+          <p className="text-xl font-bold font-mono text-indigo-600">INR {totals.branchNetProfitBeforeDoctors.toLocaleString()}</p>
+          
+          <AnimatePresence>
+            {showPreDocTooltip && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3.5 w-64 p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-50 border border-indigo-500/20 space-y-2 text-left"
+              >
+                <div className="border-b border-white/10 pb-1.5 flex items-center justify-between font-bold text-indigo-400">
+                  <span>Pre-Doctor Net Profit</span>
+                  <span className="text-[9px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-full font-semibold">Clinic Profit</span>
+                </div>
+                <div className="space-y-1.5 font-medium">
+                  <div className="flex justify-between text-slate-300">
+                    <span>Treatment & Med Profit:</span>
+                    <span className="font-mono text-white">INR {totals.treatmentProfit.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-350">
+                    <span>- Helper Salaries:</span>
+                    <span className="font-mono text-rose-300">INR {totals.helperSalariesTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-350">
+                    <span>- Utility & Extra Exp:</span>
+                    <span className="font-mono text-rose-300">INR {(totals.electricityTotal + totals.extraExpensesTotal).toLocaleString()}</span>
+                  </div>
+                  <div className="border-t border-white/10 pt-1.5 flex justify-between font-bold text-indigo-400">
+                    <span>Net Profit (Excl. Doctors):</span>
+                    <span className="font-mono">INR {totals.branchNetProfitBeforeDoctors.toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-r border-b border-indigo-500/20" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -2294,7 +2341,7 @@ export default function FinancesClient({
                   setBillInternet('')
                   setBillOther('')
                   setBillDate(new Date().toISOString().split('T')[0])
-                  setBillBranch(branches[0]?.id || '')
+                  setBillBranch(selectedBranch !== 'all' ? selectedBranch : branches[0]?.id || '')
                   setEditingExpenseId(null)
                   setShowAddBill(true)
                 }}
@@ -2307,7 +2354,7 @@ export default function FinancesClient({
                   setExpenseAmount('0')
                   setExpenseNote('')
                   setExpenseDate(new Date().toISOString().split('T')[0])
-                  setExpenseBranch(branches[0]?.id || '')
+                  setExpenseBranch(selectedBranch !== 'all' ? selectedBranch : branches[0]?.id || '')
                   setEditingExpenseId(null)
                   setShowAddExpense(true)
                 }}
