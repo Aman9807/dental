@@ -77,6 +77,22 @@ export default function InventoryClient({ initialItems, branches }: Props) {
   const [formMrp, setFormMrp] = useState('22')
   const [isSaving, setIsSaving] = useState(false)
 
+  // Add Stock / Receive New Batch Modal state
+  const [showBatchModal, setShowBatchModal] = useState(false)
+  const [batchTargetItem, setBatchTargetItem] = useState<InventoryItem | null>(null)
+  const [batchNumber, setBatchNumber] = useState('')
+  const [batchExpiry, setBatchExpiry] = useState(() => {
+    const next = new Date()
+    next.setFullYear(next.getFullYear() + 2)
+    return next.toISOString().split('T')[0]
+  })
+  const [batchAddQty, setBatchAddQty] = useState('30')
+  const [batchCostPrice, setBatchCostPrice] = useState('12')
+  const [batchSellingPrice, setBatchSellingPrice] = useState('18')
+  const [batchMrp, setBatchMrp] = useState('22')
+  const [batchBranch, setBatchBranch] = useState(selectedBranch)
+  const [isSavingBatch, setIsSavingBatch] = useState(false)
+
   // Active Dropdown Row Menu ID
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
 
@@ -282,6 +298,106 @@ export default function InventoryClient({ initialItems, branches }: Props) {
     }
   }
 
+  // Open Modal for Adding Stock / New Batch
+  const handleOpenAddBatchModal = (item?: InventoryItem) => {
+    const target = item || items[0] || null
+    setBatchTargetItem(target)
+    const now = new Date()
+    const autoBatch = `BATCH-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`
+    setBatchNumber(autoBatch)
+    setBatchAddQty('30')
+    if (target) {
+      setBatchCostPrice(String(target.costPrice || 12))
+      setBatchSellingPrice(String(target.unitPrice || 18))
+      setBatchMrp(String(target.mrp || 22))
+    } else {
+      setBatchCostPrice('12')
+      setBatchSellingPrice('18')
+      setBatchMrp('22')
+    }
+    setBatchBranch(selectedBranch)
+    setShowBatchModal(true)
+  }
+
+  // Submit Add Stock / New Batch
+  const handleSaveBatchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!batchTargetItem && !formName.trim()) {
+      alert('Please select an inventory item.')
+      return
+    }
+    if (!batchNumber.trim()) {
+      alert('Batch Number is required.')
+      return
+    }
+
+    setIsSavingBatch(true)
+    try {
+      const addedQty = Math.ceil(parseFloat(batchAddQty || '0'))
+      const targetBarcode = batchTargetItem?.barcode || formBarcode || `SKU-${Math.floor(100000 + Math.random() * 900000)}`
+      const targetName = batchTargetItem?.name || formName.trim()
+
+      const res = await saveMedicineStock(
+        targetBarcode,
+        addedQty,
+        {
+          name: targetName,
+          genericName: batchTargetItem?.generic_name || formGeneric || '',
+          tabletsPerPatch: 1,
+          batchNumber: batchNumber.trim(),
+          expiryDate: batchExpiry,
+          patchPrice: parseFloat(batchSellingPrice || '0'),
+          costPrice: parseFloat(batchCostPrice || '0'),
+          mrp: parseFloat(batchMrp || '0'),
+          branchSlug: batchBranch
+        }
+      )
+
+      if (res.success) {
+        alert(`Stock added successfully! Added ${addedQty} units for batch "${batchNumber}".`)
+
+        setItems(prev => {
+          return prev.map(i => {
+            if (i.id === batchTargetItem?.id || i.name.toLowerCase() === targetName.toLowerCase() || i.barcode === targetBarcode) {
+              const updatedStock = Number(i.stock || 0) + addedQty
+              const stockStatus = updatedStock === 0 ? 'Out of Stock' : updatedStock <= 30 ? 'Low' : updatedStock <= 100 ? 'Medium' : 'High'
+              return {
+                ...i,
+                stock: updatedStock,
+                costPrice: parseFloat(batchCostPrice || '0'),
+                unitPrice: parseFloat(batchSellingPrice || '0'),
+                mrp: parseFloat(batchMrp || '0'),
+                stockStatus,
+                batches: [
+                  {
+                    id: res.medicineId || Math.random().toString(),
+                    batch_number: batchNumber,
+                    expiry_date: batchExpiry,
+                    price: parseFloat(batchSellingPrice || '0'),
+                    cost_price: parseFloat(batchCostPrice || '0'),
+                    mrp: parseFloat(batchMrp || '0'),
+                    stock: addedQty
+                  },
+                  ...(i.batches || [])
+                ]
+              }
+            }
+            return i
+          })
+        })
+
+        setShowBatchModal(false)
+      } else {
+        alert(res.error || 'Failed to add new batch.')
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(err?.message || 'An error occurred while saving batch.')
+    } finally {
+      setIsSavingBatch(false)
+    }
+  }
+
   return (
     <div className="w-full min-h-screen bg-slate-50 dark:bg-[#091210] font-sans text-slate-800 dark:text-slate-100 p-4 sm:p-6 lg:p-8 space-y-6">
 
@@ -320,6 +436,14 @@ export default function InventoryClient({ initialItems, branches }: Props) {
               ))}
             </select>
           </div>
+
+          {/* Add Stock / New Batch Button */}
+          <button
+            onClick={() => handleOpenAddBatchModal()}
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-emerald-600/15 transition-all duration-300 ease-out hover:scale-[1.02] cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Add Stock / New Batch
+          </button>
 
           {/* Export PDF Modal Button */}
           <button
@@ -661,6 +785,16 @@ export default function InventoryClient({ initialItems, branches }: Props) {
                               <button
                                 onClick={() => {
                                   setActiveMenuId(null)
+                                  handleOpenAddBatchModal(item)
+                                }}
+                                className="w-full px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-xl flex items-center gap-2 cursor-pointer font-bold"
+                              >
+                                <Plus className="w-3.5 h-3.5 text-emerald-600" /> + Add Stock / New Batch
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setActiveMenuId(null)
                                   handleOpenEditModal(item)
                                 }}
                                 className="w-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl flex items-center gap-2 cursor-pointer"
@@ -921,6 +1055,180 @@ export default function InventoryClient({ initialItems, branches }: Props) {
                     className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 rounded-xl shadow-md transition cursor-pointer"
                   >
                     {isSaving ? 'Saving...' : 'Save Product Stock'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ════ SECTION 7: ADD STOCK / RECEIVE NEW BATCH MODAL ════ */}
+      <AnimatePresence>
+        {showBatchModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className="bg-white dark:bg-[#11201c] border border-slate-200 dark:border-teal-900/40 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+            >
+              <div className="px-6 py-4 bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Add Stock / Receive New Batch
+                  </h3>
+                </div>
+                <button onClick={() => setShowBatchModal(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveBatchSubmit} className="p-6 space-y-4">
+                
+                {/* Selected Item Info Banner */}
+                <div className="p-3.5 bg-slate-50 dark:bg-[#152a24] border border-slate-200/80 dark:border-teal-900/40 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Target Product</label>
+                    {batchTargetItem ? (
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">{batchTargetItem.name}</p>
+                        <p className="text-[11px] text-slate-400">SKU: {batchTargetItem.barcode || 'N/A'}</p>
+                      </div>
+                    ) : (
+                      <select
+                        onChange={e => {
+                          const found = items.find(i => i.id === e.target.value)
+                          if (found) {
+                            setBatchTargetItem(found)
+                            setBatchCostPrice(String(found.costPrice || 12))
+                            setBatchSellingPrice(String(found.unitPrice || 18))
+                            setBatchMrp(String(found.mrp || 22))
+                          }
+                        }}
+                        className="mt-1 px-3 py-1.5 bg-white dark:bg-[#182d27] border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs font-semibold"
+                      >
+                        {items.map(i => (
+                          <option key={i.id} value={i.id}>{i.name} ({i.barcode || 'No SKU'})</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  {batchTargetItem && (
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Current Stock</span>
+                      <p className="text-sm font-bold font-mono text-cyan-600 dark:text-cyan-400">{batchTargetItem.stock} units</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">New Batch Number *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. BATCH-2026-08"
+                      value={batchNumber}
+                      onChange={e => setBatchNumber(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-[#182d27] border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">Expiry Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={batchExpiry}
+                      onChange={e => setBatchExpiry(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-[#182d27] border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1 col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">New Stock Quantity to Add *</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      placeholder="e.g. 50"
+                      value={batchAddQty}
+                      onChange={e => setBatchAddQty(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-[#182d27] border border-emerald-300 dark:border-emerald-900/50 rounded-xl text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* Pricing Updates for New Batch */}
+                  <div className="p-3 bg-slate-50 dark:bg-[#152a24] border border-slate-200/80 dark:border-teal-900/40 rounded-2xl col-span-2 space-y-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200/50 dark:border-teal-900/30 pb-1">
+                      Update Price & MRP for this Batch (Optional)
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">Cost Price (INR)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={batchCostPrice}
+                          onChange={e => setBatchCostPrice(e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-[#182d27] border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs font-mono font-semibold text-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">Selling Price (INR)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={batchSellingPrice}
+                          onChange={e => setBatchSellingPrice(e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-[#182d27] border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs font-mono font-semibold text-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">MRP (INR)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={batchMrp}
+                          onChange={e => setBatchMrp(e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-[#182d27] border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs font-mono font-semibold text-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">Branch Clinic</label>
+                    <select
+                      value={batchBranch}
+                      onChange={e => setBatchBranch(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-[#182d27] border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                    >
+                      {branches.map(b => (
+                        <option key={b.id} value={b.slug}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-teal-900/20">
+                  <button
+                    type="button"
+                    onClick={() => setShowBatchModal(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingBatch}
+                    className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> {isSavingBatch ? 'Saving Batch...' : 'Save New Batch & Add Stock'}
                   </button>
                 </div>
               </form>
