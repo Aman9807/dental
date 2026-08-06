@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -396,22 +396,22 @@ export default function FinancesClient({
   const year = parseInt(yearStr || '2026', 10)
   const month = parseInt(monthStr || '07', 10)
 
-  // Filter helper boys based on selected branch
-  const getBranchFilteredHelpers = () => {
+  // Filter helper boys based on selected branch (Memoized)
+  const branchFilteredHelpers = useMemo(() => {
     if (selectedBranch === 'all') return helperBoysList
     const targetBranch = branches.find(b => b.slug === selectedBranch)
     return helperBoysList.filter(h => h.branch_id === targetBranch?.id)
-  }
+  }, [selectedBranch, helperBoysList, branches])
 
-  // Filter doctors based on selected branch
-  const getBranchFilteredDoctors = () => {
+  // Filter doctors based on selected branch (Memoized)
+  const branchFilteredDoctors = useMemo(() => {
     if (selectedBranch === 'all') return doctors
     const targetBranch = branches.find(b => b.slug === selectedBranch)
     return doctors.filter(d => d.branch_id === targetBranch?.id)
-  }
+  }, [selectedBranch, doctors, branches])
 
-  // Filter extra expenses for the selected branch/month
-  const getFilteredExtraExpenses = () => {
+  // Filter extra expenses for the selected branch/month (Memoized)
+  const filteredExtraExpenses = useMemo(() => {
     return extraExpenses.filter(e => {
       const expDate = new Date(e.expense_date)
       const expMonthStr = `${expDate.getFullYear()}-${String(expDate.getMonth() + 1).padStart(2, '0')}`
@@ -422,17 +422,16 @@ export default function FinancesClient({
       }
       return true
     })
-  }
+  }, [extraExpenses, selectedMonth, selectedBranch, branches])
 
-  // Filter appointments for the selected branch/month
-  const getFilteredAppointments = () => {
+  // Filter appointments for the selected branch/month (Memoized)
+  const filteredAppointments = useMemo(() => {
     return appointments.filter(appt => {
       const apptDate = new Date(appt.appointment_date)
       const apptMonthStr = `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}`
       if (apptMonthStr !== selectedMonth) return false
       if (selectedBranch !== 'all' && appt.branches?.slug !== selectedBranch) return false
       
-      // Grouping filter: If this appointment has no invoices, check if another appointment for the same patient on the same day has invoices
       const hasInvoice = appt.invoices && appt.invoices.length > 0
       if (!hasInvoice && appt.patients?.id) {
         const hasAlternativeBilled = appointments.some(other => 
@@ -442,12 +441,18 @@ export default function FinancesClient({
           other.invoices && other.invoices.length > 0
         )
         if (hasAlternativeBilled) {
-          return false // Skip duplicate invoice-less rows since patient has a finalized invoice today
+          return false
         }
       }
       return true
     })
-  }
+  }, [appointments, selectedMonth, selectedBranch])
+
+  // Function wrappers for backward compatibility
+  const getBranchFilteredHelpers = () => branchFilteredHelpers
+  const getBranchFilteredDoctors = () => branchFilteredDoctors
+  const getFilteredExtraExpenses = () => filteredExtraExpenses
+  const getFilteredAppointments = () => filteredAppointments
 
   // Calculate Helper salary for the month dynamically
   const calculateHelperSalary = (helper: HelperBoy) => {
@@ -470,10 +475,8 @@ export default function FinancesClient({
     return (shift1Worked * helper.shift_1_rate) + (shift2Worked * helper.shift_2_rate)
   }
 
-  // Calculated Financial Metrics for selected month & branch
-  const calculateTotals = () => {
-    const filteredAppts = getFilteredAppointments()
-    
+  // Calculated Financial Metrics for selected month & branch (Memoized for performance)
+  const totals = useMemo(() => {
     let totalCharged = 0
     let totalTreatmentCost = 0
     let totalTreatmentProfit = 0
@@ -481,7 +484,7 @@ export default function FinancesClient({
     let totalMedicineCost = 0
     let totalMedicineRevenue = 0
 
-    filteredAppts.forEach(appt => {
+    filteredAppointments.forEach(appt => {
       const finances = getAppointmentFinances(appt)
       if (finances) {
         totalCharged += finances.totalPaid
@@ -496,9 +499,7 @@ export default function FinancesClient({
     const treatmentProfit = totalTreatmentProfit + totalMedicineProfit
 
     // 2. Fixed Expenses (Helper Salaries + Electricity)
-    // Helper salaries
-    const helpers = getBranchFilteredHelpers()
-    const helperSalariesTotal = helpers.reduce((sum, h) => {
+    const helperSalariesTotal = branchFilteredHelpers.reduce((sum, h) => {
       const basePay = calculateHelperSalary(h)
       const reductionsAmount = salaryReductions
         .filter(r => r.person_id === h.id && r.month_year === selectedMonth && r.person_type === 'helper')
@@ -506,9 +507,7 @@ export default function FinancesClient({
       return sum + Math.max(0, basePay - reductionsAmount)
     }, 0)
 
-    // 3. Extra Expenses & Utility Bills (parsing out utilities)
-    const extras = getFilteredExtraExpenses()
-    
+    // 3. Extra Expenses & Utility Bills
     let electricityTotal = 0
     let waterTotal = 0
     let gasTotal = 0
@@ -517,7 +516,7 @@ export default function FinancesClient({
     let otherTotal = 0
     let nonBillExtraExpensesTotal = 0
 
-    extras.forEach(e => {
+    filteredExtraExpenses.forEach(e => {
       const parsed = parseUtilityBills(e.note)
       if (parsed) {
         electricityTotal += parsed.electricity ? parseFloat(parsed.electricity) : 0
@@ -533,18 +532,15 @@ export default function FinancesClient({
 
     const extraExpensesTotal = nonBillExtraExpensesTotal + waterTotal + gasTotal + rentTotal + internetTotal + otherTotal
 
-    // Doctor Payroll Expenses (if configured as fixed salary)
-    const activeDocs = getBranchFilteredDoctors()
-    
-    // Calculated branch profit before doctor percentage share
+    // Doctor Payroll Expenses
     const branchNetProfitBeforeDoctors = treatmentProfit - helperSalariesTotal - electricityTotal - extraExpensesTotal
 
     let doctorFixedSalariesTotal = 0
     let doctorPercentagePayoutsTotal = 0
 
-    activeDocs.forEach(d => {
+    branchFilteredDoctors.forEach(d => {
       if (d.compensation_type === 'fixed') {
-        const docWorkingDays = getWorkingDaysInMonth(year, month, false) // Doctors don't work sundays
+        const docWorkingDays = getWorkingDaysInMonth(year, month, false)
         const absencesCount = doctorAttendance.filter(a => {
           if (a.doctor_id !== d.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
           const absDate = new Date(a.date)
@@ -560,7 +556,6 @@ export default function FinancesClient({
           .reduce((acc, curr) => acc + curr.amount, 0)
         doctorFixedSalariesTotal += Math.max(0, basePay - reductionsAmount)
       } else {
-        // Percentage based on branch net profit
         let bProfit = branchNetProfitBeforeDoctors
         
         if (selectedBranch !== 'all') {
@@ -571,7 +566,6 @@ export default function FinancesClient({
             bProfit = totalMedicineProfit - helperSalariesTotal - electricityTotal - extraExpensesTotal
           }
         } else {
-          // If viewing all, base it on the doctor's specific branch
           const docBranchBill = electricityExpenses.find(e => e.branch_id === d.branch_id && e.month_year === selectedMonth)?.electricity_bill || 0
           const docBranchHelpers = helperBoysList.filter(h => h.branch_id === d.branch_id)
           const docBranchHelpersPay = docBranchHelpers.reduce((sum, h) => sum + calculateHelperSalary(h), 0)
@@ -658,9 +652,24 @@ export default function FinancesClient({
       netProfit: Math.round(netProfit),
       branchNetProfitBeforeDoctors: Math.round(branchNetProfitBeforeDoctors)
     }
-  }
-
-  const totals = calculateTotals()
+  }, [
+    filteredAppointments,
+    branchFilteredHelpers,
+    branchFilteredDoctors,
+    filteredExtraExpenses,
+    electricityExpenses,
+    helperBoysList,
+    extraExpenses,
+    appointments,
+    doctorAttendance,
+    helperAttendance,
+    salaryReductions,
+    selectedBranch,
+    selectedMonth,
+    year,
+    month,
+    doctorRule
+  ])
 
   // Save closing patient financial records
   const handleSaveFinances = async (apptId: string) => {
