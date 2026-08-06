@@ -1311,62 +1311,64 @@ export default function FinancesClient({
           <AnimatePresence>
             {showExpTooltip && (
               <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3.5 w-60 p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-50 border border-rose-500/20 space-y-2 text-left"
+                className="absolute left-1/2 -translate-x-1/2 top-full mt-3.5 w-72 sm:w-80 max-h-[360px] overflow-y-auto p-4 bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-2xl shadow-2xl z-50 border border-rose-500/20 space-y-2 text-left"
               >
-                <div className="border-b border-white/10 pb-1.5 flex items-center justify-between font-bold text-rose-450">
+                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-l border-t border-rose-500/20" />
+                <div className="border-b border-white/10 pb-1.5 flex items-center justify-between font-bold text-rose-400">
                   <span>Expenses Breakdown</span>
                   <span className="text-[9px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded-full font-semibold">Net Info</span>
                 </div>
                 <div className="space-y-1.5 font-medium">
-                  <div className="flex justify-between text-slate-350">
+                  <div className="flex justify-between text-slate-300">
                     <span>Helper Salaries:</span>
                     <span className="font-mono text-white">INR {totals.helperSalariesTotal.toLocaleString()}</span>
                   </div>
-                  <div className="border-t border-white/5 pt-1 space-y-1">
+                  <div className="border-t border-white/10 pt-1.5 space-y-1">
                     <p className="text-[9px] uppercase tracking-wider text-rose-300 font-bold">Utility Bills Breakdown</p>
-                    <div className="flex justify-between text-slate-400 pl-2">
-                      <span>• Electricity:</span>
-                      <span className="font-mono text-white">INR {totals.electricityTotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-400 pl-2">
-                      <span>• Water:</span>
-                      <span className="font-mono text-white">INR {totals.waterTotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-400 pl-2">
-                      <span>• Gas:</span>
-                      <span className="font-mono text-white">INR {totals.gasTotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-400 pl-2">
-                      <span>• Rent / Lease:</span>
-                      <span className="font-mono text-white">INR {totals.rentTotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-400 pl-2">
-                      <span>• Internet:</span>
-                      <span className="font-mono text-white">INR {totals.internetTotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-400 pl-2">
-                      <span>• Other:</span>
-                      <span className="font-mono text-white">INR {totals.otherTotal.toLocaleString()}</span>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-slate-300 text-[11px]">
+                      <div className="flex justify-between">
+                        <span>Electricity:</span>
+                        <span className="font-mono text-white">INR {totals.electricityTotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Water:</span>
+                        <span className="font-mono text-white">INR {totals.waterTotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Gas:</span>
+                        <span className="font-mono text-white">INR {totals.gasTotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Rent:</span>
+                        <span className="font-mono text-white">INR {totals.rentTotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Internet:</span>
+                        <span className="font-mono text-white">INR {totals.internetTotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Other:</span>
+                        <span className="font-mono text-white">INR {totals.otherTotal.toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex justify-between text-slate-350 border-t border-white/5 pt-1">
+                  <div className="flex justify-between text-slate-300 border-t border-white/10 pt-1.5">
                     <span>Non-Bill Extra Exp:</span>
                     <span className="font-mono text-white">INR {totals.nonBillExtraExpensesTotal.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-slate-350">
+                  <div className="flex justify-between text-slate-300">
                     <span>Dentists Payouts:</span>
                     <span className="font-mono text-white">INR {totals.totalDoctorPay.toLocaleString()}</span>
                   </div>
-                  <div className="border-t border-white/10 pt-1.5 flex justify-between font-bold text-rose-455">
+                  <div className="border-t border-white/10 pt-1.5 flex justify-between font-bold text-rose-400">
                     <span>Total Expenses:</span>
                     <span className="font-mono">INR {totals.totalExpenses.toLocaleString()}</span>
                   </div>
                 </div>
-                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-r border-b border-rose-500/20" />
               </motion.div>
             )}
           </AnimatePresence>
